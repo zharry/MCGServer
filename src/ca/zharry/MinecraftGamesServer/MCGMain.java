@@ -1,6 +1,6 @@
 package ca.zharry.MinecraftGamesServer;
 
-import ca.zharry.MinecraftGamesServer.MySQL.MysqlConnection;
+import ca.zharry.MinecraftGamesServer.MysqlConnection.MysqlConnection;
 import ca.zharry.MinecraftGamesServer.Servers.*;
 import org.bukkit.plugin.java.JavaPlugin;
 
