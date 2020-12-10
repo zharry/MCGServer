@@ -1,0 +1,48 @@
+name: MinecraftGamesServer
+version: 0.1
+author: Harry Zhang
+main: ca.zharry.MinecraftGamesServer.MCGMain
+api-version: 1.16
+commands:
+  setgame:
+    description: Starts the specified minigame
+    usage: /setgame [game]
+  timernextset:
+    description: Sets the tick-time on the currrent minigame timer
+    usage: /timernextset [ticks]
+  timernextpause:
+    description: Pauses the current minigame timer
+    usage: /timernextpause
+  timernextresume:
+    description: Resumes the current minigame timer
+    usage: /timernextresume
+  start:
+    description: Starts the current game
+    usage: /start
+  timerstartset:
+    description: Minigame pre-game timer set
+    usage: /timerstartset [ticks]
+  timerstartpause:
+    description: Minigame pre-game timer pause
+    usage: /timerstartpause
+  timerstartresume:
+    description: Minigame pre-game timer resume
+    usage: /timerstartresume
+  timergameset:
+    description: Minigame in-game timer set
+    usage: /timergameset [ticks]
+  timergamepause:
+    description: Minigame in-game timer pause
+    usage: /timergamepause
+  timergameresume:
+    description: Minigame in-game timer resume
+    usage: /timergameresume
+  timerfinishedset:
+    description: Minigame post-game timer set
+    usage: /timerfinishedset [ticks]
+  timerfinishedpause:
+    description: Minigame post-game timer pause
+    usage: /timerfinishedpause
+  timerfinishedresume:
+    description: Minigame post-game timer resume
+    usage: /timerfinishedresume
