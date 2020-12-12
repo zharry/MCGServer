@@ -21,14 +21,11 @@ public class ListenerOnPlayerJoinDodgeball implements Listener {
         Player player = event.getPlayer();
         server.players.add(new PlayerDodgeball(player, server));
 
-        if (server.state == ServerDodgeball.GAME_WAITING || server.state == ServerDodgeball.GAME_STARTING) {
-            Location serverSpawn = new Location(player.getWorld(), 14.5, 75, 17.5);
+        if (server.state == ServerDodgeball.GAME_WAITING ||
+                server.state == ServerDodgeball.GAME_STARTING ||
+                server.state == ServerDodgeball.GAME_FINISHED) {
+            Location serverSpawn = new Location(player.getWorld(), -15.5, 4, 1.5);
             player.teleport(serverSpawn);
-            player.setGameMode(GameMode.ADVENTURE);
-        }
-        if (server.state == ServerDodgeball.GAME_FINISHED) {
-            Location gameSpectate = new Location(player.getWorld(), 14.5, 75, 17.5);
-            player.teleport(gameSpectate);
             player.setGameMode(GameMode.ADVENTURE);
         }
     }

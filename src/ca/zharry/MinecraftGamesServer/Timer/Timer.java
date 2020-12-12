@@ -21,10 +21,10 @@ public abstract class Timer {
                     onTick();
                 }
                 if (!paused && ticks <= 0) {
-                    onEnd();
                     ticks = -1;
                     started = false;
                     paused = true;
+                    onEnd();
                 }
             }
         }.runTaskTimer(plugin, 0, 1);

@@ -67,9 +67,10 @@ public class MCGMain extends JavaPlugin {
 
             statement.execute("CREATE TABLE IF NOT EXISTS `teams` ( " +
                     "`id` INT NOT NULL AUTO_INCREMENT , " +
+                    "`season` INT NOT NULL , " +
                     "`teamname` VARCHAR(255) NOT NULL , " +
-                    "`players` VARCHAR(255) NOT NULL , " +
-                    "`config` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`config`)), " +
+                    "`players` VARCHAR(255) NOT NULL , " + // MAX TEAM SIZE IS 6
+                    "`color` VARCHAR(255) NOT NULL , " +
                     "PRIMARY KEY (`id`)) ENGINE = InnoDB;");
 
         } catch (Exception e) {

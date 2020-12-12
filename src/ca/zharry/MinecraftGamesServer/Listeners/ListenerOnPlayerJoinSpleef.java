@@ -21,12 +21,9 @@ public class ListenerOnPlayerJoinSpleef implements Listener {
         Player player = event.getPlayer();
         server.players.add(new PlayerSpleef(player, server));
 
-        if (server.state == ServerSpleef.GAME_WAITING || server.state == ServerSpleef.GAME_STARTING) {
-            Location serverSpawn = new Location(player.getWorld(), 14.5, 75, 17.5);
-            player.teleport(serverSpawn);
-            player.setGameMode(GameMode.ADVENTURE);
-        }
-        if (server.state == ServerSpleef.GAME_FINISHED) {
+        if (server.state == ServerSpleef.GAME_WAITING ||
+                server.state == ServerSpleef.GAME_STARTING ||
+                server.state == ServerSpleef.GAME_FINISHED) {
             Location gameSpectate = new Location(player.getWorld(), 14.5, 75, 17.5);
             player.teleport(gameSpectate);
             player.setGameMode(GameMode.ADVENTURE);

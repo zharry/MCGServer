@@ -15,13 +15,9 @@ import java.sql.Statement;
 
 public class PlayerDodgeball extends PlayerInterface {
 
-    // Minigame variables
-    public int currentScore = 0;
-    public boolean dead = false;
-
     public ServerDodgeball server;
     public PlayerDodgeball(Player bukkitPlayer, ServerDodgeball server) {
-        super(bukkitPlayer);
+        super(bukkitPlayer, "dodgeball");
         this.server = server;
     }
 
@@ -62,10 +58,6 @@ public class PlayerDodgeball extends PlayerInterface {
     public void commit() {
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
-            statement.execute("INSERT INTO `scores` " +
-                    "(`uuid`, `season`, `minigame`, `score`) " +
-                    "VALUES " +
-                    "('" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '"+ currentScore + "');\n");
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -1,6 +1,7 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerLobby;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -13,7 +14,7 @@ public class PlayerLobby extends PlayerInterface {
 
     public ServerLobby server;
     public PlayerLobby(Player bukkitPlayer, ServerLobby server) {
-        super(bukkitPlayer);
+        super(bukkitPlayer, "lobby");
         this.server = server;
     }
 
@@ -22,6 +23,8 @@ public class PlayerLobby extends PlayerInterface {
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // This is a spacer
         objective.getScore("                          ").setScore(15);
@@ -39,9 +42,9 @@ public class PlayerLobby extends PlayerInterface {
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET ).setScore(7);
         objective.getScore(" ").setScore(6);
         objective.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "Your team: ").setScore(5);
-        objective.getScore("Team name here").setScore(4);
+        objective.getScore(myTeam.teamname).setScore(4);
         objective.getScore("  ").setScore(3);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Score: ").setScore(2);
+        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Score: " + ChatColor.RESET + "" + getScore()).setScore(2);
 
         this.bukkitPlayer.setScoreboard(scoreboard);
     }
@@ -50,4 +53,5 @@ public class PlayerLobby extends PlayerInterface {
     public void commit() {
 
     }
+
 }

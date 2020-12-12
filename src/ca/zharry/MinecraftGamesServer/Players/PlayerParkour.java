@@ -1,6 +1,7 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -10,6 +11,7 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -18,11 +20,10 @@ public class PlayerParkour extends PlayerInterface {
 
     // Minigame variables
     public ArrayList<Location> parkourFinished = new ArrayList<Location>();
-    public int currentScore = 0;
 
     public ServerParkour server;
     public PlayerParkour(Player bukkitPlayer, ServerParkour server) {
-        super(bukkitPlayer);
+        super(bukkitPlayer, "parkour");
         this.server = server;
     }
 
@@ -31,6 +32,8 @@ public class PlayerParkour extends PlayerInterface {
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // This is a spacer
         objective.getScore("                          ").setScore(15);
@@ -53,7 +56,7 @@ public class PlayerParkour extends PlayerInterface {
         objective.getScore(ChatColor.WHITE + " 5. " + ChatColor.BOLD + "Team 5").setScore(4);
         objective.getScore(ChatColor.WHITE + " 6. Team 6").setScore(3);
         objective.getScore("  ").setScore(2);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: ").setScore(1);
+        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("parkour")).setScore(1);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore).setScore(0);
 
         this.bukkitPlayer.setScoreboard(scoreboard);
@@ -62,11 +65,22 @@ public class PlayerParkour extends PlayerInterface {
     @Override
     public void commit() {
         try {
+            int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
+                    "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
+                    "`season` = '" + MCGMain.SEASON + "' AND " +
+                    "`minigame` = 'parkour';");
+            while (resultSet.next()) {
+                id = resultSet.getInt("id");
+            }
+
             statement.execute("INSERT INTO `scores` " +
-                    "(`uuid`, `season`, `minigame`, `score`) " +
+                    "(`id`, `uuid`, `season`, `minigame`, `score`) " +
                     "VALUES " +
-                    "('" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '"+ currentScore + "');\n");
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '"+ currentScore + "')" +
+                    "ON DUPLICATE KEY UPDATE" +
+                    "`score` = " + currentScore + ";");
         } catch (SQLException e) {
             e.printStackTrace();
         }
