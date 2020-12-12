@@ -23,7 +23,7 @@ public class PlayerParkour extends PlayerInterface {
 
     public ServerParkour server;
     public PlayerParkour(Player bukkitPlayer, ServerParkour server) {
-        super(bukkitPlayer, "parkour");
+        super(bukkitPlayer, server, "parkour");
         this.server = server;
     }
 

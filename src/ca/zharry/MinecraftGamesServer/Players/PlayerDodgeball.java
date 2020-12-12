@@ -17,7 +17,7 @@ public class PlayerDodgeball extends PlayerInterface {
 
     public ServerDodgeball server;
     public PlayerDodgeball(Player bukkitPlayer, ServerDodgeball server) {
-        super(bukkitPlayer, "dodgeball");
+        super(bukkitPlayer, server, "dodgeball");
         this.server = server;
     }
 

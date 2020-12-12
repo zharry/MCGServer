@@ -28,14 +28,19 @@ public class MCGMain extends JavaPlugin {
         this.setupDatabase();
 
         this.getConfigurationFile();
-        if (serverMinigame.equals("lobby")) {
-            server = new ServerLobby(this);
-        } else if (serverMinigame.equals("parkour")) {
-            server = new ServerParkour(this);
-        } else if (serverMinigame.equals("spleef")) {
-            server = new ServerSpleef(this);
-        } else if (serverMinigame.equals("dodgeball")) {
-            server = new ServerDodgeball(this);
+        switch (serverMinigame) {
+            case "lobby":
+                server = new ServerLobby(this);
+                break;
+            case "parkour":
+                server = new ServerParkour(this);
+                break;
+            case "spleef":
+                server = new ServerSpleef(this);
+                break;
+            case "dodgeball":
+                server = new ServerDodgeball(this);
+                break;
         }
 
         server.onEnableCall();

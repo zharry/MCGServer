@@ -3,24 +3,25 @@ package ca.zharry.MinecraftGamesServer.Players;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerLobby;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
 
 public class PlayerLobby extends PlayerInterface {
 
     public ServerLobby server;
     public PlayerLobby(Player bukkitPlayer, ServerLobby server) {
-        super(bukkitPlayer, "lobby");
+        super(bukkitPlayer, server, "lobby");
         this.server = server;
     }
 
     @Override
     public void updateScoreboard() {
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        try {
+            scoreboard.getObjective("scoreboard").unregister();
+        } catch (Exception ignored) {
+        }
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
@@ -45,8 +46,6 @@ public class PlayerLobby extends PlayerInterface {
         objective.getScore(myTeam.teamname).setScore(4);
         objective.getScore("  ").setScore(3);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Score: " + ChatColor.RESET + "" + getScore()).setScore(2);
-
-        this.bukkitPlayer.setScoreboard(scoreboard);
     }
 
     @Override

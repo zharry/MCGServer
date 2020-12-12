@@ -22,7 +22,7 @@ public class PlayerSpleef extends PlayerInterface {
 
     public ServerSpleef server;
     public PlayerSpleef(Player bukkitPlayer, ServerSpleef server) {
-        super(bukkitPlayer, "spleef");
+        super(bukkitPlayer, server, "spleef");
         this.server = server;
     }
 

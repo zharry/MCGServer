@@ -2,7 +2,12 @@ package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGScore;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
+import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -16,12 +21,43 @@ public abstract class PlayerInterface {
     public ArrayList<MCGScore> previousScores;
 
     public Player bukkitPlayer;
-    public PlayerInterface(Player bukkitPlayer, String curMinigame) {
+    public ServerInterface server;
+    public Scoreboard scoreboard;
+    public PlayerInterface(Player bukkitPlayer, ServerInterface server, String curMinigame) {
         this.bukkitPlayer = bukkitPlayer;
+        this.server = server;
         this.curMinigame = curMinigame;
 
         this.previousScores = new ArrayList<MCGScore>();
         getData();
+
+        scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        this.bukkitPlayer.setScoreboard(scoreboard);
+        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
+
+        // For all other players
+        for (PlayerInterface player: server.players) {
+            // Get their team
+            MCGTeam playerTeam = server.teams.get(server.teamLookup.get(player.bukkitPlayer.getUniqueId()));
+
+            // Add their team to our own scoreboard
+            addPlayerTeamToScoreboard(scoreboard, playerTeam, player);
+
+            // Add our entry to their scoreboard
+            addPlayerTeamToScoreboard(player.scoreboard, myTeam, this);
+        }
+        // Add our entry to our scoreboard
+        addPlayerTeamToScoreboard(scoreboard, myTeam, this);
+
+    }
+
+    private void addPlayerTeamToScoreboard (Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
+        Team minecraftTeam = scoreboard.getTeam(team.teamname);
+        if (minecraftTeam == null) {
+            minecraftTeam = scoreboard.registerNewTeam(team.teamname);
+        }
+        minecraftTeam.addEntry(player.bukkitPlayer.getName());
+        minecraftTeam.setColor(team.chatColor);
     }
 
     public abstract void updateScoreboard();
