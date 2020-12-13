@@ -5,7 +5,6 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -14,17 +13,23 @@ import org.bukkit.scoreboard.Scoreboard;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 
 public class PlayerParkour extends PlayerInterface {
 
     // Minigame variables
-    public ArrayList<Location> parkourFinished = new ArrayList<Location>();
+    public int stage = 0; // What stage they are currently on
+    public int level = 0; // What level of the stage they have completed
 
     public ServerParkour server;
     public PlayerParkour(Player bukkitPlayer, ServerParkour server) {
         super(bukkitPlayer, server, "parkour");
         this.server = server;
+
+        try {
+            String[] metadata = currentMetadata.split("-");
+            stage = Integer.parseInt(metadata[0]);
+            level = Integer.parseInt(metadata[1]);
+        } catch (Exception ignore) {}
     }
 
     @Override
@@ -64,6 +69,8 @@ public class PlayerParkour extends PlayerInterface {
 
     @Override
     public void commit() {
+        currentMetadata = stage + "-" + level;
+
         try {
             int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
@@ -76,11 +83,11 @@ public class PlayerParkour extends PlayerInterface {
             }
 
             statement.execute("INSERT INTO `scores` " +
-                    "(`id`, `uuid`, `season`, `minigame`, `score`) " +
+                    "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '"+ currentScore + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '"+ currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + currentScore + ";");
+                    "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -67,6 +67,7 @@ public class MCGMain extends JavaPlugin {
                     "`season` INT NOT NULL , " +
                     "`minigame` VARCHAR(255) NOT NULL , " +
                     "`score` INT NOT NULL , " +
+                    "`metadata` VARCHAR(255) NOT NULL DEFAULT '' , " +
                     "`time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                     "PRIMARY KEY (`id`)) ENGINE = InnoDB;");
 

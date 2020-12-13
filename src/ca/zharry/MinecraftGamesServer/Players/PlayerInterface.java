@@ -18,6 +18,7 @@ public abstract class PlayerInterface {
     // Scores
     public String curMinigame = "lobby";
     public int currentScore = 0;
+    public String currentMetadata = "";
     public ArrayList<MCGScore> previousScores;
 
     public Player bukkitPlayer;
@@ -58,6 +59,7 @@ public abstract class PlayerInterface {
         }
         minecraftTeam.addEntry(player.bukkitPlayer.getName());
         minecraftTeam.setColor(team.chatColor);
+        minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
     }
 
     public abstract void updateScoreboard();
@@ -75,11 +77,13 @@ public abstract class PlayerInterface {
                 int season = resultSet.getInt("season");
                 String minigame = resultSet.getString("minigame").trim();
                 int score = resultSet.getInt("score");
+                String metadata = resultSet.getString("metadata");
 
                 if (season == MCGMain.SEASON && minigame.equals(curMinigame)) {
                     currentScore = score;
+                    currentMetadata = metadata;
                 } else {
-                    MCGScore newScore = new MCGScore(id, uuid, season, minigame, score);
+                    MCGScore newScore = new MCGScore(id, uuid, season, minigame, score, metadata);
                     this.previousScores.add(newScore);
                 }
             }
