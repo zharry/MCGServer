@@ -19,7 +19,8 @@ public class ListenerOnPlayerJoinSpleef implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        server.players.add(new PlayerSpleef(player, server));
+        PlayerSpleef playerSpleef = new PlayerSpleef(player, server);
+        server.players.add(playerSpleef);
 
         if (server.state == ServerSpleef.GAME_WAITING ||
                 server.state == ServerSpleef.GAME_STARTING ||
@@ -27,6 +28,12 @@ public class ListenerOnPlayerJoinSpleef implements Listener {
             Location gameSpectate = new Location(player.getWorld(), 14.5, 75, 17.5);
             player.teleport(gameSpectate);
             player.setGameMode(GameMode.ADVENTURE);
+        }
+        if (server.state == ServerSpleef.GAME_INPROGRESS) {
+            if (player.getLocation().getY() >= ServerSpleef.COMPETITION_MAX_HEIGHT) {
+                server.dead.add(playerSpleef);
+                playerSpleef.dead = true;
+            }
         }
     }
 }

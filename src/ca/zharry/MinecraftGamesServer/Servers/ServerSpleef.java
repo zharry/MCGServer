@@ -27,6 +27,7 @@ public class ServerSpleef extends ServerInterface {
     public static final int TIMER_STARTING = 60 * 20;
     public static final int TIMER_INPROGRESS = 15 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
+    public static final int COMPETITION_MAX_HEIGHT = 73;
 
     // Server state
     public static final int ERROR = -1;
@@ -190,7 +191,7 @@ public class ServerSpleef extends ServerInterface {
 
         if (counter == 1) {
             timerInProgress.set(0);
-            lastOneAlive.bukkitPlayer.sendTitle("Last on alive!", "" , 10, 60, 10);
+            lastOneAlive.bukkitPlayer.sendTitle("Last one alive!", "" , 10, 60, 10);
         }
     }
 
@@ -199,7 +200,7 @@ public class ServerSpleef extends ServerInterface {
         Location mapEnd = new Location(dummyPlayer.getWorld(), 14.5, 75, 17.5);
 
         for (PlayerInterface player: players) {
-            if (player.bukkitPlayer.getLocation().getY() < 73) {
+            if (player.bukkitPlayer.getLocation().getY() < COMPETITION_MAX_HEIGHT) {
                 player.bukkitPlayer.teleport(mapEnd);
                 player.bukkitPlayer.setGameMode(GameMode.ADVENTURE);
                 player.bukkitPlayer.getInventory().clear();

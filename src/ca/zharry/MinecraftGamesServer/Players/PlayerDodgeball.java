@@ -1,14 +1,12 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
-import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
-import org.bukkit.Bukkit;
+import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
 
 import java.sql.SQLException;
 import java.sql.Statement;
