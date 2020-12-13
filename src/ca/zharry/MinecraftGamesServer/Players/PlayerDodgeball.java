@@ -23,7 +23,10 @@ public class PlayerDodgeball extends PlayerInterface {
 
     @Override
     public void updateScoreboard() {
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        try {
+            scoreboard.getObjective("scoreboard").unregister();
+        } catch (Exception ignored) {
+        }
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 

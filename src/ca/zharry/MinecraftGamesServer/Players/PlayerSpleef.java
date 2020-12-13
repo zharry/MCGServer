@@ -4,12 +4,10 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,7 +26,10 @@ public class PlayerSpleef extends PlayerInterface {
 
     @Override
     public void updateScoreboard() {
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        try {
+            scoreboard.getObjective("scoreboard").unregister();
+        } catch (Exception ignored) {
+        }
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
