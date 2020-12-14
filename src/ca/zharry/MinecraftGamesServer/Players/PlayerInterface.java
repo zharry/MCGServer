@@ -24,6 +24,7 @@ public abstract class PlayerInterface {
     public Player bukkitPlayer;
     public ServerInterface server;
     public Scoreboard scoreboard;
+    public MCGTeam myTeam;
     public PlayerInterface(Player bukkitPlayer, ServerInterface server, String curMinigame) {
         this.bukkitPlayer = bukkitPlayer;
         this.server = server;
@@ -34,7 +35,7 @@ public abstract class PlayerInterface {
 
         scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
         this.bukkitPlayer.setScoreboard(scoreboard);
-        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
+        myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // For all other players
         for (PlayerInterface player: server.players) {
@@ -71,7 +72,7 @@ public abstract class PlayerInterface {
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE `uuid` = '" + bukkitPlayer.getUniqueId() + "';");
-            while (resultSet.next()) {
+            while (resultSet .next()) {
                 int id = resultSet.getInt("id");
                 String uuid = resultSet.getString("uuid").trim();
                 int season = resultSet.getInt("season");

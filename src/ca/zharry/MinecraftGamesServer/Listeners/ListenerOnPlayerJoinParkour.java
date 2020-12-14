@@ -27,6 +27,7 @@ public class ListenerOnPlayerJoinParkour implements Listener {
         if (server.state == ServerParkour.GAME_WAITING || server.state == ServerParkour.GAME_STARTING) {
             Location serverSpawn = new Location(player.getWorld(), 253.5, 134, -161.5);
             player.teleport(serverSpawn);
+            player.setBedSpawnLocation(serverSpawn, true);
         }
         if (server.state == ServerParkour.GAME_INPROGRESS) {
             // Teleport player to last checkpoint
@@ -58,6 +59,7 @@ public class ListenerOnPlayerJoinParkour implements Listener {
         if (server.state == ServerParkour.GAME_FINISHED) {
             Location gameSpectate = new Location(player.getWorld(), 8.5, 131, 9.5);
             player.teleport(gameSpectate);
+            player.setBedSpawnLocation(gameSpectate, true);
         }
     }
 }

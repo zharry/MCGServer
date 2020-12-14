@@ -24,5 +24,6 @@ public class ListenerOnPlayerJoinLobby implements Listener {
 
         Location serverSpawn = new Location(player.getWorld(), 1484.5, 4, 530);
         player.teleport(serverSpawn);
+        player.setBedSpawnLocation(serverSpawn, true);
     }
 }

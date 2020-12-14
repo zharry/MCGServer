@@ -1,10 +1,10 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
-import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -22,6 +22,8 @@ public class PlayerSpleef extends PlayerInterface {
     public PlayerSpleef(Player bukkitPlayer, ServerSpleef server) {
         super(bukkitPlayer, server, "spleef");
         this.server = server;
+
+        bukkitPlayer.setBedSpawnLocation(new Location(bukkitPlayer.getWorld(), 14.5, 75, 17.5), true);
     }
 
     @Override
@@ -32,8 +34,6 @@ public class PlayerSpleef extends PlayerInterface {
         }
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // This is a spacer
         objective.getScore("                          ").setScore(15);

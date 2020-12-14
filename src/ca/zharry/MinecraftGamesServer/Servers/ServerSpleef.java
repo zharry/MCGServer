@@ -49,7 +49,7 @@ public class ServerSpleef extends ServerInterface {
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player: currentlyOnline) {
+        for (Player player : currentlyOnline) {
             players.add(new PlayerSpleef(player, this));
         }
 
@@ -58,8 +58,11 @@ public class ServerSpleef extends ServerInterface {
             public void onStart() {
                 state = GAME_STARTING;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 timerInProgress.start();
@@ -72,10 +75,12 @@ public class ServerSpleef extends ServerInterface {
                 state = GAME_INPROGRESS;
                 spleefStart();
             }
+
             @Override
             public void onTick() {
                 spleefTick();
             }
+
             @Override
             public void onEnd() {
                 spleefEnd();
@@ -88,8 +93,11 @@ public class ServerSpleef extends ServerInterface {
             public void onStart() {
                 state = GAME_FINISHED;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 sendPlayersToLobby();
@@ -145,7 +153,7 @@ public class ServerSpleef extends ServerInterface {
         int maxY = 64, minY = 61, spreadRadius = 30;
         Random random = new Random();
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             Location spreadStart = new Location(dummyPlayer.getWorld(), 14.5, 62, 17.5);
 
             while (true) {
@@ -155,8 +163,8 @@ public class ServerSpleef extends ServerInterface {
 
                 boolean found = false;
                 for (; y <= maxY; y++) {
-                    if (player.bukkitPlayer.getWorld().getBlockAt(x,y,z).getType() != Material.AIR &&
-                        player.bukkitPlayer.getWorld().getBlockAt(x,y + 1,z).getType() == Material.AIR) {
+                    if (player.bukkitPlayer.getWorld().getBlockAt(x, y, z).getType() != Material.AIR &&
+                            player.bukkitPlayer.getWorld().getBlockAt(x, y + 1, z).getType() == Material.AIR) {
                         spreadStart = new Location(dummyPlayer.getWorld(), x + 0.5, y + 2, z + 0.5);
                         found = true;
                         break;
@@ -182,7 +190,7 @@ public class ServerSpleef extends ServerInterface {
     private void spleefTick() {
         int counter = 0;
         PlayerInterface lastOneAlive = players.get(0);
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             if (!dead.contains(player)) {
                 lastOneAlive = player;
                 counter++;
@@ -191,7 +199,7 @@ public class ServerSpleef extends ServerInterface {
 
         if (counter == 1) {
             timerInProgress.set(0);
-            lastOneAlive.bukkitPlayer.sendTitle("Last one alive!", "" , 10, 60, 10);
+            lastOneAlive.bukkitPlayer.sendTitle("Last one alive!", "", 10, 60, 10);
         }
     }
 
@@ -199,13 +207,13 @@ public class ServerSpleef extends ServerInterface {
         Player dummyPlayer = players.get(0).bukkitPlayer;
         Location mapEnd = new Location(dummyPlayer.getWorld(), 14.5, 75, 17.5);
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             if (player.bukkitPlayer.getLocation().getY() < COMPETITION_MAX_HEIGHT) {
                 player.bukkitPlayer.teleport(mapEnd);
                 player.bukkitPlayer.setGameMode(GameMode.ADVENTURE);
                 player.bukkitPlayer.getInventory().clear();
             }
-            if (!((PlayerSpleef)player).dead) {
+            if (!((PlayerSpleef) player).dead) {
                 ((PlayerSpleef) player).currentScore += 500;
             }
             player.commit();

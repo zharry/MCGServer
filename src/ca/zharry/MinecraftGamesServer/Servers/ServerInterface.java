@@ -26,6 +26,7 @@ public abstract class ServerInterface {
     public BukkitTask taskScoreboard;
     public ArrayList<PlayerInterface> players;
 
+    public ArrayList<Integer> teamIDs;
     public HashMap<Integer, MCGTeam> teams;
     public HashMap<UUID, Integer> teamLookup;
 
@@ -38,6 +39,7 @@ public abstract class ServerInterface {
         minigames.put("spleef", "Spleef");
         minigames.put("dodgeball", "Dodgeball");
 
+        this.teamIDs = new ArrayList<Integer>();
         this.teams = new HashMap<Integer, MCGTeam>();
         this.teamLookup = new HashMap<UUID, Integer>();
         this.getTeams();
@@ -76,6 +78,7 @@ public abstract class ServerInterface {
                 }
 
                 this.teams.put(id, team);
+                this.teamIDs.add(id);
             }
 
         } catch (Exception e) {

@@ -1,7 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
-import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerLobby;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -24,8 +23,6 @@ public class PlayerLobby extends PlayerInterface {
         }
         Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        MCGTeam myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // This is a spacer
         objective.getScore("                          ").setScore(15);
