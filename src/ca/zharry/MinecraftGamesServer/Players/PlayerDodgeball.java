@@ -19,6 +19,7 @@ public class PlayerDodgeball extends PlayerInterface {
     public int totalKills = 0;
     public int kills = 0;
     public int lives = 0;
+    public int arena = -1;
     public MCGTeam opponentTeam;
 
     public ServerDodgeball server;
@@ -93,7 +94,7 @@ public class PlayerDodgeball extends PlayerInterface {
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
                     "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
                     "`season` = '" + MCGMain.SEASON + "' AND " +
-                    "`minigame` = 'parkour';");
+                    "`minigame` = 'dodgeball';");
             while (resultSet.next()) {
                 id = resultSet.getInt("id");
             }

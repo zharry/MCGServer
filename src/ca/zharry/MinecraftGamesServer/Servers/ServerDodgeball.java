@@ -36,6 +36,7 @@ public class ServerDodgeball extends ServerInterface {
     public static final int TIMER_INPROGRESS = 1 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
+    public static final ArrayList<Point3D> arenaSpectator = new ArrayList<Point3D>();
 
     // Server state
     public static final int ERROR = -1;
@@ -245,6 +246,7 @@ public class ServerDodgeball extends ServerInterface {
                         // Send team 1 to RED spawn
                         if (player.myTeam.id == team1.id) {
                             playerDodgeball.opponentTeam = team2;
+                            playerDodgeball.arena = arenaNo;
                             Location redSpawn = new Location(player.bukkitPlayer.getWorld(),
                                     redSpawnLocation.getX(), redSpawnLocation.getY(), redSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(redSpawn);
@@ -253,6 +255,7 @@ public class ServerDodgeball extends ServerInterface {
                         // Send team 2 to RED spawn
                         if (player.myTeam.id == team2.id) {
                             playerDodgeball.opponentTeam = team1;
+                            playerDodgeball.arena = arenaNo;
                             Location blueSpawn = new Location(player.bukkitPlayer.getWorld(),
                                     blueSpawnLocation.getX(), blueSpawnLocation.getY(), blueSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(blueSpawn);
@@ -296,6 +299,11 @@ public class ServerDodgeball extends ServerInterface {
         arenaSpawns.add(new Point3D(57.5 - 50, 4, 44.5));
         arenaSpawns.add(new Point3D(57.5 - 100, 4, 44.5));
         arenaSpawns.add(new Point3D(57.5 - 150, 4, 44.5));
+
+        arenaSpectator.add(new Point3D(73.5, 14, 56.5));
+        arenaSpectator.add(new Point3D(73.5 - 50, 14, 56.5));
+        arenaSpectator.add(new Point3D(73.5 - 100, 14, 56.5));
+        arenaSpectator.add(new Point3D(73.5 - 150, 14, 56.5));
     }
 
 }

@@ -19,7 +19,7 @@ public class ListenerOnPlayerJoinLobby implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        server.players.add(new PlayerLobby(player, server));
+        server.addPlayer(new PlayerLobby(player, server));
         player.setGameMode(GameMode.ADVENTURE);
 
         Location serverSpawn = new Location(player.getWorld(), 1484.5, 4, 530);

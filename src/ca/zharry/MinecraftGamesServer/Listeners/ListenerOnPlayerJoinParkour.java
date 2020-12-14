@@ -21,7 +21,7 @@ public class ListenerOnPlayerJoinParkour implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerParkour playerParkour = new PlayerParkour(player, server);
-        server.players.add(playerParkour);
+        server.addPlayer(playerParkour);
         player.setGameMode(GameMode.ADVENTURE);
 
         if (server.state == ServerParkour.GAME_WAITING || server.state == ServerParkour.GAME_STARTING) {

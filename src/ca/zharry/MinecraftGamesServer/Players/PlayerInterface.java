@@ -61,6 +61,7 @@ public abstract class PlayerInterface {
         minecraftTeam.addEntry(player.bukkitPlayer.getName());
         minecraftTeam.setColor(team.chatColor);
         minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+        minecraftTeam.setAllowFriendlyFire(false);
     }
 
     public abstract void updateScoreboard();

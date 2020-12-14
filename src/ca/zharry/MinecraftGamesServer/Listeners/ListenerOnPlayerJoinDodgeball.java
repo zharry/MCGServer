@@ -20,16 +20,11 @@ public class ListenerOnPlayerJoinDodgeball implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerDodgeball playerDodgeball = new PlayerDodgeball(player, server);
-        server.players.add(playerDodgeball);
+        server.addPlayer(playerDodgeball);
 
         player.setGameMode(GameMode.ADVENTURE);
         Location serverSpawn = new Location(player.getWorld(), -15.5, 4, 1.5);
         player.teleport(serverSpawn);
         player.setBedSpawnLocation(serverSpawn, true);
-
-        if (server.state == ServerDodgeball.GAME_INPROGRESS) {
-            playerDodgeball.lives = 0;
-            playerDodgeball.kills = 0;
-        }
     }
 }

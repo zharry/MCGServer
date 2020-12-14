@@ -20,7 +20,7 @@ public class ListenerOnPlayerJoinSpleef implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerSpleef playerSpleef = new PlayerSpleef(player, server);
-        server.players.add(playerSpleef);
+        server.addPlayer(playerSpleef);
 
         if (server.state == ServerSpleef.GAME_WAITING ||
                 server.state == ServerSpleef.GAME_STARTING ||
