@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 public class ListenerOnPlayerQuitLobby implements Listener {
 
     ServerLobby server;
+
     public ListenerOnPlayerQuitLobby(ServerLobby server) {
         this.server = server;
     }

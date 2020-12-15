@@ -26,7 +26,8 @@ public class PlayerParkour extends PlayerInterface {
             String[] metadata = currentMetadata.split("-");
             stage = Integer.parseInt(metadata[0]);
             level = Integer.parseInt(metadata[1]);
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
     }
 
     @Override

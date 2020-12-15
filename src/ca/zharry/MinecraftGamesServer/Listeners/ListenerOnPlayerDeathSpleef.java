@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 public class ListenerOnPlayerDeathSpleef implements Listener {
 
     ServerSpleef server;
+
     public ListenerOnPlayerDeathSpleef(ServerSpleef server) {
         this.server = server;
     }

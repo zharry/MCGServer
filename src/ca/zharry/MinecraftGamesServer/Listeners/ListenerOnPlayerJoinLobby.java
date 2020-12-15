@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 public class ListenerOnPlayerJoinLobby implements Listener {
 
     ServerLobby server;
+
     public ListenerOnPlayerJoinLobby(ServerLobby server) {
         this.server = server;
     }

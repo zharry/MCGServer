@@ -13,6 +13,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 public class ListenerOnPlayerJoinParkour implements Listener {
 
     ServerParkour server;
+
     public ListenerOnPlayerJoinParkour(ServerParkour server) {
         this.server = server;
     }

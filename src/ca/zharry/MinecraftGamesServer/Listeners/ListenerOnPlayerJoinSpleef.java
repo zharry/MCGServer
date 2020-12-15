@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 public class ListenerOnPlayerJoinSpleef implements Listener {
 
     ServerSpleef server;
+
     public ListenerOnPlayerJoinSpleef(ServerSpleef server) {
         this.server = server;
     }

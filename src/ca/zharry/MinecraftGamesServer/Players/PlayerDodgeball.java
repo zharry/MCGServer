@@ -23,13 +23,15 @@ public class PlayerDodgeball extends PlayerInterface {
     public MCGTeam opponentTeam;
 
     public ServerDodgeball server;
+
     public PlayerDodgeball(Player bukkitPlayer, ServerDodgeball server) {
         super(bukkitPlayer, server, "dodgeball");
         this.server = server;
 
         try {
             totalKills = Integer.parseInt(currentMetadata);
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
     }
 
     @Override
@@ -102,7 +104,7 @@ public class PlayerDodgeball extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '"+ currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {

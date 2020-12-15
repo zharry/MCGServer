@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 public class ListenerOnPlayerQuitParkour implements Listener {
 
     ServerParkour server;
+
     public ListenerOnPlayerQuitParkour(ServerParkour server) {
         this.server = server;
     }

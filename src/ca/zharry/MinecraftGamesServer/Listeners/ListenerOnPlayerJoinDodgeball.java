@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 public class ListenerOnPlayerJoinDodgeball implements Listener {
 
     ServerDodgeball server;
+
     public ListenerOnPlayerJoinDodgeball(ServerDodgeball server) {
         this.server = server;
     }

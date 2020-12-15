@@ -31,7 +31,9 @@ public abstract class Timer {
     }
 
     public abstract void onStart();
+
     public abstract void onTick();
+
     public abstract void onEnd();
 
     public Timer set(int ticks) {

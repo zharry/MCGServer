@@ -10,6 +10,7 @@ import org.bukkit.scoreboard.Objective;
 public class PlayerLobby extends PlayerInterface {
 
     public ServerLobby server;
+
     public PlayerLobby(Player bukkitPlayer, ServerLobby server) {
         super(bukkitPlayer, server, "lobby");
         this.server = server;
@@ -34,10 +35,10 @@ public class PlayerLobby extends PlayerInterface {
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Next event: ").setScore(12);
             objective.getScore(ChatColor.WHITE + "" + server.minigames.get(server.nextMinigame)).setScore(11);
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Begins in: ").setScore(10);
-            objective.getScore(ChatColor.WHITE + "" + server.timerNextGame.getString() + ( server.timerNextGame.isPaused() ? " (Paused)" : "")).setScore(9);
+            objective.getScore(ChatColor.WHITE + "" + server.timerNextGame.getString() + (server.timerNextGame.isPaused() ? " (Paused)" : "")).setScore(9);
         }
         objective.getScore("").setScore(8);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET ).setScore(7);
+        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET).setScore(7);
         objective.getScore(" ").setScore(6);
         objective.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "Your team: ").setScore(5);
         objective.getScore(myTeam.teamname).setScore(4);

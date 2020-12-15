@@ -12,6 +12,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 public class ListenerOnPlayerDeathDodgeball implements Listener {
 
     ServerDodgeball server;
+
     public ListenerOnPlayerDeathDodgeball(ServerDodgeball server) {
         this.server = server;
     }

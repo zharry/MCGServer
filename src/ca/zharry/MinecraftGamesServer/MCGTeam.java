@@ -15,6 +15,7 @@ public class MCGTeam {
     public ArrayList<UUID> players;
 
     private ServerInterface server;
+
     public MCGTeam(int id, String teamname, String color, ServerInterface server) {
         this.id = id;
         this.teamname = teamname;
@@ -31,7 +32,7 @@ public class MCGTeam {
 
     public int getScore() {
         int val = 0;
-        for (UUID uuid: players) {
+        for (UUID uuid : players) {
             if (server.playerLookup.containsKey(uuid))
                 val += server.playerLookup.get(uuid).getScore();
         }
@@ -40,7 +41,7 @@ public class MCGTeam {
 
     public int getScore(String minigame) {
         int val = 0;
-        for (UUID uuid: players) {
+        for (UUID uuid : players) {
             if (server.playerLookup.containsKey(uuid))
                 val += server.playerLookup.get(uuid).getScore(minigame);
         }

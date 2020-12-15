@@ -60,7 +60,7 @@ public class ServerDodgeball extends ServerInterface {
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player: currentlyOnline) {
+        for (Player player : currentlyOnline) {
             addPlayer(new PlayerDodgeball(player, this));
         }
 
@@ -72,8 +72,11 @@ public class ServerDodgeball extends ServerInterface {
                 dodgeballPreStart();
                 state = GAME_STARTING;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 timerInProgress.start();
@@ -86,10 +89,12 @@ public class ServerDodgeball extends ServerInterface {
                 dodgeballStart();
                 state = GAME_INPROGRESS;
             }
+
             @Override
             public void onTick() {
                 dodgeballTick();
             }
+
             @Override
             public void onEnd() {
                 dodgeballEnd();
@@ -101,8 +106,11 @@ public class ServerDodgeball extends ServerInterface {
             public void onStart() {
                 state = GAME_FINISHED;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 sendPlayersToLobby();
@@ -170,11 +178,9 @@ public class ServerDodgeball extends ServerInterface {
                 if (i == j) {
                     rows.add(0);
                     skipped = num;
-                }
-                else if (i < j) {
+                } else if (i < j) {
                     rows.add(num);
-                }
-                else {
+                } else {
                     rows.add(0);
                 }
                 num++;
@@ -212,7 +218,7 @@ public class ServerDodgeball extends ServerInterface {
 
                     // This section of code is from dodgeballStart() except without the teleporting
                     // It's just for settings the opponentTeam field in each player
-                    for (PlayerInterface player: players) {
+                    for (PlayerInterface player : players) {
                         PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
                         if (player.myTeam.id == team1.id)
                             playerDodgeball.opponentTeam = team2;
@@ -240,7 +246,7 @@ public class ServerDodgeball extends ServerInterface {
                     Point3D blueSpawnLocation = arenaSpawns.get(arenaNo).add(0, 0, 45);
                     arenaNo++;
 
-                    for (PlayerInterface player: players) {
+                    for (PlayerInterface player : players) {
                         PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
 
                         // Send team 1 to RED spawn
@@ -267,7 +273,7 @@ public class ServerDodgeball extends ServerInterface {
         }
 
         // Reset kills and lives counter
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
             playerDodgeball.kills = 0;
             playerDodgeball.lives = 3;
@@ -278,7 +284,7 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     private void dodgeballEnd() {
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             Location serverSpawn = new Location(player.bukkitPlayer.getWorld(), -15.5, 4, 1.5);
             player.bukkitPlayer.teleport(serverSpawn);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);

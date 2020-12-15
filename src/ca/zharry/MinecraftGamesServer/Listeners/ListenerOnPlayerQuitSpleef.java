@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 public class ListenerOnPlayerQuitSpleef implements Listener {
 
     ServerSpleef server;
+
     public ListenerOnPlayerQuitSpleef(ServerSpleef server) {
         this.server = server;
     }

@@ -19,6 +19,7 @@ public class PlayerSpleef extends PlayerInterface {
     public boolean dead = false;
 
     public ServerSpleef server;
+
     public PlayerSpleef(Player bukkitPlayer, ServerSpleef server) {
         super(bukkitPlayer, server, "spleef");
         this.server = server;
@@ -78,7 +79,7 @@ public class PlayerSpleef extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'spleef', '"+ currentScore + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'spleef', '" + currentScore + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ";");
         } catch (SQLException e) {

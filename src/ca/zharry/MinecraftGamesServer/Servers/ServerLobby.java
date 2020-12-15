@@ -39,7 +39,7 @@ public class ServerLobby extends ServerInterface {
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player: currentlyOnline) {
+        for (Player player : currentlyOnline) {
             addPlayer(new PlayerLobby(player, this));
         }
 
@@ -48,8 +48,11 @@ public class ServerLobby extends ServerInterface {
             public void onStart() {
                 state = LOBBY_STARTED;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 sendPlayersToGame(nextMinigame);
@@ -70,7 +73,9 @@ public class ServerLobby extends ServerInterface {
     public void onDisableCall() {
         super.onDisableCall();
         this.state = ERROR;
-    };
+    }
+
+    ;
 
     @Override
     public void registerCommands() {
@@ -93,7 +98,7 @@ public class ServerLobby extends ServerInterface {
         out.writeUTF("Connect");
         out.writeUTF(minigame);
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
         }
     }

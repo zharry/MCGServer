@@ -66,7 +66,7 @@ public abstract class ServerInterface {
 
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams` WHERE `season` = " + MCGMain.SEASON +";");
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams` WHERE `season` = " + MCGMain.SEASON + ";");
             while (resultSet.next()) {
                 int id = resultSet.getInt("id");
                 String teamname = resultSet.getString("teamname").trim();
@@ -79,7 +79,7 @@ public abstract class ServerInterface {
                 MCGMain.logger.info("Playerlist: " + playerList);
 
                 MCGTeam team = new MCGTeam(id, teamname, color, this);
-                for (String uuid: players) {
+                for (String uuid : players) {
                     team.addPlayer(UUID.fromString(uuid));
                     this.teamLookup.put(UUID.fromString(uuid), id);
                 }
@@ -114,7 +114,7 @@ public abstract class ServerInterface {
         out.writeUTF("Connect");
         out.writeUTF("lobby");
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
         }
     }

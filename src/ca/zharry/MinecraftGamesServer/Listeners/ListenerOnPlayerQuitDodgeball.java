@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 public class ListenerOnPlayerQuitDodgeball implements Listener {
 
     ServerDodgeball server;
+
     public ListenerOnPlayerQuitDodgeball(ServerDodgeball server) {
         this.server = server;
     }

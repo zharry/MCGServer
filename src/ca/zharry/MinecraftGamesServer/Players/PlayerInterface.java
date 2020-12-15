@@ -25,6 +25,7 @@ public abstract class PlayerInterface {
     public ServerInterface server;
     public Scoreboard scoreboard;
     public MCGTeam myTeam;
+
     public PlayerInterface(Player bukkitPlayer, ServerInterface server, String curMinigame) {
         this.bukkitPlayer = bukkitPlayer;
         this.server = server;
@@ -38,7 +39,7 @@ public abstract class PlayerInterface {
         myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
         // For all other players
-        for (PlayerInterface player: server.players) {
+        for (PlayerInterface player : server.players) {
             // Get their team
             MCGTeam playerTeam = server.teams.get(server.teamLookup.get(player.bukkitPlayer.getUniqueId()));
 
@@ -53,7 +54,7 @@ public abstract class PlayerInterface {
 
     }
 
-    private void addPlayerTeamToScoreboard (Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
+    private void addPlayerTeamToScoreboard(Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
         Team minecraftTeam = scoreboard.getTeam(team.teamname);
         if (minecraftTeam == null) {
             minecraftTeam = scoreboard.registerNewTeam(team.teamname);
@@ -65,6 +66,7 @@ public abstract class PlayerInterface {
     }
 
     public abstract void updateScoreboard();
+
     public abstract void commit();
 
     public void getData() {
@@ -73,7 +75,7 @@ public abstract class PlayerInterface {
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE `uuid` = '" + bukkitPlayer.getUniqueId() + "';");
-            while (resultSet .next()) {
+            while (resultSet.next()) {
                 int id = resultSet.getInt("id");
                 String uuid = resultSet.getString("uuid").trim();
                 int season = resultSet.getInt("season");
@@ -97,7 +99,7 @@ public abstract class PlayerInterface {
 
     public int getScore() {
         int val = currentScore;
-        for (MCGScore score: previousScores) {
+        for (MCGScore score : previousScores) {
             if (score.season == MCGMain.SEASON)
                 val += score.score;
         }
@@ -109,7 +111,7 @@ public abstract class PlayerInterface {
         if (minigame.equals(curMinigame)) {
             val += currentScore;
         }
-        for (MCGScore score: previousScores) {
+        for (MCGScore score : previousScores) {
             if (score.minigame.equals(minigame)) {
                 if (score.season == MCGMain.SEASON)
                     val += score.score;

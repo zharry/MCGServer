@@ -54,7 +54,7 @@ public class ServerParkour extends ServerInterface {
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player: currentlyOnline) {
+        for (Player player : currentlyOnline) {
             addPlayer(new PlayerParkour(player, this));
         }
 
@@ -63,8 +63,11 @@ public class ServerParkour extends ServerInterface {
             public void onStart() {
                 state = GAME_STARTING;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 timerInProgress.start();
@@ -77,10 +80,12 @@ public class ServerParkour extends ServerInterface {
                 state = GAME_INPROGRESS;
                 parkourStart();
             }
+
             @Override
             public void onTick() {
                 parkourTick();
             }
+
             @Override
             public void onEnd() {
                 parkourEnd();
@@ -93,8 +98,11 @@ public class ServerParkour extends ServerInterface {
             public void onStart() {
                 state = GAME_FINISHED;
             }
+
             @Override
-            public void onTick() { }
+            public void onTick() {
+            }
+
             @Override
             public void onEnd() {
                 sendPlayersToLobby();
@@ -145,13 +153,14 @@ public class ServerParkour extends ServerInterface {
         Player dummyPlayer = players.get(0).bukkitPlayer;
         Location mapStart = new Location(dummyPlayer.getWorld(), 7.5, 78, 9.5);
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             PlayerParkour parkourPlayer = (PlayerParkour) player;
             player.bukkitPlayer.teleport(mapStart);
             parkourPlayer.stage = 1;
             parkourPlayer.level = 0;
         }
     }
+
     private void parkourTick() {
         for (int i = 0; i < players.size(); i++) {
             PlayerParkour player = (PlayerParkour) players.get(i);
@@ -177,9 +186,9 @@ public class ServerParkour extends ServerInterface {
                 if (stage5Index != -1) stage = 5;
                 if (stage6Index != -1) stage = 6;
                 // This represents what level the block is on, for the stage determined above
-                int[] levels = { -1, stage1Index, stage2Index, stage3Index, stage4Index, stage5Index, stage6Index };
+                int[] levels = {-1, stage1Index, stage2Index, stage3Index, stage4Index, stage5Index, stage6Index};
                 // This represents how many levels the player would have completed upon reaching the (i + 1)th stage
-                int[] stageCompletedLevels = { 0,
+                int[] stageCompletedLevels = {0,
                         stage1Checkpoints.size() - 1,
                         stage1Checkpoints.size() + stage2Checkpoints.size() - 2,
                         stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() - 3,
@@ -189,7 +198,7 @@ public class ServerParkour extends ServerInterface {
                 };
 
                 MCGMain.logger.info(stage1Index + " a" + blockLocation.getX() + " a" + blockLocation.getY() + " a" + blockLocation.getZ());
-                MCGMain.logger.info(stage2Index + " a " + player.stage + " a" + player.level );
+                MCGMain.logger.info(stage2Index + " a " + player.stage + " a" + player.level);
                 MCGMain.logger.info(stage3Index + " a " + stage + " a" + levels[stage]);
                 MCGMain.logger.info(stage4Index + " a");
                 MCGMain.logger.info(stage5Index + " a");
@@ -197,7 +206,7 @@ public class ServerParkour extends ServerInterface {
 
                 // Award points if this is new
                 if (stage == player.stage && levels[stage] > player.level ||
-                        stage > player.stage && levels[stage] < player.level ) {
+                        stage > player.stage && levels[stage] < player.level) {
                     player.stage = stage;
                     player.level = levels[stage];
                     player.currentScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
@@ -210,24 +219,19 @@ public class ServerParkour extends ServerInterface {
                 if (stage1Index == stage1Checkpoints.size() - 1) {
                     finishedStage = true;
                     nextStart = stage2Checkpoints.get(0);
-                }
-                else if (stage2Index == stage2Checkpoints.size() - 1) {
+                } else if (stage2Index == stage2Checkpoints.size() - 1) {
                     finishedStage = true;
                     nextStart = stage3Checkpoints.get(0);
-                }
-                else if (stage3Index == stage3Checkpoints.size() - 1) {
+                } else if (stage3Index == stage3Checkpoints.size() - 1) {
                     finishedStage = true;
                     nextStart = stage4Checkpoints.get(0);
-                }
-                else if (stage4Index == stage4Checkpoints.size() - 1) {
+                } else if (stage4Index == stage4Checkpoints.size() - 1) {
                     finishedStage = true;
                     nextStart = stage5Checkpoints.get(0);
-                }
-                else if (stage5Index == stage5Checkpoints.size() - 1) {
+                } else if (stage5Index == stage5Checkpoints.size() - 1) {
                     finishedStage = true;
                     nextStart = stage6Checkpoints.get(0);
-                }
-                else if (stage6Index == stage6Checkpoints.size() - 1) {
+                } else if (stage6Index == stage6Checkpoints.size() - 1) {
                     bukkitPlayer.teleport(new Location(bukkitPlayer.getWorld(), 8.5, 131, 9.5));
                     continue;
                 }
@@ -239,11 +243,12 @@ public class ServerParkour extends ServerInterface {
         }
 
     }
+
     private void parkourEnd() {
         Player dummyPlayer = players.get(0).bukkitPlayer;
         Location mapEnd = new Location(dummyPlayer.getWorld(), 8.5, 131, 9.5);
 
-        for (PlayerInterface player: players) {
+        for (PlayerInterface player : players) {
             if (player.bukkitPlayer.getLocation().getY() < 130) {
                 player.bukkitPlayer.teleport(mapEnd);
             }
@@ -252,39 +257,39 @@ public class ServerParkour extends ServerInterface {
     }
 
     public void initCheckpoints() {
-        stage1Checkpoints.add(new Point3D(7,77,9));
-        stage1Checkpoints.add(new Point3D(-18,77,11));
-        stage1Checkpoints.add(new Point3D(-39,77,11));
-        stage1Checkpoints.add(new Point3D(-73,77,10));
-        stage1Checkpoints.add(new Point3D(-82,86,5));
-        stage2Checkpoints.add(new Point3D(7,77,23));
-        stage2Checkpoints.add(new Point3D(-26,77,22));
-        stage2Checkpoints.add(new Point3D(-29,85,27));
-        stage2Checkpoints.add(new Point3D(-65,77,23));
-        stage2Checkpoints.add(new Point3D(-85,90,24));
-        stage3Checkpoints.add(new Point3D(7,77,-5));
-        stage3Checkpoints.add(new Point3D(-14,81,-9));
-        stage3Checkpoints.add(new Point3D(-38,79,-5));
-        stage3Checkpoints.add(new Point3D(-75,78,-5));
-        stage3Checkpoints.add(new Point3D(-89,92,-11));
-        stage4Checkpoints.add(new Point3D(7,77,37));
-        stage4Checkpoints.add(new Point3D(-21,80,32));
-        stage4Checkpoints.add(new Point3D(-41,83,34));
-        stage4Checkpoints.add(new Point3D(-66,77,35));
-        stage4Checkpoints.add(new Point3D(-89,77,41));
-        stage4Checkpoints.add(new Point3D(-92,89,43));
-        stage5Checkpoints.add(new Point3D(7,77,-19));
-        stage5Checkpoints.add(new Point3D(-83,65,-17));
-        stage5Checkpoints.add(new Point3D(-91,80,-18));
-        stage5Checkpoints.add(new Point3D(-88,89,-22));
-        stage6Checkpoints.add(new Point3D(7,77,51));
-        stage6Checkpoints.add(new Point3D(-27,80,52));
-        stage6Checkpoints.add(new Point3D(-35,84,48));
-        stage6Checkpoints.add(new Point3D(-45,92,55));
-        stage6Checkpoints.add(new Point3D(-67,98,49));
-        stage6Checkpoints.add(new Point3D(-74,106,54));
-        stage6Checkpoints.add(new Point3D(-74,111,51));
-        stage6Checkpoints.add(new Point3D(-85,118,54));
+        stage1Checkpoints.add(new Point3D(7, 77, 9));
+        stage1Checkpoints.add(new Point3D(-18, 77, 11));
+        stage1Checkpoints.add(new Point3D(-39, 77, 11));
+        stage1Checkpoints.add(new Point3D(-73, 77, 10));
+        stage1Checkpoints.add(new Point3D(-82, 86, 5));
+        stage2Checkpoints.add(new Point3D(7, 77, 23));
+        stage2Checkpoints.add(new Point3D(-26, 77, 22));
+        stage2Checkpoints.add(new Point3D(-29, 85, 27));
+        stage2Checkpoints.add(new Point3D(-65, 77, 23));
+        stage2Checkpoints.add(new Point3D(-85, 90, 24));
+        stage3Checkpoints.add(new Point3D(7, 77, -5));
+        stage3Checkpoints.add(new Point3D(-14, 81, -9));
+        stage3Checkpoints.add(new Point3D(-38, 79, -5));
+        stage3Checkpoints.add(new Point3D(-75, 78, -5));
+        stage3Checkpoints.add(new Point3D(-89, 92, -11));
+        stage4Checkpoints.add(new Point3D(7, 77, 37));
+        stage4Checkpoints.add(new Point3D(-21, 80, 32));
+        stage4Checkpoints.add(new Point3D(-41, 83, 34));
+        stage4Checkpoints.add(new Point3D(-66, 77, 35));
+        stage4Checkpoints.add(new Point3D(-89, 77, 41));
+        stage4Checkpoints.add(new Point3D(-92, 89, 43));
+        stage5Checkpoints.add(new Point3D(7, 77, -19));
+        stage5Checkpoints.add(new Point3D(-83, 65, -17));
+        stage5Checkpoints.add(new Point3D(-91, 80, -18));
+        stage5Checkpoints.add(new Point3D(-88, 89, -22));
+        stage6Checkpoints.add(new Point3D(7, 77, 51));
+        stage6Checkpoints.add(new Point3D(-27, 80, 52));
+        stage6Checkpoints.add(new Point3D(-35, 84, 48));
+        stage6Checkpoints.add(new Point3D(-45, 92, 55));
+        stage6Checkpoints.add(new Point3D(-67, 98, 49));
+        stage6Checkpoints.add(new Point3D(-74, 106, 54));
+        stage6Checkpoints.add(new Point3D(-74, 111, 51));
+        stage6Checkpoints.add(new Point3D(-85, 118, 54));
     }
 
 }
