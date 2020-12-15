@@ -19,9 +19,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.*;
 
 public class ServerDodgeball extends ServerInterface {
 
@@ -281,6 +279,50 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     private void dodgeballTick() {
+        HashSet<UUID> finishedPlayers = new HashSet<UUID>();
+
+        for (PlayerInterface player : players) {
+            PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
+            // Dont care about them, if they're game is already finished
+            if (player.bukkitPlayer.getLocation().getZ() < 40)
+                return;
+
+            // Check if all of your opponents are dead
+            boolean allDead = true;
+            for (UUID uuid : playerDodgeball.opponentTeam.players) {
+                if (playerLookup.containsKey(uuid)) {
+                    PlayerDodgeball opponent = (PlayerDodgeball) playerLookup.get(uuid);
+                    if (opponent.lives > 0) {
+                        allDead = false;
+                    }
+                    if (!allDead)
+                        break;
+                }
+            }
+
+            // Award points
+            if (allDead) {
+                player.bukkitPlayer.sendTitle("Victory!", "", 10, 60, 10);
+                player.currentScore += 250;
+
+                // Mark you and your opponents as finished
+                for (UUID uuid : playerDodgeball.opponentTeam.players) {
+                    if (playerLookup.containsKey(uuid)) {
+                        finishedPlayers.add(uuid);
+                    }
+                }
+                finishedPlayers.add(player.bukkitPlayer.getUniqueId());
+            }
+        }
+
+        Location serverSpawn = new Location(players.get(0).bukkitPlayer.getWorld(), -15.5, 4, 1.5);
+        // Teleport all players with finished games to spawn
+        for (UUID uuid : finishedPlayers) {
+            if (playerLookup.containsKey(uuid)) {
+                playerLookup.get(uuid).bukkitPlayer.teleport(serverSpawn);
+                playerLookup.get(uuid).bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
+            }
+        }
     }
 
     private void dodgeballEnd() {
