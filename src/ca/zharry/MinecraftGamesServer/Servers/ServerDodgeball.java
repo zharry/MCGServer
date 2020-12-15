@@ -16,7 +16,15 @@ import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import javafx.geometry.Point3D;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -28,13 +36,16 @@ public class ServerDodgeball extends ServerInterface {
     public HashMap<Integer, Integer> rrIndexToTeamId;
     public int currentGame = 0;
     public int totalGames = 0;
+    public int spawnArrowsTick = 0;
 
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
     public static final int TIMER_INPROGRESS = 1 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
+    public static final int SPAWN_ARROWS_TICK = 20 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
     public static final ArrayList<Point3D> arenaSpectator = new ArrayList<Point3D>();
+    public static final ArrayList<Point3D> arenaArrowSpawns = new ArrayList<Point3D>();
 
     // Server state
     public static final int ERROR = -1;
@@ -229,6 +240,18 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     private void dodgeballStart() {
+        // Remove all lingering item drops
+        List<Entity> entList = players.get(0).bukkitPlayer.getWorld().getEntities();
+        for (Entity current : entList) {
+            if (current instanceof Item || current instanceof Arrow) {
+                current.remove();
+            }
+        }
+
+        // Set arrow spawner to immediately give both teams one arrow on start
+        spawnArrowsTick = 0;
+
+        // Assign each team an arena
         int arenaNo = 0;
         for (int i = 0; i < roundRobin.size(); i++) {
             for (int j = 0; j < roundRobin.get(i).size(); j++) {
@@ -275,10 +298,33 @@ public class ServerDodgeball extends ServerInterface {
             PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
             playerDodgeball.kills = 0;
             playerDodgeball.lives = 3;
+
+            ItemStack bow = new ItemStack(Material.BOW, 1);
+            ItemMeta bowMeta = bow.getItemMeta();
+            bowMeta.addEnchant(Enchantment.ARROW_DAMAGE, 100, true);
+            bowMeta.addEnchant(Enchantment.DURABILITY, 100, true);
+            bow.setItemMeta(bowMeta);
+
+            playerDodgeball.bukkitPlayer.getInventory().clear();
+            player.bukkitPlayer.getInventory().addItem(bow);
         }
     }
 
     private void dodgeballTick() {
+        // Logic for spawning arrows
+        World world = players.get(0).bukkitPlayer.getWorld();
+        spawnArrowsTick--;
+        if (spawnArrowsTick <= 0) {
+            spawnArrowsTick = SPAWN_ARROWS_TICK;
+            for (Point3D point : arenaArrowSpawns) {
+                Location arrowSpawn = new Location(world, point.getX(), point.getY(), point.getZ());
+                ItemStack arrow = new ItemStack(Material.ARROW, 1);
+                world.dropItem(arrowSpawn, arrow);
+            }
+        }
+
+
+        // Logic for completed games
         HashSet<UUID> finishedPlayers = new HashSet<UUID>();
 
         for (PlayerInterface player : players) {
@@ -340,6 +386,7 @@ public class ServerDodgeball extends ServerInterface {
         timerStartGame.set(TIMER_STARTING);
         timerInProgress.set(TIMER_INPROGRESS);
         timerStartGame.start();
+        spawnArrowsTick = 0;
     }
 
     private void initArenaSpawns() {
@@ -352,6 +399,15 @@ public class ServerDodgeball extends ServerInterface {
         arenaSpectator.add(new Point3D(73.5 - 50, 14, 56.5));
         arenaSpectator.add(new Point3D(73.5 - 100, 14, 56.5));
         arenaSpectator.add(new Point3D(73.5 - 150, 14, 56.5));
+
+        arenaArrowSpawns.add(new Point3D(57.5, 4, 58.5));
+        arenaArrowSpawns.add(new Point3D(57.5, 4, 75.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 50, 4, 58.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 50, 4, 75.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 100, 4, 58.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 100, 4, 75.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 150, 4, 58.5));
+        arenaArrowSpawns.add(new Point3D(57.5 - 150, 4, 75.5));
     }
 
 }

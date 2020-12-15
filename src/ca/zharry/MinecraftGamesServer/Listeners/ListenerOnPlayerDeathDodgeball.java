@@ -20,9 +20,12 @@ public class ListenerOnPlayerDeathDodgeball implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         if (server.state == ServerDodgeball.GAME_INPROGRESS) {
+            event.setKeepInventory(true);
+            event.getDrops().clear(); // TODO Drop only arrows on death
+
             Player k = event.getEntity().getPlayer().getKiller();
             Player d = event.getEntity().getPlayer();
-            if (k == null || k.getUniqueId() == d.getUniqueId())
+            if (k.getUniqueId() == d.getUniqueId())
                 return;
             PlayerDodgeball killer = (PlayerDodgeball) server.playerLookup.get(k.getUniqueId());
             PlayerDodgeball dead = (PlayerDodgeball) server.playerLookup.get(d.getUniqueId());

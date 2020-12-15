@@ -156,6 +156,7 @@ public class ServerParkour extends ServerInterface {
         for (PlayerInterface player : players) {
             PlayerParkour parkourPlayer = (PlayerParkour) player;
             player.bukkitPlayer.teleport(mapStart);
+            player.bukkitPlayer.getInventory().clear();
             parkourPlayer.stage = 1;
             parkourPlayer.level = 0;
         }

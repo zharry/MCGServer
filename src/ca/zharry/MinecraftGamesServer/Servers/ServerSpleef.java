@@ -178,9 +178,10 @@ public class ServerSpleef extends ServerInterface {
             ItemStack pickaxe = new ItemStack(Material.DIAMOND_PICKAXE, 1);
             ItemMeta pickaxeMeta = pickaxe.getItemMeta();
             pickaxeMeta.addEnchant(Enchantment.DIG_SPEED, 100, true);
-            pickaxeMeta.addEnchant(Enchantment.DURABILITY, 10, true);
+            pickaxeMeta.addEnchant(Enchantment.DURABILITY, 100, true);
             pickaxe.setItemMeta(pickaxeMeta);
 
+            player.bukkitPlayer.getInventory().clear();
             player.bukkitPlayer.getInventory().addItem(pickaxe);
             player.bukkitPlayer.teleport(spreadStart);
             player.bukkitPlayer.setGameMode(GameMode.SURVIVAL);
