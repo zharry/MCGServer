@@ -23,20 +23,18 @@ public class ListenerOnPlayerDeathSpleef implements Listener {
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
             // Find the dead player
             Player deadPlayer = event.getEntity();
+            PlayerSpleef player = (PlayerSpleef) server.playerLookup.get(deadPlayer.getUniqueId());
+
+            // Mark them as dead and upload their score
+            server.dead.add(player);
+            player.dead = true;
+            player.commit();
+
+            // Award all non-dead players some score
             for (PlayerInterface p : server.players) {
-                PlayerSpleef player = (PlayerSpleef) p;
-                if (deadPlayer.getUniqueId() == p.bukkitPlayer.getUniqueId()) {
-
-                    // Mark them as dead and upload their score
-                    server.dead.add(player);
-                    player.dead = true;
-                    player.commit();
-                    continue;
-                }
-
-                // Award all non-dead players some score
-                if (!player.dead) {
-                    player.currentScore += 100;
+                PlayerSpleef playerSpleef = (PlayerSpleef) p;
+                if (!playerSpleef.dead) {
+                    playerSpleef.currentScore += 100;
                 }
             }
         }

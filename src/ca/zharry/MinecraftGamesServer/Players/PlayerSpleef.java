@@ -65,7 +65,6 @@ public class PlayerSpleef extends PlayerInterface {
     @Override
     public void commit() {
         try {
-
             int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +

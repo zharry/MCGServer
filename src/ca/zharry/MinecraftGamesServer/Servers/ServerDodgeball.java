@@ -61,7 +61,7 @@ public class ServerDodgeball extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player: currentlyOnline) {
-            players.add(new PlayerDodgeball(player, this));
+            addPlayer(new PlayerDodgeball(player, this));
         }
 
         dodgeballRoundRobinSetup();

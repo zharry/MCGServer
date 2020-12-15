@@ -8,6 +8,7 @@ import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerJoinLobby;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerQuitLobby;
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import com.google.common.io.ByteArrayDataOutput;
@@ -39,7 +40,7 @@ public class ServerLobby extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player: currentlyOnline) {
-            players.add(new PlayerLobby(player, this));
+            addPlayer(new PlayerLobby(player, this));
         }
 
         timerNextGame = new Timer(plugin) {
@@ -92,8 +93,8 @@ public class ServerLobby extends ServerInterface {
         out.writeUTF("Connect");
         out.writeUTF(minigame);
 
-        for (int i = 0; i < players.size(); i++) {
-            players.get(i).bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        for (PlayerInterface player: players) {
+            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
         }
     }
 

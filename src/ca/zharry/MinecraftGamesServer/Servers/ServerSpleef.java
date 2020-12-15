@@ -50,7 +50,7 @@ public class ServerSpleef extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
-            players.add(new PlayerSpleef(player, this));
+            addPlayer(new PlayerSpleef(player, this));
         }
 
         timerStartGame = new Timer(plugin) {
@@ -191,7 +191,8 @@ public class ServerSpleef extends ServerInterface {
         int counter = 0;
         PlayerInterface lastOneAlive = players.get(0);
         for (PlayerInterface player : players) {
-            if (!dead.contains(player)) {
+            PlayerSpleef playerSpleef = (PlayerSpleef) player;
+            if (!playerSpleef.dead) {
                 lastOneAlive = player;
                 counter++;
             }

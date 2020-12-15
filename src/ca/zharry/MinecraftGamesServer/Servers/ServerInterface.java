@@ -25,7 +25,7 @@ public abstract class ServerInterface {
 
     public BukkitTask taskScoreboard;
     public ArrayList<PlayerInterface> players;
-    public HashMap<UUID, PlayerInterface> playerLoopup;
+    public HashMap<UUID, PlayerInterface> playerLookup;
 
     public ArrayList<Integer> teamIDs;
     public HashMap<Integer, MCGTeam> teams;
@@ -35,7 +35,7 @@ public abstract class ServerInterface {
         this.javaPlugin = plugin;
         this.plugin = plugin;
         this.players = new ArrayList<>();
-        this.playerLoopup = new HashMap<UUID, PlayerInterface>();
+        this.playerLookup = new HashMap<UUID, PlayerInterface>();
 
         minigames.put("parkour", "Parkour");
         minigames.put("spleef", "Spleef");
@@ -58,9 +58,8 @@ public abstract class ServerInterface {
 
     public void addPlayer(PlayerInterface player) {
         players.add(player);
-        playerLoopup.put(player.bukkitPlayer.getUniqueId(), player);
+        playerLookup.put(player.bukkitPlayer.getUniqueId(), player);
     }
-
 
     public void getTeams() {
         this.teams.clear();
@@ -115,8 +114,8 @@ public abstract class ServerInterface {
         out.writeUTF("Connect");
         out.writeUTF("lobby");
 
-        for (int i = 0; i < players.size(); i++) {
-            players.get(i).bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        for (PlayerInterface player: players) {
+            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
         }
     }
 

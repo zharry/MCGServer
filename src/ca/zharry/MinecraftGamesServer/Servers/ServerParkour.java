@@ -55,7 +55,7 @@ public class ServerParkour extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player: currentlyOnline) {
-            players.add(new PlayerParkour(player, this));
+            addPlayer(new PlayerParkour(player, this));
         }
 
         timerStartGame = new Timer(plugin) {
