@@ -40,6 +40,7 @@ public abstract class ServerInterface {
         minigames.put("parkour", "Parkour");
         minigames.put("spleef", "Spleef");
         minigames.put("dodgeball", "Dodgeball");
+        minigames.put("survivalgames", "Survival Games");
 
         this.teamIDs = new ArrayList<Integer>();
         this.teams = new HashMap<Integer, MCGTeam>();

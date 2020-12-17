@@ -41,6 +41,9 @@ public class MCGMain extends JavaPlugin {
             case "dodgeball":
                 server = new ServerDodgeball(this);
                 break;
+            case "survivalgames":
+                server = new ServerDodgeball(this);
+                break;
         }
 
         server.onEnableCall();
