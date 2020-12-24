@@ -59,11 +59,7 @@ public class PlayerDodgeball extends PlayerInterface {
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(13);
         }
         objective.getScore("").setScore(11);
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(10);
-        objective.getScore(ChatColor.WHITE + " 1. Team 1").setScore(9);
-        objective.getScore(ChatColor.WHITE + " 4. Team 4").setScore(8);
-        objective.getScore(ChatColor.WHITE + " 5. " + ChatColor.BOLD + "Team 5 " + ChatColor.RESET + myTeam.getScore("dodgeball")).setScore(7);
-        objective.getScore(ChatColor.WHITE + " 6. Team 6").setScore(6);
+        setGameScores(objective, 10, "dodgeball", myTeam.id);
         objective.getScore("  ").setScore(5);
         if (opponentTeam != null) {
             if (server.state == ServerParkour.GAME_STARTING) {

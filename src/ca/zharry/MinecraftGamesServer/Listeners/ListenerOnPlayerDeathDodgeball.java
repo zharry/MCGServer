@@ -2,7 +2,7 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 
 import ca.zharry.MinecraftGamesServer.Players.PlayerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
-import javafx.geometry.Point3D;
+import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

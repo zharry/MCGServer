@@ -4,14 +4,19 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGScore;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import ca.zharry.MinecraftGamesServer.Utils.StringAlignUtils;
+import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public abstract class PlayerInterface {
 
@@ -51,7 +56,6 @@ public abstract class PlayerInterface {
         }
         // Add our entry to our scoreboard
         addPlayerTeamToScoreboard(scoreboard, myTeam, this);
-
     }
 
     private void addPlayerTeamToScoreboard(Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
@@ -63,6 +67,123 @@ public abstract class PlayerInterface {
         minecraftTeam.setColor(team.chatColor);
         minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         minecraftTeam.setAllowFriendlyFire(false);
+    }
+
+    public void doStatsRefresh() {
+        updateTabList();
+        updateScoreboard();
+    }
+
+    private static final String EMPTY_LINE = "                                                                      \n";
+    private static final String LINE = "&5&m                                                            &r";
+    private static final String[] HEADERS = {
+            "&bMCG Season " + MCGMain.SEASON,
+            "",
+            LINE,
+            "&fOverall Game Scores:"
+    };
+
+    private static final StringAlignUtils strFmt = new StringAlignUtils(70,5);
+    public void updateTabList() {
+
+        StringBuilder sb = new StringBuilder(EMPTY_LINE);
+        for (String header : HEADERS) {
+            sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', header))).append("\n");
+        }
+
+        ArrayList<MCGTeam> teams = server.getOrderedTeams();
+        int columnCnt = 2;
+
+        TableGenerator.Alignment[] alignments = new TableGenerator.Alignment[columnCnt];
+        alignments[columnCnt-1] = TableGenerator.Alignment.RIGHT;
+        for (int i = 0; i < columnCnt-1; i++) {
+            alignments[i] = TableGenerator.Alignment.LEFT;
+        }
+
+        TableGenerator table = new TableGenerator(alignments);
+        table.addRow("                                                  ");
+
+        for (int place = 1; place <= teams.size(); place++) {
+            MCGTeam team = teams.get(place-1);
+            String[] teamInfo = new String[columnCnt];
+            teamInfo[0] = "§r" + place + ". §" + team.chatColor.getChar() + team.teamname;
+            teamInfo[columnCnt-1] = team.getScore() + "";
+            table.addRow(teamInfo);
+            ArrayList<UUID> uuids = team.players;
+            StringBuilder nameStrs = new StringBuilder();
+
+            int maxLen = (50-uuids.size()+1) / uuids.size();
+            for (UUID uuid : uuids) {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null) {
+                    nameStrs.append(p.getDisplayName(), 0, Math.min(maxLen, p.getDisplayName().length())).append(" ");
+                }
+            }
+            table.addRow("§" + team.chatColor.getChar() + nameStrs.toString());
+            table.addRow();
+        }
+
+        for (String line : table.generate(TableGenerator.Receiver.CLIENT, true, true)) {
+            sb.append(line).append("\n");
+        }
+        sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', LINE))).append("\n");
+
+        for (int i = 0; i < 100; i++) sb.append(EMPTY_LINE);
+        bukkitPlayer.setPlayerListHeader(sb.toString());
+    }
+
+    public void setGameScores(Objective objective, int startLine, String curMinigameStr, int curTeamID) {
+        ArrayList<MCGTeam> sortedTeams = new ArrayList<>(server.teams.values());
+        sortedTeams.sort((a, b) -> b.getScore(curMinigameStr) - a.getScore(curMinigameStr)); // sorted in descending order
+        int curTeamPlace = -1;
+        for (int i = 0; i < sortedTeams.size(); i++) {
+            int curId = sortedTeams.get(i).id;
+            if (curId == curTeamID) {
+                curTeamPlace = i;
+                break;
+            }
+        }
+        int[] resIds;
+        int[] placements;
+        if (curTeamPlace == 0 || curTeamPlace == 1) {
+            resIds = new int[] {
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(1).id,
+                    sortedTeams.get(2).id,
+                    sortedTeams.get(3).id
+            };
+            placements = new int[] {1,2,3,4};
+        } else if (curTeamPlace == sortedTeams.size() - 1) {
+            resIds =  new int[] {
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(1).id,
+                    sortedTeams.get(curTeamPlace-1).id,
+                    curTeamID
+            };
+            placements = new int[] {1,2,curTeamPlace,curTeamPlace+1};
+        } else {
+            resIds =  new int[] {
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(curTeamPlace-1).id,
+                    curTeamID,
+                    sortedTeams.get(curTeamPlace+1).id
+            };
+            placements = new int[] {1,curTeamPlace,curTeamPlace+1,curTeamPlace+2};
+        }
+        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(startLine);
+
+        for (int i = 0; i < 5; i++) {
+            if (i == 0) {
+                objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(startLine);
+                continue;
+            }
+            String bold = "";
+            if (resIds[i-1] == curTeamID) {
+                bold = ChatColor.BOLD.toString();
+            }
+            MCGTeam t = server.teams.get(resIds[i-1]);
+            objective.getScore(t.chatColor + " " + placements[i-1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr)).setScore(startLine-i);
+        }
     }
 
     public abstract void updateScoreboard();

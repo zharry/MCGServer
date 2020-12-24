@@ -51,11 +51,7 @@ public class PlayerSpleef extends PlayerInterface {
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(9);
         }
         objective.getScore("").setScore(8);
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(7);
-        objective.getScore(ChatColor.WHITE + " 1. Team 1").setScore(6);
-        objective.getScore(ChatColor.WHITE + " 4. Team 4").setScore(5);
-        objective.getScore(ChatColor.WHITE + " 5. " + ChatColor.BOLD + "Team 5").setScore(4);
-        objective.getScore(ChatColor.WHITE + " 6. Team 6").setScore(3);
+        setGameScores(objective, 7, "spleef", myTeam.id);
         objective.getScore("  ").setScore(2);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("spleef")).setScore(1);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore).setScore(0);

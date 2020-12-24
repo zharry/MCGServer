@@ -1,5 +1,5 @@
-cp builds/MinecraftGamesServer.jar "D:\Games\Minecraft Servers\MCG\Lobby - PaperMC\plugins\MinecraftGamesServer.jar"
-cp builds/MinecraftGamesServer.jar "D:\Games\Minecraft Servers\MCG\Parkour - PaperMC\plugins\MinecraftGamesServer.jar"
-cp builds/MinecraftGamesServer.jar "D:\Games\Minecraft Servers\MCG\Spleef - PaperMC\plugins\MinecraftGamesServer.jar"
-cp builds/MinecraftGamesServer.jar "D:\Games\Minecraft Servers\MCG\Dodgeball - PaperMC\plugins\MinecraftGamesServer.jar"
-cp builds/MinecraftGamesServer.jar "D:\Games\Minecraft Servers\MCG\Survival Games - PaperMC\plugins\MinecraftGamesServer.jar"
+wsl cp /mnt/d/OneDrive/Programming/IdeaProjects/MinecraftGamesServer/builds/MinecraftGamesServer.jar /home/harry/MCG/Lobby/plugins/MinecraftGamesServer.jar
+wsl cp /mnt/d/OneDrive/Programming/IdeaProjects/MinecraftGamesServer/builds/MinecraftGamesServer.jar /home/harry/MCG/Parkour/plugins/MinecraftGamesServer.jar
+wsl cp /mnt/d/OneDrive/Programming/IdeaProjects/MinecraftGamesServer/builds/MinecraftGamesServer.jar /home/harry/MCG/Spleef/plugins/MinecraftGamesServer.jar
+wsl cp /mnt/d/OneDrive/Programming/IdeaProjects/MinecraftGamesServer/builds/MinecraftGamesServer.jar /home/harry/MCG/Dodgeball/plugins/MinecraftGamesServer.jar
+wsl cp /mnt/d/OneDrive/Programming/IdeaProjects/MinecraftGamesServer/builds/MinecraftGamesServer.jar /home/harry/MCG/SurvivalGames/plugins/MinecraftGamesServer.jar

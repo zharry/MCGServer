@@ -21,10 +21,10 @@ public class MCGMain extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        logger.info("MCG Plugin Enabled!");
+        logger.info("MCG Plugin Enabled! Test");
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
 
-        conn = new MysqlConnection("localhost", "3306", "mcg", "root", "password");
+        conn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
         this.setupDatabase();
 
         this.getConfigurationFile();
@@ -42,7 +42,7 @@ public class MCGMain extends JavaPlugin {
                 server = new ServerDodgeball(this);
                 break;
             case "survivalgames":
-                server = new ServerDodgeball(this);
+                server = new ServerSurvivalGames(this);
                 break;
         }
 

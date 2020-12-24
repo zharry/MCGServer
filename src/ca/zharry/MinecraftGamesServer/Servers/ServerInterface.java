@@ -12,9 +12,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
 
 public abstract class ServerInterface {
 
@@ -51,7 +49,7 @@ public abstract class ServerInterface {
             @Override
             public void run() {
                 for (PlayerInterface player : players) {
-                    player.updateScoreboard();
+                    player.doStatsRefresh();
                 }
             }
         }.runTaskTimer(plugin, 0, 5);
@@ -60,6 +58,12 @@ public abstract class ServerInterface {
     public void addPlayer(PlayerInterface player) {
         players.add(player);
         playerLookup.put(player.bukkitPlayer.getUniqueId(), player);
+    }
+
+    public ArrayList<MCGTeam> getOrderedTeams() {
+        ArrayList<MCGTeam> res = new ArrayList<>(teams.values());
+        res.sort((a, b) -> b.getScore() - a.getScore());
+        return res;
     }
 
     public void getTeams() {

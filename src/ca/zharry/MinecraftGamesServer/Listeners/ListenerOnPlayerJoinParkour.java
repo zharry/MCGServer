@@ -2,7 +2,7 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
-import javafx.geometry.Point3D;
+import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;

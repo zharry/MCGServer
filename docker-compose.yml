@@ -4,17 +4,29 @@ services:
         container_name: mysql
         image: mariadb
         volumes:
-            - ./mysql:/var/lib/mysql
+            - /home/harry/MCG/MySQL:/var/lib/mysql
         ports:
             - "3306:3306"
         environment:
             - MYSQL_ROOT_PASSWORD=password
+        mem_limit: 256m
     phpmyadmin:
         container_name: phpmyadmin
         image: phpmyadmin/phpmyadmin
-        depends_on: 
+        depends_on:
             - mysql
         ports:
             - "8080:80"
         environment:
             - PMA_HOST=mysql
+        mem_limit: 128m
+    minecraft:
+        container_name: minecraft
+        build: .
+        depends_on:
+            - mysql
+        ports:
+            - "25565-25700:25565-25700"
+        volumes:
+            - /home/harry/MCG:/home/harry/MCG
+        mem_limit: 6g
