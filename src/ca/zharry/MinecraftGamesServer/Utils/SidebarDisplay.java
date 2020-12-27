@@ -18,7 +18,7 @@ public class SidebarDisplay {
         objective = scoreboard.registerNewObjective("sidebarDisplay", "dummy", name);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         for(int i = 0; i < MAX_LINES; ++i) {
-            teams[i] = scoreboard.registerNewTeam(ChatColor.BLACK + "sidebar" + i);
+            teams[i] = scoreboard.registerNewTeam("" + ChatColor.BLACK + ChatColor.STRIKETHROUGH + ChatColor.MAGIC + "sidebar" + i);
             players[i] = "§" + Integer.toHexString(i);
             teams[i].addEntry(players[i]);
             scores[i] = objective.getScore(players[i]);

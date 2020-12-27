@@ -1,21 +1,19 @@
 package ca.zharry.MinecraftGamesServer.Listeners;
 
-import org.bukkit.GameRule;
+import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldLoadEvent;
 
 public class ChangeGameRule implements Listener {
-    public GameRule gamerule;
-    public Object value;
+    public ServerInterface server;
 
-    public ChangeGameRule(GameRule gamerule, Object value) {
-        this.gamerule = gamerule;
-        this.value = value;
+    public ChangeGameRule(ServerInterface server) {
+        this.server = server;
     }
 
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
-        event.getWorld().setGameRule(gamerule, value);
+        server.applyGameRules(event.getWorld());
     }
 }

@@ -3,9 +3,11 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSpleef;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
+import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -68,10 +70,15 @@ public class ListenerSpleef implements Listener {
             player.commit();
 
             // Award all non-dead players some score
+            player.bukkitPlayer.sendTitle("You died!", "", 0, 30, 20);
             for (PlayerInterface p : server.players) {
                 PlayerSpleef playerSpleef = (PlayerSpleef) p;
                 if (!playerSpleef.dead) {
                     playerSpleef.currentScore += 100;
+                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+100]" +
+                            ChatColor.RESET + " survival points, " + deadPlayer.getDisplayName() + " has died!");
+                } else {
+                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + deadPlayer.getDisplayName() + " has died!");
                 }
             }
         }
@@ -79,20 +86,20 @@ public class ListenerSpleef implements Listener {
 
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
-        Player player = event.getPlayer();
-        player.setGameMode(GameMode.ADVENTURE);
-        Location serverSpawn = new Location(player.getWorld(), 14.5, 75, 17.5);
-        player.teleport(serverSpawn);
-        player.getInventory().clear();
-        if(server.state == ServerSpleef.GAME_INPROGRESS) {
-            new BukkitRunnable() {
-                public void run() {
-                    player.setGameMode(GameMode.SPECTATOR);
+        new BukkitRunnable() {
+            public void run() {
+                Player player = event.getPlayer();
+                Location serverSpawn = new Location(player.getWorld(), 14.5, 75, 17.5);
+                player.teleport(serverSpawn);
+                if(server.state == ServerSpleef.GAME_INPROGRESS) {
+                    PlayerUtils.resetPlayer(player, GameMode.SPECTATOR);
+                } else {
+                    PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
                 }
-            }.runTaskLater(server.javaPlugin, 1);
-        }
+            }
+        }.runTaskLater(server.javaPlugin, 1);
     }
-    
+
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         if(event.getPlayer().getLocation().getY() < 36) {
@@ -104,6 +111,8 @@ public class ListenerSpleef implements Listener {
     @EventHandler
     public void onTntExplode(EntityExplodeEvent event) {
         event.blockList().removeIf(block -> block.getLocation().getY() > ServerSpleef.COMPETITION_MAX_HEIGHT);
+
+        event.getLocation().getWorld().spawnParticle(Particle.EXPLOSION_LARGE, event.getLocation(), 0);
     }
 
     @EventHandler

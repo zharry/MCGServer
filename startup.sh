@@ -16,31 +16,31 @@ tmux ls
 
 sleep 30s
 
-#echo "Starting Parkour server..."
-#cd ../Parkour
-#tmux new-session -d -s "parkour" ./server.sh
-#tmux ls
-#
-#sleep 30s
+echo "Starting Parkour server..."
+cd ../Parkour
+tmux new-session -d -s "parkour" ./server.sh
+tmux ls
+
+sleep 30s
 
 echo "Starting Spleef server..."
 cd ../Spleef
 tmux new-session -d -s "spleef" ./server.sh
 tmux ls
-#
-#sleep 30s
-#
-#echo "Starting Dodgeball server..."
-#cd ../Dodgeball
-#tmux new-session -d -s "dodgeball" ./server.sh
-#tmux ls
-#
-#sleep 30s
-#
-#echo "Starting Survival Games server..."
-#cd ../SurvivalGames
-#tmux new-session -d -s "survivalgames" ./server.sh
-#tmux ls
+
+sleep 30s
+
+echo "Starting Dodgeball server..."
+cd ../Dodgeball
+tmux new-session -d -s "dodgeball" ./server.sh
+tmux ls
+
+sleep 30s
+
+echo "Starting Survival Games server..."
+cd ../SurvivalGames
+tmux new-session -d -s "survivalgames" ./server.sh
+tmux ls
 
 sleep 30s
 

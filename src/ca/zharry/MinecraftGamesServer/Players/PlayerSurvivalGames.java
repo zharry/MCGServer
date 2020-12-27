@@ -41,31 +41,30 @@ public class PlayerSurvivalGames extends PlayerInterface {
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         // This is a spacer
-        objective.getScore("                          ").setScore(15);
+        sidebar.add("                          ");
 
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 1/6: " + ChatColor.RESET + "Survival Games").setScore(14);
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 1/6: " + ChatColor.RESET + "Survival Games");
 
         if (server.state == ServerSurvivalGames.GAME_WAITING) {
-            objective.getScore(ChatColor.WHITE + "Waiting for game start...").setScore(13);
+            sidebar.add(ChatColor.WHITE + "Waiting for game start...");
         } else if (server.state == ServerSurvivalGames.GAME_STARTING) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Teleporting: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(13);
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Teleporting: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : ""));
         } else if (server.state == ServerSurvivalGames.GAME_BEGIN) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game Begins: " + ChatColor.RESET + server.timerBegin.getString() + (server.timerBegin.isPaused() ? " (Paused)" : "")).setScore(13);
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game Begins: " + ChatColor.RESET + server.timerBegin.getString() + (server.timerBegin.isPaused() ? " (Paused)" : ""));
         } else if (server.state == ServerSurvivalGames.GAME_INPROGRESS) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(13);
-            objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Next event: " + ChatColor.RESET + "" + server.getNextEvent()).setScore(12);
-            objective.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "World Border: " + ChatColor.RESET + "" + server.getWorldBorder()).setScore(11);
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Next event: " + ChatColor.RESET + "" + server.getNextEvent());
+            sidebar.add(ChatColor.WHITE + "" + ChatColor.BOLD + "World Border: " + ChatColor.RESET + "" + server.getWorldBorder());
         } else if (server.state == ServerSurvivalGames.GAME_FINISHED) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(13);
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : ""));
         }
-        objective.getScore("").setScore(10);
-        setGameScores(objective, 9, "survivalgames", myTeam.id);
-        objective.getScore("  ").setScore(4);
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive()).setScore(3);
-        objective.getScore(ChatColor.WHITE + "" + ChatColor.BOLD + "Kills: " + ChatColor.RESET + "" + kills).setScore(2);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore).setScore(1);
-
-        this.bukkitPlayer.setScoreboard(scoreboard);
+        sidebar.add("");
+        setGameScores("survivalgames", myTeam.id);
+        sidebar.add("");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive());
+        sidebar.add(ChatColor.WHITE + "" + ChatColor.BOLD + "Kills: " + ChatColor.RESET + "" + kills);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
+        sidebar.end();
     }
 
     @Override

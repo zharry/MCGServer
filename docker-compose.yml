@@ -29,4 +29,4 @@ services:
             - "25565-25700:25565-25700"
         volumes:
             - /home/harry/MCG:/home/harry/MCG
-        mem_limit: 6g
+        mem_limit: 10g

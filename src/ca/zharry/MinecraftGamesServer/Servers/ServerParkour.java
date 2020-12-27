@@ -4,7 +4,6 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
-import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerParkour;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
@@ -163,10 +162,20 @@ public class ServerParkour extends ServerInterface {
     public void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(new ListenerParkour(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_FIRE_TICK, false), plugin);
-
     }
+
+    @Override
+    public void applyGameRules(World world) {
+        world.setGameRule(GameRule.DO_FIRE_TICK, false);
+        world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+        world.setGameRule(GameRule.MOB_GRIEFING, false);
+        world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+        world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+        world.setFullTime(6000);
+    }
+
 
     private void parkourStart() {
         Player dummyPlayer = players.get(0).bukkitPlayer;

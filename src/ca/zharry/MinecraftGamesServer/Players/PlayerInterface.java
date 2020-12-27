@@ -10,7 +10,6 @@ import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -145,7 +144,7 @@ public abstract class PlayerInterface {
         bukkitPlayer.setPlayerListHeader(sb.toString());
     }
 
-    public void setGameScores(Objective objective, int startLine, String curMinigameStr, int curTeamID) {
+    public void setGameScores(String curMinigameStr, int curTeamID) {
         ArrayList<MCGTeam> sortedTeams = new ArrayList<>(server.teams.values());
         sortedTeams.sort((a, b) -> b.getScore(curMinigameStr) - a.getScore(curMinigameStr)); // sorted in descending order
         int curTeamPlace = -1;
@@ -183,11 +182,11 @@ public abstract class PlayerInterface {
             };
             placements = new int[] {1,curTeamPlace,curTeamPlace+1,curTeamPlace+2};
         }
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(startLine);
+//        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
 
         for (int i = 0; i < 5; i++) {
             if (i == 0) {
-                objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ").setScore(startLine);
+                sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
                 continue;
             }
             String bold = "";
@@ -195,7 +194,7 @@ public abstract class PlayerInterface {
                 bold = ChatColor.BOLD.toString();
             }
             MCGTeam t = server.teams.get(resIds[i-1]);
-            objective.getScore(t.chatColor + " " + placements[i-1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr)).setScore(startLine-i);
+            sidebar.add(t.chatColor + " " + placements[i-1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr));
         }
     }
 

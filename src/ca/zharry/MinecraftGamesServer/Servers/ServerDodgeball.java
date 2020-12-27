@@ -4,7 +4,6 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
-import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerDodgeball;
 import ca.zharry.MinecraftGamesServer.MCGMain;
@@ -193,8 +192,18 @@ public class ServerDodgeball extends ServerInterface {
     public void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(new ListenerDodgeball(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_FIRE_TICK, false), plugin);
+    }
+
+    @Override
+    public void applyGameRules(World world) {
+        world.setGameRule(GameRule.DO_FIRE_TICK, false);
+        world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+        world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+        world.setGameRule(GameRule.MOB_GRIEFING, false);
+        world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+        world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+        world.setFullTime(18000);
     }
 
     public void giveBow(PlayerDodgeball player) {
@@ -433,7 +442,7 @@ public class ServerDodgeball extends ServerInterface {
                         " \n",
                 ChatColor.BOLD + "Top Killers:\n" + topKillers +
                         " \n",
-                ChatColor.BOLD + "Final Team Score for Survival Games:\n" + topTeams,
+                ChatColor.BOLD + "Final Team Score for Dodgeball:\n" + topTeams,
         }, new int[]{
                 10,
                 60,
