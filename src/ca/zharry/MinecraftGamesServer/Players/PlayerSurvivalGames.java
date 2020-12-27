@@ -3,10 +3,8 @@ package ca.zharry.MinecraftGamesServer.Players;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSurvivalGames;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,13 +31,6 @@ public class PlayerSurvivalGames extends PlayerInterface {
 
     @Override
     public void updateScoreboard() {
-        try {
-            scoreboard.getObjective("scoreboard").unregister();
-        } catch (Exception ignored) {
-        }
-        Objective objective = scoreboard.registerNewObjective("scoreboard", "dummy", "MCG Season " + MCGMain.SEASON);
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-
         // This is a spacer
         sidebar.add("                          ");
 

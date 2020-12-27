@@ -29,7 +29,7 @@ public class PlayerLobby extends PlayerInterface {
             sidebar.add(ChatColor.WHITE + "" + server.timerNextGame.getString() + (server.timerNextGame.isPaused() ? " (Paused)" : ""));
         }
         sidebar.add("");
-        sidebar.add(ChatColor.YELLOW + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET);
 
         sidebar.add("");
         sidebar.add(ChatColor.WHITE + "" + ChatColor.BOLD + "Your team: ");
