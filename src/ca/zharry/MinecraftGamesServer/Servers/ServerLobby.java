@@ -6,13 +6,9 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerJoinLobby;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerQuitLobby;
-import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteStreams;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -47,10 +43,16 @@ public class ServerLobby extends ServerInterface {
             @Override
             public void onStart() {
                 state = LOBBY_STARTED;
+                sendTitleAll(minigames.get(nextMinigame), "is starting in 60 seconds!");
             }
 
             @Override
             public void onTick() {
+                countdownTimer(this, 10,
+                        "",
+                        "",
+                        "Teleporting to " + minigames.get(nextMinigame),
+                        "Loading " + minigames.get(nextMinigame) + "...");
             }
 
             @Override
@@ -75,8 +77,6 @@ public class ServerLobby extends ServerInterface {
         this.state = ERROR;
     }
 
-    ;
-
     @Override
     public void registerCommands() {
         javaPlugin.getCommand("setgame").setExecutor(new CommandLobbySetNextGame(this, timerNextGame));
@@ -87,20 +87,9 @@ public class ServerLobby extends ServerInterface {
 
     @Override
     public void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerJoinLobby(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerQuitLobby(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ListenerLobby(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
-    }
-
-    public void sendPlayersToGame(String minigame) {
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("Connect");
-        out.writeUTF(minigame);
-
-        for (PlayerInterface player : players) {
-            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
-        }
     }
 
 }

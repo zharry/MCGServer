@@ -4,12 +4,14 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
-import ca.zharry.MinecraftGamesServer.Listeners.*;
+import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerSurvivalGames;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSurvivalGames;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.Coord3D;
+import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
@@ -20,6 +22,7 @@ import org.bukkit.block.Chest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.enchantments.EnchantmentWrapper;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -36,7 +39,6 @@ public class ServerSurvivalGames extends ServerInterface {
 
     // Ingame variables
     public int stage = 0;
-    public ArrayList<PlayerSurvivalGames> dead;
 
     // Game config
     public static final int COMPETITION_MAX_HEIGHT = 170;
@@ -63,22 +65,14 @@ public class ServerSurvivalGames extends ServerInterface {
     public static final ArrayList<Point3D> spawnpoints = new ArrayList<Point3D>();
     public static final HashSet<Integer> filledSpawnpoints = new HashSet<Integer>();
     public static final HashMap<Coord3D, Double> chests = new HashMap<Coord3D, Double>();
-    public static final ArrayList<Coord3D> legendaryChests = new ArrayList<Coord3D>();
-    public static final ArrayList<Coord3D> specialChests = new ArrayList<Coord3D>();
     public static final TreeMap<Double, EnchantChoice> enchantTable = new TreeMap<>();
     public static final TreeMap<Double, EnchantChoice> enchantTableIntegrated = new TreeMap<>();
     public static final TreeMap<Double, ItemChoice> lootTable = new TreeMap<>();
     public static final TreeMap<Double, ItemChoice> lootTableIntegrated = new TreeMap<>();
     public static final TreeMap<Double, ItemChoice> lootTableTier2 = new TreeMap<>();
     public static final TreeMap<Double, ItemChoice> lootTableTier2Integrated = new TreeMap<>();
+    public static final HashSet<Coord3D> openedChests = new HashSet<>();
     public static final Random random = new Random();
-
-    static {
-        legendaryChests.add(new Coord3D(37, 37, -158));
-        specialChests.add(new Coord3D(-135, 124, -14));
-        specialChests.add(new Coord3D(26, 80, 51));
-        specialChests.add(new Coord3D(-3, 84, -34));
-    }
 
     // Server state
     public static final int ERROR = -1;
@@ -97,16 +91,22 @@ public class ServerSurvivalGames extends ServerInterface {
 
     public ServerSurvivalGames(JavaPlugin plugin) {
         super(plugin);
-        dead = new ArrayList<PlayerSurvivalGames>();
 
         initCornucopiaSpawns();
         initChestLocations();
         initLootTables();
 
+        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
+        border.setSize(500 + 1);
+        border.setCenter(0.5, 0.5);
+        border.setDamageBuffer(0);
+
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
             addPlayer(new PlayerSurvivalGames(player, this));
+            PlayerUtils.resetPlayer(player, GameMode.SURVIVAL);
+            player.teleport(new Location(player.getWorld(), 0.5, 176, 0.5));
         }
 
         timerStartGame = new Timer(plugin) {
@@ -118,6 +118,11 @@ public class ServerSurvivalGames extends ServerInterface {
 
             @Override
             public void onTick() {
+                countdownTimer(this, 0,
+                        "Teleporting to arena...",
+                        "",
+                        "",
+                        "Teleporting to arena...");
             }
 
             @Override
@@ -135,6 +140,11 @@ public class ServerSurvivalGames extends ServerInterface {
 
             @Override
             public void onTick() {
+                countdownTimer(this, 11,
+                        "",
+                        "",
+                        "",
+                        "Begin!");
             }
 
             @Override
@@ -173,6 +183,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
             @Override
             public void onEnd() {
+                sendTitleAll("Joining Lobby...", "", 5, 20, 30);
                 sendPlayersToLobby();
 
                 state = GAME_WAITING;
@@ -213,13 +224,9 @@ public class ServerSurvivalGames extends ServerInterface {
 
     @Override
     public void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerJoinSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerQuitSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerDeathSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerMoveSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnWorldLoadSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnChunkLoadSurvivalGames(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerPlaceSurvivalGames(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ListenerSurvivalGames(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_FIRE_TICK, false), plugin);
     }
 
     public int getWorldBorder() {
@@ -255,19 +262,31 @@ public class ServerSurvivalGames extends ServerInterface {
     private void survivalGamesPreStart() {
         fillChestsStage1();
 
-        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
-        border.setSize(500 + 1);
-        border.setCenter(0.5, 0.5);
-        border.setDamageBuffer(0);
+        sendTitleAll("Welcome to Survival Games!", "Game will begin in 60 seconds!");
+        sendMultipleMessageAll(new String[]{
+                ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Survival Games!\n" + ChatColor.RESET +
+                        "This map is " + ChatColor.BOLD + "Breeze Island 2" + ChatColor.RESET + ", by xBayani\n" +
+                        " \n" +
+                        " \n",
+                ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
+                        "1. Collect loot from chests around the map\n" +
+                        "2. Kill other players (+50pts)\n" +
+                        "3. Survive longer than the other players (+25pts)\n" +
+                        "4. Watch out for server events (border shrink, chest refills, and etc...)",
+        }, new int[]{
+                10,
+                45,
+        });
     }
 
     private void survivalGamesBegin() {
         filledSpawnpoints.clear();
-        dead.clear();
 
         // Assign Players a unique pad
         int spawnPads = spawnpoints.size();
         for (PlayerInterface player : players) {
+            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.SURVIVAL);
+
             // Get a free spawn slot
             int padNo;
             do {
@@ -279,6 +298,8 @@ public class ServerSurvivalGames extends ServerInterface {
             // Send player to that slot
             Point3D spawnPad = spawnpoints.get(padNo);
             Location spawnPadLoc = new Location(player.bukkitPlayer.getWorld(), spawnPad.x + 0.5, spawnPad.y, spawnPad.z + 0.5);
+            spawnPadLoc.setPitch(0);
+            spawnPadLoc.setYaw((float) Math.toDegrees(Math.atan2(spawnPad.x, -spawnPad.z)));
             player.bukkitPlayer.teleport(spawnPadLoc);
             player.bukkitPlayer.setGameMode(GameMode.SURVIVAL);
         }
@@ -291,17 +312,21 @@ public class ServerSurvivalGames extends ServerInterface {
             case 1:
                 border.setSize(200 + 1, 60);
                 border.setCenter(0.5, 0.5);
+                sendTitleAll("Border is shrinking to 200 blocks", "over the next 60 seconds!");
                 break;
             case 2:
                 fillChestsStage2();
+                sendTitleAll("Chests have been refilled!", "It is now possible to get diamond gear and weapons!");
                 break;
             case 3:
                 border.setSize(50 + 1, 60);
                 border.setCenter(0.5, 0.5);
+                sendTitleAll("Border is shrinking to 50 blocks", "over the next 60 seconds!");
                 break;
             case 4:
                 border.setSize(25, 30);
                 border.setCenter(0.5, 0.5);
+                sendTitleAll(ChatColor.RED + "Deathmatch!" + ChatColor.RESET, "Border is shrinking to 25 blocks");
                 break;
             default:
                 break;
@@ -334,14 +359,6 @@ public class ServerSurvivalGames extends ServerInterface {
 
         if (counter == 1) {
             survivalGamesEnd();
-
-            MCGTeam team = teams.get(lastTeamAlive);
-            for (UUID uuid : team.players) {
-                PlayerSurvivalGames player = (PlayerSurvivalGames) playerLookup.get(uuid);
-                if (!player.dead) {
-                    player.bukkitPlayer.sendTitle("Last team alive!", "", 10, 60, 10);
-                }
-            }
         }
     }
 
@@ -361,18 +378,58 @@ public class ServerSurvivalGames extends ServerInterface {
         timerInProgress.pause();
         timerFinished.start();
 
-        Location mapEnd = new Location(javaPlugin.getServer().getWorld("world"), 0.5, 176, 0.5);
+        ArrayList<PlayerSurvivalGames> playerSurvivalGamess = new ArrayList<>();
         for (PlayerInterface player : players) {
-            if (player.bukkitPlayer.getLocation().getY() < COMPETITION_MAX_HEIGHT) {
-                player.bukkitPlayer.teleport(mapEnd);
-                player.bukkitPlayer.setGameMode(GameMode.ADVENTURE);
-                player.bukkitPlayer.getInventory().clear();
-            }
-            if (!((PlayerSurvivalGames) player).dead) {
-                ((PlayerSurvivalGames) player).currentScore += 500;
+            player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
+            playerSurvivalGamess.add(playerSurvivalGames);
+            if (!playerSurvivalGames.dead) {
+                playerSurvivalGames.currentScore += 500;
+                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last one standing!", "You have received 500 additional points!", 10, 60, 10);
+            } else {
+                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.RED + "Game Over!", "", 10, 60, 10);
             }
             player.commit();
         }
+
+        String topPlayers = "";
+        int count = 0;
+        playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.currentScore));
+        for (PlayerSurvivalGames player: playerSurvivalGamess) {
+            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topKillers = "";
+        count = 0;
+        playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.kills));
+        for (PlayerSurvivalGames player: playerSurvivalGamess) {
+            topKillers += ChatColor.RESET + "" + player.kills + " kills - " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topTeams = "";
+        ArrayList<MCGTeam> teamParkours = new ArrayList<>(teams.values());
+        teamParkours.sort(Comparator.comparingInt(o -> -o.getScore("survivalgames")));
+        for (MCGTeam team: teamParkours) {
+            topTeams += ChatColor.RESET + "[" + team.getScore("survivalgames") + "] " + team.chatColor + "" + team.teamname + "\n";
+        }
+
+        sendMultipleMessageAll(new String[]{
+                ChatColor.BOLD + "Top Players:\n" + topPlayers +
+                        " \n",
+                ChatColor.BOLD + "Top Killers:\n" + topKillers +
+                        " \n",
+                ChatColor.BOLD + "Final Team Score for Survival Games:\n" + topTeams,
+        }, new int[]{
+                10,
+                60,
+                60,
+        });
     }
 
     private void initCornucopiaSpawns() {
@@ -419,18 +476,13 @@ public class ServerSurvivalGames extends ServerInterface {
         World world = javaPlugin.getServer().getWorld("world");
         Block block = world.getBlockAt(p.x, p.y, p.z);
         if (block.getType() == Material.CHEST) {
-            if (legendaryChests.contains(p)) {
-                chests.put(p, 69.0);
-            } else if (specialChests.contains(p)) {
-                chests.put(p, 42.0);
-            }
             int count = 0;
-            if (world.getBlockAt(p.x + 1, p.y, p.z).getType() == Material.AIR) count++;
-            if (world.getBlockAt(p.x - 1, p.y, p.z).getType() == Material.AIR) count++;
-            if (world.getBlockAt(p.x, p.y + 1, p.z).getType() == Material.AIR) count++;
-            if (world.getBlockAt(p.x, p.y - 1, p.z).getType() == Material.AIR) count++;
-            if (world.getBlockAt(p.x, p.y, p.z + 1).getType() == Material.AIR) count++;
-            if (world.getBlockAt(p.x, p.y, p.z - 1).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x + 1, p.y, p.z).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x - 1, p.y, p.z).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x, p.y + 1, p.z).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x, p.y - 1, p.z).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x, p.y, p.z + 1).getType() == Material.AIR) count++;
+//            if (world.getBlockAt(p.x, p.y, p.z - 1).getType() == Material.AIR) count++;
             chests.put(p, (double) count);
             // Each chest has a score
             // Each item has a score
@@ -555,6 +607,21 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     private void fillChestWithLootTableIntegrated(World world, TreeMap<Double, ItemChoice> lootTableInt) {
+        openedChests.clear();
+        world.getPlayers().forEach(player -> {
+            // Prevent spectators from just having chests open to view new chest content
+            if(player.getGameMode() == GameMode.SPECTATOR) {
+                player.closeInventory();
+            }
+            if(player.getGameMode() == GameMode.SURVIVAL) {
+                if(player.getOpenInventory().getType() == InventoryType.CHEST) {
+                    try {
+                        openedChests.add(new Coord3D(player.getOpenInventory().getTopInventory().getLocation()));
+                    } catch(Exception e) {
+                    }
+                }
+            }
+        });
         for (Map.Entry<Coord3D, Double> entry : chests.entrySet()) {
             Coord3D p = entry.getKey();
             Block block = world.getBlockAt(p.x, p.y, p.z);

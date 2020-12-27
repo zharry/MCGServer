@@ -3,8 +3,12 @@ package ca.zharry.MinecraftGamesServer.Servers;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.ChatColor;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -12,7 +16,9 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.UUID;
 
 public abstract class ServerInterface {
 
@@ -44,6 +50,35 @@ public abstract class ServerInterface {
         this.teams = new HashMap<Integer, MCGTeam>();
         this.teamLookup = new HashMap<UUID, Integer>();
         this.getTeams();
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
 
         taskScoreboard = new BukkitRunnable() {
             @Override
@@ -52,7 +87,37 @@ public abstract class ServerInterface {
                     player.doStatsRefresh();
                 }
             }
-        }.runTaskTimer(plugin, 0, 5);
+        }.runTaskTimer(plugin, 0, 0); // TODO JACKY HAS FKED WITH THIS XXX
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
+        // TODO ====================================================================================
     }
 
     public void addPlayer(PlayerInterface player) {
@@ -121,6 +186,74 @@ public abstract class ServerInterface {
 
         for (PlayerInterface player : players) {
             player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        }
+    }
+
+    public void sendPlayersToGame(String minigame) {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("Connect");
+        out.writeUTF(minigame);
+
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        }
+    }
+
+    public void countdownTimer(Timer timer, int startSeconds, String startingText, String startingSubtext, String progressText, String finishedText) {
+        if (timer.get() < (startSeconds + 1) * 20) {
+            int secondsLeft = (int) (timer.get() / 20 + 0.5);
+            if (secondsLeft == startSeconds)
+                for (PlayerInterface player : players) {
+                    player.bukkitPlayer.sendTitle(startingText, startingSubtext, 0, 20, 0);
+                }
+            else if (secondsLeft == 0)
+                for (PlayerInterface player : players) {
+                    player.bukkitPlayer.sendTitle(finishedText, "", 0, 20, 20);
+                }
+            else
+                for (PlayerInterface player : players) {
+                    player.bukkitPlayer.sendTitle(ChatColor.RESET + "" + secondsLeft, progressText, 0, 20, 0);
+                }
+        }
+    }
+
+    public void sendTitleAll(String title, String subtitle) {
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.sendTitle(title, subtitle, 10, 60, 20);
+        }
+    }
+
+    public void sendTitleAll(String title, String subtitle, int fadeIn, int stay, int fadOut) {
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.sendTitle(title, subtitle, fadeIn, stay, fadOut);
+        }
+    }
+
+    public void sendMessageAll(String message) {
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.sendMessage(message);
+        }
+    }
+
+    public void sendActionBarAll(String message) {
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(message));
+        }
+    }
+
+    public void sendMultipleMessageAll(String[] message, int[] delays) {
+        for (int i = 0; i < 5; i++)
+            sendMessageAll("");
+
+        int delay = 0;
+        for (int i = 0; i < message.length; i++) {
+            String str = message[i];
+            delay += delays[i];
+            new BukkitRunnable() {
+                public void run() {
+                    sendMessageAll(str);
+                }
+            }.runTaskLater(this.plugin, delay);
         }
     }
 

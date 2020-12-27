@@ -6,6 +6,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
+import org.bukkit.Location;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,6 +17,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
     // Minigame variables
     public boolean dead = false;
     public int kills = 0;
+    public Location deathLocation;
 
     public ServerSurvivalGames server;
 
@@ -90,5 +92,14 @@ public class PlayerSurvivalGames extends PlayerInterface {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public String getPlayerNameFormatted(Player player) {
+        PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
+        if(playerInterface instanceof PlayerSurvivalGames && ((PlayerSurvivalGames) playerInterface).dead) {
+            return "§7" + player.getName();
+        }
+        return super.getPlayerNameFormatted(player);
     }
 }

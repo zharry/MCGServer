@@ -39,22 +39,25 @@ public class PlayerSpleef extends PlayerInterface {
         // This is a spacer
         objective.getScore("                          ").setScore(15);
 
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 2/6: " + ChatColor.RESET + "Spleef").setScore(10);
-
-        if (server.state == ServerParkour.GAME_WAITING) {
-            objective.getScore(ChatColor.WHITE + "Waiting for game start...").setScore(9);
-        } else if (server.state == ServerParkour.GAME_STARTING) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(9);
-        } else if (server.state == ServerParkour.GAME_INPROGRESS) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(9);
-        } else if (server.state == ServerParkour.GAME_FINISHED) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(9);
+        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 2/6: " + ChatColor.RESET + "Spleef").setScore(14);
+        if (server.state == ServerParkour.GAME_STARTING || server.state == ServerParkour.GAME_INPROGRESS) {
+            objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Round: " + ChatColor.RESET + "" + server.currentGame + "/" + ServerSpleef.TOTAL_GAMES).setScore(13);
         }
-        objective.getScore("").setScore(8);
-        setGameScores(objective, 7, "spleef", myTeam.id);
-        objective.getScore("  ").setScore(2);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("spleef")).setScore(1);
-        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore).setScore(0);
+        if (server.state == ServerParkour.GAME_WAITING) {
+            objective.getScore(ChatColor.WHITE + "Waiting for game start...").setScore(12);
+        } else if (server.state == ServerParkour.GAME_STARTING) {
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(12);
+        } else if (server.state == ServerParkour.GAME_INPROGRESS) {
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(12);
+        } else if (server.state == ServerParkour.GAME_FINISHED) {
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(12);
+        }
+        objective.getScore("").setScore(11);
+        setGameScores(objective, 10, "spleef", myTeam.id);
+        objective.getScore("  ").setScore(4);
+        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive()).setScore(3);
+        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("spleef")).setScore(2);
+        objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore).setScore(1);
 
         this.bukkitPlayer.setScoreboard(scoreboard);
     }
@@ -82,4 +85,14 @@ public class PlayerSpleef extends PlayerInterface {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public String getPlayerNameFormatted(Player player) {
+        PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
+        if(playerInterface instanceof PlayerSpleef && ((PlayerSpleef) playerInterface).dead) {
+            return "§7" + player.getName();
+        }
+        return super.getPlayerNameFormatted(player);
+    }
+
 }

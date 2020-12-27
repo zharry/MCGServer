@@ -33,10 +33,7 @@ public class Point3D {
     }
 
     public Point3D add(double x, double y, double z) {
-        this.x += x;
-        this.y += y;
-        this.z += z;
-        return this;
+        return new Point3D(this.x + x, this.y + y, this.z + z);
     }
 
 }

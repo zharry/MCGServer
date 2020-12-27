@@ -18,6 +18,7 @@ public class PlayerParkour extends PlayerInterface {
     public int level = 0; // What level of the stage they have completed
 
     public ServerParkour server;
+
     public PlayerParkour(Player bukkitPlayer, ServerParkour server) {
         super(bukkitPlayer, server, "parkour");
         this.server = server;
@@ -42,18 +43,24 @@ public class PlayerParkour extends PlayerInterface {
         // This is a spacer
         objective.getScore("                          ").setScore(15);
 
-        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 4/6: " + ChatColor.RESET + "Parkour").setScore(10);
+        objective.getScore(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 4/6: " + ChatColor.RESET + "Parkour").setScore(12);
 
         if (server.state == ServerParkour.GAME_WAITING) {
-            objective.getScore(ChatColor.WHITE + "Waiting for game start...").setScore(9);
+            objective.getScore(ChatColor.WHITE + "Waiting for game start...").setScore(11);
         } else if (server.state == ServerParkour.GAME_STARTING) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(9);
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(11);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(9);
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(11);
         } else if (server.state == ServerParkour.GAME_FINISHED) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(9);
+            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(11);
+        }
+
+        if (server.state == ServerParkour.GAME_INPROGRESS || server.state == ServerParkour.GAME_FINISHED) {
+            objective.getScore("   ").setScore(10);
+            objective.getScore(ChatColor.AQUA + "" + ChatColor.BOLD + "Completed Stage: " + ChatColor.RESET + stage + "-" + level).setScore(9);
         }
         objective.getScore("").setScore(8);
+
         setGameScores(objective, 7, "parkour", myTeam.id);
         objective.getScore("  ").setScore(2);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("parkour")).setScore(1);
@@ -80,7 +87,7 @@ public class PlayerParkour extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '"+ currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '" + currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {

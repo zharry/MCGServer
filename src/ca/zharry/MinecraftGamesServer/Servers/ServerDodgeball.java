@@ -4,25 +4,23 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
+import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerDeathDodgeball;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerJoinDodgeball;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerQuitDodgeball;
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerDodgeball;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerDodgeball;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
+import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -36,6 +34,7 @@ public class ServerDodgeball extends ServerInterface {
     public HashMap<Integer, Integer> rrIndexToTeamId;
     public int currentGame = 0;
     public int totalGames = 0;
+    public boolean displayedWelcomeMessage = false;
     public int spawnArrowsTick = 0;
 
     // Game config
@@ -44,7 +43,6 @@ public class ServerDodgeball extends ServerInterface {
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int SPAWN_ARROWS_TICK = 20 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
-    public static final ArrayList<Point3D> arenaSpectator = new ArrayList<Point3D>();
     public static final ArrayList<Point3D> arenaArrowSpawns = new ArrayList<Point3D>();
 
     // Server state
@@ -70,6 +68,9 @@ public class ServerDodgeball extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
+            Location serverSpawn = new Location(player.getWorld(), -15.5, 4, 1.5);
+            player.teleport(serverSpawn);
+            PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
             addPlayer(new PlayerDodgeball(player, this));
         }
 
@@ -78,12 +79,35 @@ public class ServerDodgeball extends ServerInterface {
         timerStartGame = new Timer(plugin) {
             @Override
             public void onStart() {
-                dodgeballPreStart();
                 state = GAME_STARTING;
+                dodgeballPreStart();
+
+                if (!displayedWelcomeMessage) {
+                    displayedWelcomeMessage = true;
+                    sendTitleAll("Welcome to Dodgeball!", "");
+                    sendMultipleMessageAll(new String[]{
+                            ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Dodgeball!\n" + ChatColor.RESET +
+                                    "This map is " + ChatColor.BOLD + "SG Dodgeball" + ChatColor.RESET + ", by SkyGames Team\n" +
+                                    " \n" +
+                                    " \n",
+                            ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
+                                    "1. You have three lives\n" +
+                                    "2. Kill the other team, each kill is worth +50 points!\n" +
+                                    "3. Eliminating all 3 lives of every opposing team's players awards everyone on your team +250 points each!",
+                    }, new int[]{
+                            10,
+                            45,
+                    });
+                }
             }
 
             @Override
             public void onTick() {
+                countdownTimer(this, 11,
+                        "Ready?",
+                        "",
+                        "",
+                        ChatColor.GREEN + "Fight!");
             }
 
             @Override
@@ -102,6 +126,11 @@ public class ServerDodgeball extends ServerInterface {
             @Override
             public void onTick() {
                 dodgeballTick();
+                countdownTimer(this, 11,
+                        "Round ends in...",
+                        "",
+                        "",
+                        "Round Over!");
             }
 
             @Override
@@ -122,9 +151,11 @@ public class ServerDodgeball extends ServerInterface {
 
             @Override
             public void onEnd() {
+                sendTitleAll("Joining Lobby...", "", 5, 20, 30);
                 sendPlayersToLobby();
 
                 state = GAME_WAITING;
+                displayedWelcomeMessage = false;
                 timerStartGame.set(TIMER_STARTING);
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
@@ -160,10 +191,20 @@ public class ServerDodgeball extends ServerInterface {
 
     @Override
     public void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerJoinDodgeball(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerQuitDodgeball(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerDeathDodgeball(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ListenerDodgeball(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_FIRE_TICK, false), plugin);
+    }
+
+    public void giveBow(PlayerDodgeball player) {
+        ItemStack bow = new ItemStack(Material.BOW, 1);
+        ItemMeta bowMeta = bow.getItemMeta();
+        bowMeta.addEnchant(Enchantment.ARROW_DAMAGE, 32767, true);
+        bowMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        bowMeta.setUnbreakable(true);
+        bow.setItemMeta(bowMeta);
+        player.bukkitPlayer.getInventory().addItem(bow);
     }
 
     private void dodgeballRoundRobinSetup() {
@@ -298,15 +339,11 @@ public class ServerDodgeball extends ServerInterface {
             PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
             playerDodgeball.kills = 0;
             playerDodgeball.lives = 3;
+            playerDodgeball.invulnerable = true;
 
-            ItemStack bow = new ItemStack(Material.BOW, 1);
-            ItemMeta bowMeta = bow.getItemMeta();
-            bowMeta.addEnchant(Enchantment.ARROW_DAMAGE, 100, true);
-            bowMeta.addEnchant(Enchantment.DURABILITY, 100, true);
-            bow.setItemMeta(bowMeta);
-
-            playerDodgeball.bukkitPlayer.getInventory().clear();
-            player.bukkitPlayer.getInventory().addItem(bow);
+            PlayerUtils.resetPlayer(playerDodgeball.bukkitPlayer, GameMode.ADVENTURE);
+            playerDodgeball.bukkitPlayer.setInvisible(true);
+            giveBow(playerDodgeball);
         }
     }
 
@@ -321,93 +358,104 @@ public class ServerDodgeball extends ServerInterface {
                 ItemStack arrow = new ItemStack(Material.ARROW, 1);
                 world.dropItem(arrowSpawn, arrow);
             }
+            sendActionBarAll("An arrow has spawned!");
+        } else if (spawnArrowsTick <= SPAWN_ARROWS_TICK - 5 * 20) {
+            int seconds = (int) (spawnArrowsTick / 20 + 0.5);
+            sendActionBarAll("Next arrow spawns in: " + seconds + " seconds");
         }
 
-
-        // Logic for completed games
-        HashSet<UUID> finishedPlayers = new HashSet<UUID>();
-
-        for (PlayerInterface player : players) {
-            PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
-            // Dont care about them, if they're game is already finished
-            if (player.bukkitPlayer.getLocation().getZ() < 40)
-                return;
-
-            // Check if all of your opponents are dead
-            boolean allDead = true;
-            for (UUID uuid : playerDodgeball.opponentTeam.players) {
-                if (playerLookup.containsKey(uuid)) {
-                    PlayerDodgeball opponent = (PlayerDodgeball) playerLookup.get(uuid);
-                    if (opponent.lives > 0) {
-                        allDead = false;
-                    }
-                    if (!allDead)
-                        break;
+        if(timerInProgress.get() > 12 * 20) {
+            boolean terminate = true;
+            for (PlayerInterface player : players) {
+                PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
+                if (playerDodgeball.bukkitPlayer.getGameMode() != GameMode.SPECTATOR && playerDodgeball.arena != -1) {
+                    terminate = false;
+                    break;
                 }
             }
 
-            // Award points
-            if (allDead) {
-                player.bukkitPlayer.sendTitle("Victory!", "", 10, 60, 10);
-                player.currentScore += 250;
-
-                // Mark you and your opponents as finished
-                for (UUID uuid : playerDodgeball.opponentTeam.players) {
-                    if (playerLookup.containsKey(uuid)) {
-                        finishedPlayers.add(uuid);
-                    }
-                }
-                finishedPlayers.add(player.bukkitPlayer.getUniqueId());
-            }
-        }
-
-        Location serverSpawn = new Location(players.get(0).bukkitPlayer.getWorld(), -15.5, 4, 1.5);
-        // Teleport all players with finished games to spawn
-        for (UUID uuid : finishedPlayers) {
-            if (playerLookup.containsKey(uuid)) {
-                playerLookup.get(uuid).bukkitPlayer.teleport(serverSpawn);
-                playerLookup.get(uuid).bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
+            if (terminate) {
+                timerInProgress.set(12 * 20);
             }
         }
     }
 
     private void dodgeballEnd() {
+        ArrayList<PlayerDodgeball> playerDodgeballs = new ArrayList<>();
         for (PlayerInterface player : players) {
+            playerDodgeballs.add((PlayerDodgeball) player);
             Location serverSpawn = new Location(player.bukkitPlayer.getWorld(), -15.5, 4, 1.5);
+            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
             player.bukkitPlayer.teleport(serverSpawn);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
         }
 
-        if (currentGame >= totalGames) {
-            timerFinished.start();
+        if (currentGame < totalGames) {
+            timerStartGame.set(TIMER_STARTING);
+            timerInProgress.set(TIMER_INPROGRESS);
+            timerStartGame.start();
+            spawnArrowsTick = 0;
             return;
         }
 
-        timerStartGame.set(TIMER_STARTING);
-        timerInProgress.set(TIMER_INPROGRESS);
-        timerStartGame.start();
-        spawnArrowsTick = 0;
+        // Game over logic begins
+        timerFinished.start();
+
+        String topPlayers = "";
+        int count = 0;
+        playerDodgeballs.sort(Comparator.comparingInt(o -> -o.currentScore));
+        for (PlayerDodgeball player: playerDodgeballs) {
+            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topKillers = "";
+        count = 0;
+        playerDodgeballs.sort(Comparator.comparingInt(o -> -o.totalKills));
+        for (PlayerDodgeball player: playerDodgeballs) {
+            topKillers += ChatColor.RESET + "" + player.totalKills + " kills - " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topTeams = "";
+        ArrayList<MCGTeam> teamDodgeballs = new ArrayList<>(teams.values());
+        teamDodgeballs.sort(Comparator.comparingInt(o -> -o.getScore("dodgeball")));
+        for (MCGTeam team: teamDodgeballs) {
+            topTeams += ChatColor.RESET + "[" + team.getScore("dodgeball") + "] " + team.chatColor + "" + team.teamname + "\n";
+        }
+
+        sendMultipleMessageAll(new String[]{
+                ChatColor.BOLD + "Top Players:\n" + topPlayers +
+                        " \n",
+                ChatColor.BOLD + "Top Killers:\n" + topKillers +
+                        " \n",
+                ChatColor.BOLD + "Final Team Score for Survival Games:\n" + topTeams,
+        }, new int[]{
+                10,
+                60,
+                60,
+        });
+
     }
 
     private void initArenaSpawns() {
-        arenaSpawns.add(new Point3D(57.5, 4, 44.5));
-        arenaSpawns.add(new Point3D(57.5 - 50, 4, 44.5));
-        arenaSpawns.add(new Point3D(57.5 - 100, 4, 44.5));
-        arenaSpawns.add(new Point3D(57.5 - 150, 4, 44.5));
+        arenaSpawns.add(new Point3D(10014.5, 4, 1.5));
+        arenaSpawns.add(new Point3D(10014.5 + 10000, 4, 1.5));
+        arenaSpawns.add(new Point3D(10014.5 + 20000, 4, 1.5));
+        arenaSpawns.add(new Point3D(10014.5 + 30000, 4, 1.5));
 
-        arenaSpectator.add(new Point3D(73.5, 14, 56.5));
-        arenaSpectator.add(new Point3D(73.5 - 50, 14, 56.5));
-        arenaSpectator.add(new Point3D(73.5 - 100, 14, 56.5));
-        arenaSpectator.add(new Point3D(73.5 - 150, 14, 56.5));
-
-        arenaArrowSpawns.add(new Point3D(57.5, 4, 58.5));
-        arenaArrowSpawns.add(new Point3D(57.5, 4, 75.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 50, 4, 58.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 50, 4, 75.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 100, 4, 58.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 100, 4, 75.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 150, 4, 58.5));
-        arenaArrowSpawns.add(new Point3D(57.5 - 150, 4, 75.5));
+        arenaArrowSpawns.add(new Point3D(10014.5, 4, 15.5));
+        arenaArrowSpawns.add(new Point3D(10014.5, 4, 32.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 10000, 4, 15.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 10000, 4, 32.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 20000, 4, 15.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 20000, 4, 32.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 30000, 4, 15.5));
+        arenaArrowSpawns.add(new Point3D(10014.5 + 30000, 4, 32.5));
     }
 
 }

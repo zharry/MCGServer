@@ -5,6 +5,8 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -20,7 +22,9 @@ public class PlayerDodgeball extends PlayerInterface {
     public int kills = 0;
     public int lives = 0;
     public int arena = -1;
+    public boolean invulnerable = true;
     public MCGTeam opponentTeam;
+    public Location lastDeathLocation;
 
     public ServerDodgeball server;
 
@@ -28,8 +32,11 @@ public class PlayerDodgeball extends PlayerInterface {
         super(bukkitPlayer, server, "dodgeball");
         this.server = server;
 
+        String[] metadataSplit = currentMetadata.split("\\|");
+
         try {
-            totalKills = Integer.parseInt(currentMetadata);
+            totalKills = Integer.parseInt(metadataSplit[0]);
+            invulnerable = Boolean.parseBoolean(metadataSplit[1]);
         } catch (Exception ignore) {
         }
     }
@@ -53,7 +60,12 @@ public class PlayerDodgeball extends PlayerInterface {
         } else if (server.state == ServerParkour.GAME_STARTING) {
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : "")).setScore(13);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
-            objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(13);
+
+            if (bukkitPlayer.getGameMode() == GameMode.ADVENTURE)
+                objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(13);
+            else
+                objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Waiting for others: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : "")).setScore(13);
+
             objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Round: " + ChatColor.RESET + server.currentGame + "/" + server.totalGames).setScore(12);
         } else if (server.state == ServerParkour.GAME_FINISHED) {
             objective.getScore(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : "")).setScore(13);
@@ -84,7 +96,7 @@ public class PlayerDodgeball extends PlayerInterface {
 
     @Override
     public void commit() {
-        currentMetadata = "" + totalKills;
+        currentMetadata = totalKills + "|" + invulnerable;
 
         try {
             int id = -1;
@@ -107,4 +119,16 @@ public class PlayerDodgeball extends PlayerInterface {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public String getPlayerNameFormatted(Player player) {
+        if(server.state == ServerDodgeball.GAME_INPROGRESS) {
+            PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
+            if (playerInterface instanceof PlayerDodgeball && ((PlayerDodgeball) playerInterface).lives <= 0) {
+                return "§7" + player.getName();
+            }
+        }
+        return super.getPlayerNameFormatted(player);
+    }
+
 }

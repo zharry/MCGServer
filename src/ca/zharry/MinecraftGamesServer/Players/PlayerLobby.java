@@ -13,8 +13,9 @@ public class PlayerLobby extends PlayerInterface {
 
     public PlayerLobby(Player bukkitPlayer, ServerLobby server) {
         super(bukkitPlayer, server, "lobby");
-        this.server = server;
     }
+
+    public int counter = 0;
 
     @Override
     public void updateScoreboard() {
@@ -44,6 +45,7 @@ public class PlayerLobby extends PlayerInterface {
         objective.getScore(myTeam.teamname).setScore(4);
         objective.getScore("  ").setScore(3);
         objective.getScore(ChatColor.GREEN + "" + ChatColor.BOLD + "Score: " + ChatColor.RESET + "" + getScore()).setScore(2);
+        counter++;
     }
 
     @Override

@@ -68,7 +68,7 @@ public abstract class Timer {
         return ticksToTime(this.ticks);
     }
 
-    static String ticksToTime(int ticks) {
+    public static String ticksToTime(int ticks) {
         int minutes = (ticks / (20 * 60));
         int seconds = (ticks % (20 * 60) / 20);
         if (seconds < 10) {
@@ -77,7 +77,7 @@ public abstract class Timer {
         return minutes + ":" + seconds;
     }
 
-    static String secondsToTime(int sec) {
+    public static String secondsToTime(int sec) {
         int minutes = (sec / 60);
         int seconds = (sec % 60);
         if (seconds < 10) {

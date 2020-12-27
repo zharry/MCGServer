@@ -4,6 +4,7 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGScore;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import ca.zharry.MinecraftGamesServer.Utils.SidebarDisplay;
 import ca.zharry.MinecraftGamesServer.Utils.StringAlignUtils;
 import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
 import org.bukkit.Bukkit;
@@ -29,6 +30,7 @@ public abstract class PlayerInterface {
     public Player bukkitPlayer;
     public ServerInterface server;
     public Scoreboard scoreboard;
+    public SidebarDisplay sidebar;
     public MCGTeam myTeam;
 
     public PlayerInterface(Player bukkitPlayer, ServerInterface server, String curMinigame) {
@@ -40,6 +42,7 @@ public abstract class PlayerInterface {
         getData();
 
         scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        sidebar = new SidebarDisplay(scoreboard, "MCG Season " + MCGMain.SEASON);
         this.bukkitPlayer.setScoreboard(scoreboard);
         myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
 
@@ -66,6 +69,7 @@ public abstract class PlayerInterface {
         minecraftTeam.addEntry(player.bukkitPlayer.getName());
         minecraftTeam.setColor(team.chatColor);
         minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+        minecraftTeam.setCanSeeFriendlyInvisibles(true);
         minecraftTeam.setAllowFriendlyFire(false);
     }
 
@@ -84,6 +88,12 @@ public abstract class PlayerInterface {
     };
 
     private static final StringAlignUtils strFmt = new StringAlignUtils(70,5);
+
+
+    public String getPlayerNameFormatted(Player player) {
+        return player.getDisplayName();
+    }
+
     public void updateTabList() {
 
         StringBuilder sb = new StringBuilder(EMPTY_LINE);
@@ -116,7 +126,10 @@ public abstract class PlayerInterface {
             for (UUID uuid : uuids) {
                 Player p = Bukkit.getPlayer(uuid);
                 if (p != null) {
-                    nameStrs.append(p.getDisplayName(), 0, Math.min(maxLen, p.getDisplayName().length())).append(" ");
+                    String name = getPlayerNameFormatted(p);
+                    String nameStripped = ChatColor.stripColor(name);
+                    int nOverflow = Math.max(0, nameStripped.length() - maxLen);
+                    nameStrs.append(name, 0, name.length() - nOverflow).append(" ");
                 }
             }
             table.addRow("§" + team.chatColor.getChar() + nameStrs.toString());

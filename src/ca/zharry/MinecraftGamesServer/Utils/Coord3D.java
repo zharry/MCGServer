@@ -1,11 +1,19 @@
 package ca.zharry.MinecraftGamesServer.Utils;
 
+import org.bukkit.Location;
+
 public class Coord3D {
 	public int x, y, z;
 	public Coord3D(int x, int y, int z) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
+	}
+
+	public Coord3D(Location location) {
+		this.x = (int) Math.round(location.getX());
+		this.y = (int) Math.round(location.getY());
+		this.z = (int) Math.round(location.getZ());
 	}
 
 	public int getX() {

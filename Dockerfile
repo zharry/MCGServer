@@ -7,6 +7,8 @@ RUN wget -q -O - https://download.bell-sw.com/pki/GPG-KEY-bellsoft | apt-key add
 RUN apt update && apt upgrade -y && \
     apt install -y bellsoft-java11-full
 
+RUN apt install -y tmux
+
 WORKDIR /srv
 VOLUME /home/harry/MCG
 

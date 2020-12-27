@@ -4,23 +4,25 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
-import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
+import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerJoinParkour;
-import ca.zharry.MinecraftGamesServer.Listeners.ListenerOnPlayerQuitParkour;
-import ca.zharry.MinecraftGamesServer.MCGMain;
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerParkour;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
+import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 
 public class ServerParkour extends ServerInterface {
 
@@ -51,6 +53,7 @@ public class ServerParkour extends ServerInterface {
     public ServerParkour(JavaPlugin plugin) {
         super(plugin);
         initCheckpoints();
+        setPlayerInventories();
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
@@ -62,10 +65,16 @@ public class ServerParkour extends ServerInterface {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
+                parkourStart();
             }
 
             @Override
             public void onTick() {
+                countdownTimer(this, 11,
+                        "Get ready!",
+                        "",
+                        "",
+                        ChatColor.GREEN + "Go!");
             }
 
             @Override
@@ -78,12 +87,16 @@ public class ServerParkour extends ServerInterface {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
-                parkourStart();
             }
 
             @Override
             public void onTick() {
                 parkourTick();
+                countdownTimer(this, 11,
+                        "Time's running out!",
+                        "",
+                        "seconds left!",
+                        ChatColor.RED + "Game Over!");
             }
 
             @Override
@@ -105,6 +118,7 @@ public class ServerParkour extends ServerInterface {
 
             @Override
             public void onEnd() {
+                sendTitleAll("Joining Lobby...", "", 5, 20, 30);
                 sendPlayersToLobby();
 
                 state = GAME_WAITING;
@@ -113,6 +127,10 @@ public class ServerParkour extends ServerInterface {
                 timerFinished.set(TIMER_FINISHED);
             }
         }.set(TIMER_FINISHED);
+    }
+
+    public void setPlayerInventories() {
+        Bukkit.getOnlinePlayers().forEach(player -> setPlayerInventoryContents(player));
     }
 
     @Override
@@ -143,23 +161,43 @@ public class ServerParkour extends ServerInterface {
 
     @Override
     public void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerJoinParkour(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new ListenerOnPlayerQuitParkour(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ListenerParkour(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(GameRule.DO_FIRE_TICK, false), plugin);
+
     }
 
     private void parkourStart() {
         Player dummyPlayer = players.get(0).bukkitPlayer;
-        Location mapStart = new Location(dummyPlayer.getWorld(), 7.5, 78, 9.5);
+        Location mapStart = new Location(dummyPlayer.getWorld(), 7.5, 78, 9.5, 90, 0);
 
         for (PlayerInterface player : players) {
             PlayerParkour parkourPlayer = (PlayerParkour) player;
+            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
             player.bukkitPlayer.teleport(mapStart);
-            player.bukkitPlayer.getInventory().clear();
+            player.bukkitPlayer.setInvisible(true);
             parkourPlayer.stage = 1;
             parkourPlayer.level = 0;
         }
+
+        setPlayerInventories();
+
+        sendTitleAll("Welcome to Parkour!", "");
+        sendMultipleMessageAll(new String[]{
+                ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Parkour!\n" + ChatColor.RESET +
+                        "This map is " + ChatColor.BOLD + "Parkour Stripes 2" + ChatColor.RESET + ", by Tommycreeper\n" +
+                        " \n" +
+                        " \n",
+                ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
+                        "1. Step on beacons to receive a checkpoint\n" +
+                        "2. Each checkpoint is worth 150 points!\n" +
+                        "3. You will be teleported to next stage upon reaching it's last checkpoint\n" +
+                        "4. Go as far as you can!",
+        }, new int[]{
+                10,
+                45,
+        });
     }
 
     private void parkourTick() {
@@ -198,20 +236,20 @@ public class ServerParkour extends ServerInterface {
                         stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() + stage4Checkpoints.size() + stage5Checkpoints.size() + stage6Checkpoints.size() - 6
                 };
 
-                MCGMain.logger.info(stage1Index + " a" + blockLocation.getX() + " a" + blockLocation.getY() + " a" + blockLocation.getZ());
-                MCGMain.logger.info(stage2Index + " a " + player.stage + " a" + player.level);
-                MCGMain.logger.info(stage3Index + " a " + stage + " a" + levels[stage]);
-                MCGMain.logger.info(stage4Index + " a");
-                MCGMain.logger.info(stage5Index + " a");
-                MCGMain.logger.info(stage6Index + " a");
-
                 // Award points if this is new
                 if (stage == player.stage && levels[stage] > player.level ||
-                        stage > player.stage && levels[stage] < player.level) {
-                    player.stage = stage;
-                    player.level = levels[stage];
-                    player.currentScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
-                    bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
+                        stage > player.stage) {
+                    if (levels[stage] != 0) {
+                        player.stage = stage;
+                        player.level = levels[stage];
+                        player.currentScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
+                        bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
+                        sendMessageAll(player.myTeam.chatColor + player.bukkitPlayer.getDisplayName() +
+                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + player.currentScore + "] " +
+                                ChatColor.RESET + "has completed Stage " + stage + "-" + levels[stage]);
+
+                        bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
+                    }
                 }
 
                 // Check if we finished the stages
@@ -233,28 +271,73 @@ public class ServerParkour extends ServerInterface {
                     finishedStage = true;
                     nextStart = stage6Checkpoints.get(0);
                 } else if (stage6Index == stage6Checkpoints.size() - 1) {
-                    bukkitPlayer.teleport(new Location(bukkitPlayer.getWorld(), 8.5, 131, 9.5));
+                    bukkitPlayer.teleport(new Location(bukkitPlayer.getWorld(), 8.5, 131, 9.5, 90, 0));
                     continue;
                 }
                 if (finishedStage) {
-                    Location nextStage = new Location(bukkitPlayer.getWorld(), nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5);
+                    Location nextStage = new Location(bukkitPlayer.getWorld(), nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
                     bukkitPlayer.teleport(nextStage);
+                    bukkitPlayer.setBedSpawnLocation(nextStage, true);
                 }
             }
         }
-
     }
 
     private void parkourEnd() {
         Player dummyPlayer = players.get(0).bukkitPlayer;
         Location mapEnd = new Location(dummyPlayer.getWorld(), 8.5, 131, 9.5);
 
+        ArrayList<PlayerParkour> playerParkours = new ArrayList<>();
         for (PlayerInterface player : players) {
+            playerParkours.add((PlayerParkour) player);
             if (player.bukkitPlayer.getLocation().getY() < 130) {
                 player.bukkitPlayer.teleport(mapEnd);
+                player.bukkitPlayer.setInvisible(false);
             }
             player.commit();
         }
+
+        String topPlayers = "";
+        int count = 0;
+        playerParkours.sort(Comparator.comparingInt(o -> -o.currentScore));
+        for (PlayerParkour player : playerParkours) {
+            topPlayers += ChatColor.RESET + "Stage " + player.currentMetadata + " [" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topTeams = "";
+        ArrayList<MCGTeam> teamParkours = new ArrayList<>(teams.values());
+        teamParkours.sort(Comparator.comparingInt(o -> -o.getScore("parkour")));
+        for (MCGTeam team : teamParkours) {
+            topTeams += ChatColor.RESET + "[" + team.getScore("parkour") + "] " + team.chatColor + "" + team.teamname + "\n";
+        }
+
+        sendMultipleMessageAll(new String[]{
+                ChatColor.BOLD + "Top Players:\n" + topPlayers +
+                        " \n",
+                ChatColor.BOLD + "Final Team Score for Parkour:\n" + topTeams,
+        }, new int[]{
+                10,
+                60,
+        });
+    }
+
+    public void setPlayerInventoryContents(Player player) {
+        player.getInventory().clear();
+        ItemStack boots = new ItemStack(Material.LEATHER_BOOTS, 1);
+        LeatherArmorMeta bootsMeta = (LeatherArmorMeta) boots.getItemMeta();
+        bootsMeta.setColor(Color.fromRGB(teams.get(teamLookup.get(player.getUniqueId())).chatColor.asBungee().getColor().getRGB() & 0xFFFFFF));
+        bootsMeta.setUnbreakable(true);
+        boots.setItemMeta(bootsMeta);
+        player.getInventory().setBoots(boots);
+
+        ItemStack unstuck = new ItemStack(Material.PAPER, 1);
+        ItemMeta meta = unstuck.getItemMeta();
+        meta.setDisplayName(ChatColor.RED + "Teleport to last checkpoint");
+        unstuck.setItemMeta(meta);
+        player.getInventory().setItem(8, unstuck);
     }
 
     public void initCheckpoints() {
