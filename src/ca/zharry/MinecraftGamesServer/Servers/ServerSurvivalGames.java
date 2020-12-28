@@ -90,12 +90,13 @@ public class ServerSurvivalGames extends ServerInterface {
 
     public ServerSurvivalGames(JavaPlugin plugin) {
         super(plugin);
+        serverSpawn = new Location(world, 0.5, 176, 0.5);
 
         initCornucopiaSpawns();
         initChestLocations();
         initLootTables();
 
-        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
+        WorldBorder border = world.getWorldBorder();
         border.setSize(500 + 1);
         border.setCenter(0.5, 0.5);
         border.setDamageBuffer(0);
@@ -103,9 +104,12 @@ public class ServerSurvivalGames extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
+            if (teamLookup.get(player.getUniqueId()) == null)
+                return;
+
             addPlayer(new PlayerSurvivalGames(player, this));
             PlayerUtils.resetPlayer(player, GameMode.SURVIVAL);
-            player.teleport(new Location(player.getWorld(), 0.5, 176, 0.5));
+            player.teleport(serverSpawn);
         }
 
         timerStartGame = new Timer(plugin) {
@@ -209,16 +213,16 @@ public class ServerSurvivalGames extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        javaPlugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
-        javaPlugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        javaPlugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        javaPlugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        javaPlugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        javaPlugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        javaPlugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        javaPlugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        javaPlugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        javaPlugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
+        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
+        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
+        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
+        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
+        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
+        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
+        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
+        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
     }
 
     @Override
@@ -240,7 +244,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
 
     public int getWorldBorder() {
-        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
+        WorldBorder border = world.getWorldBorder();
         int size = (int) border.getSize();
         // Ask Jacky about this one...
         if (size == 501)
@@ -307,7 +311,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
             // Send player to that slot
             Point3D spawnPad = spawnpoints.get(padNo);
-            Location spawnPadLoc = new Location(player.bukkitPlayer.getWorld(), spawnPad.x + 0.5, spawnPad.y, spawnPad.z + 0.5);
+            Location spawnPadLoc = new Location(world, spawnPad.x + 0.5, spawnPad.y, spawnPad.z + 0.5);
             spawnPadLoc.setPitch(0);
             spawnPadLoc.setYaw((float) Math.toDegrees(Math.atan2(spawnPad.x, -spawnPad.z)));
             player.bukkitPlayer.teleport(spawnPadLoc);
@@ -317,7 +321,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
     private void survivalGamesStageStart() {
         timerInProgress.set(stageTimes.get(stage));
-        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
+        WorldBorder border = world.getWorldBorder();
         switch (stage) {
             case 1:
                 border.setSize(200 + 1, 60);
@@ -381,7 +385,7 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     private void survivalGamesEnd() {
-        WorldBorder border = javaPlugin.getServer().getWorld("world").getWorldBorder();
+        WorldBorder border = world.getWorldBorder();
         border.setSize(500 + 1);
         border.setCenter(0.5, 0.5);
 
@@ -405,7 +409,7 @@ public class ServerSurvivalGames extends ServerInterface {
         String topPlayers = "";
         int count = 0;
         playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.currentScore));
-        for (PlayerSurvivalGames player: playerSurvivalGamess) {
+        for (PlayerSurvivalGames player : playerSurvivalGamess) {
             topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
@@ -415,7 +419,7 @@ public class ServerSurvivalGames extends ServerInterface {
         String topKillers = "";
         count = 0;
         playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.kills));
-        for (PlayerSurvivalGames player: playerSurvivalGamess) {
+        for (PlayerSurvivalGames player : playerSurvivalGamess) {
             topKillers += ChatColor.RESET + "" + player.kills + " kills - " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
@@ -425,7 +429,7 @@ public class ServerSurvivalGames extends ServerInterface {
         String topTeams = "";
         ArrayList<MCGTeam> teamParkours = new ArrayList<>(teams.values());
         teamParkours.sort(Comparator.comparingInt(o -> -o.getScore("survivalgames")));
-        for (MCGTeam team: teamParkours) {
+        for (MCGTeam team : teamParkours) {
             topTeams += ChatColor.RESET + "[" + team.getScore("survivalgames") + "] " + team.chatColor + "" + team.teamname + "\n";
         }
 
@@ -470,7 +474,6 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     public void initChestLocations() {
-        World world = javaPlugin.getServer().getWorld("world");
         Chunk[] loadedChunks = world.getLoadedChunks();
         for (Chunk chunk : loadedChunks) {
             BlockState[] states = chunk.getTileEntities();
@@ -483,7 +486,6 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     public void addChest(Coord3D p) {
-        World world = javaPlugin.getServer().getWorld("world");
         Block block = world.getBlockAt(p.x, p.y, p.z);
         if (block.getType() == Material.CHEST) {
             int count = 0;
@@ -620,14 +622,14 @@ public class ServerSurvivalGames extends ServerInterface {
         openedChests.clear();
         world.getPlayers().forEach(player -> {
             // Prevent spectators from just having chests open to view new chest content
-            if(player.getGameMode() == GameMode.SPECTATOR) {
+            if (player.getGameMode() == GameMode.SPECTATOR) {
                 player.closeInventory();
             }
-            if(player.getGameMode() == GameMode.SURVIVAL) {
-                if(player.getOpenInventory().getType() == InventoryType.CHEST) {
+            if (player.getGameMode() == GameMode.SURVIVAL) {
+                if (player.getOpenInventory().getType() == InventoryType.CHEST) {
                     try {
                         openedChests.add(new Coord3D(player.getOpenInventory().getTopInventory().getLocation()));
-                    } catch(Exception e) {
+                    } catch (Exception e) {
                     }
                 }
             }
@@ -654,7 +656,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
                     ItemStack newItem = itemChoice.item.clone();
 
-                    if(newItem.getType() == Material.ENCHANTED_BOOK) {
+                    if (newItem.getType() == Material.ENCHANTED_BOOK) {
                         double enchantChoiceVal = random.nextDouble() * enchantTableIntegrated.lastKey();
                         EnchantChoice enchantChoice = enchantTableIntegrated.ceilingEntry(enchantChoiceVal).getValue();
                         EnchantmentStorageMeta meta = (EnchantmentStorageMeta) newItem.getItemMeta();
@@ -679,7 +681,7 @@ public class ServerSurvivalGames extends ServerInterface {
         Block block = world.getBlockAt(p.x, p.y, p.z);
         if (block.getType() == Material.CHEST) {
             Inventory inv = ((Chest) block.getState()).getBlockInventory();
-            for(int tries = 0; tries < 100; ++tries) {
+            for (int tries = 0; tries < 100; ++tries) {
                 int slot = random.nextInt(27);
                 if (inv.getItem(slot) == null) {
                     inv.setItem(slot, item);
@@ -692,7 +694,6 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     private void fillChestsStage1() {
-        World world = javaPlugin.getServer().getWorld("world");
         fillChestWithLootTableIntegrated(world, lootTableIntegrated);
 
         ItemStack rebornGod = new ItemStack(Material.TOTEM_OF_UNDYING, 1);
@@ -740,7 +741,6 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     private void fillChestsStage2() {
-        World world = javaPlugin.getServer().getWorld("world");
         fillChestWithLootTableIntegrated(world, lootTableTier2Integrated);
     }
 

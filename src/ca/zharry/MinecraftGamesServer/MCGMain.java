@@ -2,8 +2,15 @@ package ca.zharry.MinecraftGamesServer;
 
 import ca.zharry.MinecraftGamesServer.MysqlConnection.MysqlConnection;
 import ca.zharry.MinecraftGamesServer.Servers.*;
+import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
 
@@ -45,6 +52,65 @@ public class MCGMain extends JavaPlugin {
                 server = new ServerSurvivalGames(this);
                 break;
         }
+
+        this.getCommand("setteam").setExecutor(new CommandExecutor() {
+            @Override
+            public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+                if (!sender.isOp())
+                    return false;
+
+                Player player = null;
+                String username = args[0];
+                int teamId = Integer.parseInt(args[1]);
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (p.getName().equals(username)) {
+                        player = p;
+                        break;
+                    }
+                }
+                if (player == null) {
+                    sender.sendMessage("Player " + username + " does not exist");
+                    return false;
+                }
+
+                try {
+                    // Check if the team they are being added to is valid
+                    int queryTeamId = -1;
+                    String queryTeamName = "";
+                    String queryTeamPlayers = "";
+                    Statement statement = MCGMain.conn.connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams`;");
+                    while (resultSet.next()) {
+                        queryTeamId = resultSet.getInt("id");
+                        if (queryTeamId == teamId) {
+                            queryTeamName = resultSet.getString("teamname");
+                            queryTeamPlayers = resultSet.getString("players");
+                            break;
+                        } else {
+                            queryTeamId = -1;
+                        }
+                    }
+                    if (queryTeamId == -1) {
+                        sender.sendMessage("Team with id " + teamId + " does not exist");
+                        return false;
+                    }
+
+                    // Construct new player list
+                    String newPlayerList = queryTeamPlayers + "," + player.getUniqueId();
+                    if (queryTeamPlayers.equals(""))
+                        newPlayerList = "" + player.getUniqueId();
+
+                    // Add them to the team
+                    statement.execute("UPDATE `teams` SET `players` = '" + newPlayerList + "' " +
+                            "WHERE `id` = " + teamId + ";");
+                    sender.sendMessage("Added " + player.getName() + " to team " + queryTeamName);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+
+                return true;
+            }
+        });
 
         server.onEnableCall();
     }

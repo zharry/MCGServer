@@ -85,11 +85,11 @@ public class PlayerSurvivalGames extends PlayerInterface {
     }
 
     @Override
-    public String getPlayerNameFormatted(Player player) {
+    public String getPlayerNameForTabMenu(Player player) {
         PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
         if(playerInterface instanceof PlayerSurvivalGames && ((PlayerSurvivalGames) playerInterface).dead) {
             return "§7" + player.getName();
         }
-        return super.getPlayerNameFormatted(player);
+        return super.getPlayerNameForTabMenu(player);
     }
 }

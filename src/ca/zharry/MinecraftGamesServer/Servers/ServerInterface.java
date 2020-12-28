@@ -10,8 +10,8 @@ import com.google.common.io.ByteStreams;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -26,22 +26,24 @@ public abstract class ServerInterface {
 
     public HashMap<String, String> minigames = new HashMap<String, String>();
 
-    public JavaPlugin javaPlugin;
-    public Plugin plugin;
-
+    public JavaPlugin plugin;
     public BukkitTask taskScoreboard;
     public ArrayList<PlayerInterface> players;
     public HashMap<UUID, PlayerInterface> playerLookup;
+
+    public World world;
+    public Location serverSpawn;
 
     public ArrayList<Integer> teamIDs;
     public HashMap<Integer, MCGTeam> teams;
     public HashMap<UUID, Integer> teamLookup;
 
     public ServerInterface(JavaPlugin plugin) {
-        this.javaPlugin = plugin;
         this.plugin = plugin;
         this.players = new ArrayList<>();
         this.playerLookup = new HashMap<UUID, PlayerInterface>();
+
+        world = plugin.getServer().getWorld("world");
 
         minigames.put("parkour", "Parkour");
         minigames.put("spleef", "Spleef");
@@ -62,7 +64,7 @@ public abstract class ServerInterface {
             }
         }.runTaskTimer(plugin, 0, 5);
 
-        applyGameRules(plugin.getServer().getWorld("world"));
+        applyGameRules(world);
         plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(this), plugin);
     }
 

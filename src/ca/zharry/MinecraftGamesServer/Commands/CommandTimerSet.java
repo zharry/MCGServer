@@ -16,6 +16,9 @@ public class CommandTimerSet implements CommandExecutor {
     // This method is called, when somebody uses our command
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.isOp())
+            return false;
+
         try {
             int ticks = Integer.parseInt(args[0]);
             this.timer.set(ticks);

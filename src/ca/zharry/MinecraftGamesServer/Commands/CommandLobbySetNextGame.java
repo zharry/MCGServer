@@ -19,6 +19,9 @@ public class CommandLobbySetNextGame implements CommandExecutor {
     // This method is called, when somebody uses our command
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.isOp())
+             return false;
+
         server.nextMinigame = args[0];
         timer.start();
         return true;

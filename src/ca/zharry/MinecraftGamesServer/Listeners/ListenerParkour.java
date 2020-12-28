@@ -3,7 +3,6 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
-import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -33,13 +32,12 @@ public class ListenerParkour implements Listener {
         server.setPlayerInventoryContents(player);
 
         if (server.state == ServerParkour.GAME_WAITING) {
-            Location serverSpawn = new Location(player.getWorld(), 253.5, 134, -161.5);
-            player.teleport(serverSpawn);
-            player.setBedSpawnLocation(serverSpawn, true);
+            player.teleport(server.serverSpawn);
+            player.setBedSpawnLocation(server.serverSpawn, true);
 
         } else if (server.state == ServerParkour.GAME_STARTING) {
             Point3D checkpointLoc = ServerParkour.stage1Checkpoints.get(0);
-            Location firstCheckpoint = new Location(player.getWorld(), checkpointLoc.x, checkpointLoc.y, checkpointLoc.z);
+            Location firstCheckpoint = new Location(server.world, checkpointLoc.x, checkpointLoc.y, checkpointLoc.z);
             player.teleport(firstCheckpoint);
             player.setBedSpawnLocation(firstCheckpoint, true);
 
@@ -67,16 +65,14 @@ public class ListenerParkour implements Listener {
                     break;
                 default:
             }
-            Location nextStage = new Location(player.getWorld(), checkpointLoc.getX() + 0.5, checkpointLoc.getY() + 1, checkpointLoc.getZ() + 0.5);
+            Location nextStage = new Location(server.world, checkpointLoc.getX() + 0.5, checkpointLoc.getY() + 1, checkpointLoc.getZ() + 0.5);
             player.teleport(nextStage);
             player.setInvisible(true);
 
         } else if (server.state == ServerParkour.GAME_FINISHED) {
-            Location gameSpectate = new Location(player.getWorld(), 8.5, 131, 9.5);
-            player.teleport(gameSpectate);
-            player.setBedSpawnLocation(gameSpectate, true);
+            player.teleport(server.mapEnd);
+            player.setBedSpawnLocation(server.mapEnd, true);
         }
-        player.setDisplayName(server.teams.get(server.teamLookup.get(player.getUniqueId())).chatColor + player.getName() + ChatColor.RESET);
     }
 
     @EventHandler
@@ -104,7 +100,7 @@ public class ListenerParkour implements Listener {
             if (event.getFrom().getX() != event.getTo().getX() ||
                     event.getFrom().getY() != event.getTo().getY() ||
                     event.getFrom().getZ() != event.getTo().getZ()) {
-                Location location = new Location(player.getWorld(),
+                Location location = new Location(server.world,
                         event.getFrom().getX(), event.getFrom().getY(), event.getFrom().getZ());
                 location.setPitch(player.getLocation().getPitch());
                 location.setYaw(player.getLocation().getYaw());

@@ -66,21 +66,24 @@ public class ServerSpleef extends ServerInterface {
 
     public ServerSpleef(JavaPlugin plugin) {
         super(plugin);
+        serverSpawn = new Location(world, 14.5, 75, 17.5);
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
+            if (teamLookup.get(player.getUniqueId()) == null)
+                return;
+
             addPlayer(new PlayerSpleef(player, this));
             PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
-            Location start = new Location(player.getWorld(), 14.5, 75, 17.5);
-            player.teleport(start);
+            player.teleport(serverSpawn);
         }
 
         timerStartGame = new Timer(plugin) {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
-                spleefRestore(Bukkit.getWorld("world"));
+                spleefRestore(world);
 
                 if (!displayedWelcomeMessage) {
                     displayedWelcomeMessage = true;
@@ -185,16 +188,16 @@ public class ServerSpleef extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        javaPlugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
-        javaPlugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        javaPlugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        javaPlugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        javaPlugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        javaPlugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        javaPlugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        javaPlugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        javaPlugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        javaPlugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
+        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
+        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
+        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
+        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
+        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
+        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
+        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
+        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
     }
 
     @Override
@@ -230,13 +233,12 @@ public class ServerSpleef extends ServerInterface {
 
     private void spleefStart() {
         players.forEach((player) -> ((PlayerSpleef) player).dead = false);
-        Player dummyPlayer = players.get(0).bukkitPlayer;
 
         int maxY = 64, minY = 61, spreadRadius = 30;
         Random random = new Random();
 
         for (PlayerInterface player : players) {
-            Location spreadStart = new Location(dummyPlayer.getWorld(), 14.5, 62, 17.5);
+            Location spreadStart = serverSpawn;
 
             while (true) {
                 int x = random.nextInt(spreadRadius * 2 + 1) - spreadRadius + (int) spreadStart.getX();
@@ -245,9 +247,9 @@ public class ServerSpleef extends ServerInterface {
 
                 boolean found = false;
                 for (; y <= maxY; y++) {
-                    if (player.bukkitPlayer.getWorld().getBlockAt(x, y, z).getType() != Material.AIR &&
-                            player.bukkitPlayer.getWorld().getBlockAt(x, y + 1, z).getType() == Material.AIR) {
-                        spreadStart = new Location(dummyPlayer.getWorld(), x + 0.5, y + 2, z + 0.5);
+                    if (world.getBlockAt(x, y, z).getType() != Material.AIR &&
+                            world.getBlockAt(x, y + 1, z).getType() == Material.AIR) {
+                        spreadStart = new Location(world, x + 0.5, y + 2, z + 0.5);
                         found = true;
                         break;
                     }
@@ -339,7 +341,7 @@ public class ServerSpleef extends ServerInterface {
             tntCooldown--;
             if (tntCooldown <= 0) {
                 for (PlayerInterface player : playersToBlowUp) {
-                    TNTPrimed tnt = player.bukkitPlayer.getWorld().spawn(player.bukkitPlayer.getLocation(), TNTPrimed.class);
+                    TNTPrimed tnt = world.spawn(player.bukkitPlayer.getLocation(), TNTPrimed.class);
                     tnt.setYield(8);
                     tnt.setGravity(false);
                     tnt.setVelocity(new Vector(0, 0, 0));
@@ -351,24 +353,21 @@ public class ServerSpleef extends ServerInterface {
         }
 
         // Try to stop TNT from moving
-        players.get(0).bukkitPlayer.getWorld().getEntitiesByClass(TNTPrimed.class).forEach(tnt -> tnt.setVelocity(new Vector(0, 0, 0)));
+        world.getEntitiesByClass(TNTPrimed.class).forEach(tnt -> tnt.setVelocity(new Vector(0, 0, 0)));
     }
 
     private void spleefEnd() {
-        Player dummyPlayer = players.get(0).bukkitPlayer;
-        Location mapEnd = new Location(dummyPlayer.getWorld(), 14.5, 75, 17.5);
-
         ArrayList<PlayerSpleef> playerSpleefs = new ArrayList<>();
         for (PlayerInterface player : players) {
             playerSpleefs.add((PlayerSpleef) player);
             // Race condition fix for last player alive being stuck in spectator mode after round ends
-            new BukkitRunnable(){
+            new BukkitRunnable() {
                 @Override
                 public void run() {
                     PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
                 }
             }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
-            player.bukkitPlayer.teleport(mapEnd);
+            player.bukkitPlayer.teleport(serverSpawn);
             if (!((PlayerSpleef) player).dead) {
                 ((PlayerSpleef) player).currentScore += 500;
                 player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 500 additional points!", 0, 60, 10);

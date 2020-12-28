@@ -36,6 +36,10 @@ public class ServerParkour extends ServerInterface {
     public static final ArrayList<Point3D> stage5Checkpoints = new ArrayList<Point3D>();
     public static final ArrayList<Point3D> stage6Checkpoints = new ArrayList<Point3D>();
 
+    // Points of interest
+    public Location mapStart;
+    public Location mapEnd;
+
     // Server state
     public static final int ERROR = -1;
     public static final int GAME_WAITING = 0;
@@ -51,12 +55,19 @@ public class ServerParkour extends ServerInterface {
 
     public ServerParkour(JavaPlugin plugin) {
         super(plugin);
+        serverSpawn = new Location(world, 253.5, 134, -161.5);
+        mapStart = new Location(world, 7.5, 78, 9.5, 90, 0);
+        mapEnd = new Location(world, 8.5, 131, 9.5);
+
         initCheckpoints();
         setPlayerInventories();
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
+            if (teamLookup.get(player.getUniqueId()) == null)
+                return;
+
             addPlayer(new PlayerParkour(player, this));
         }
 
@@ -146,16 +157,16 @@ public class ServerParkour extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        javaPlugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
-        javaPlugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        javaPlugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        javaPlugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        javaPlugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        javaPlugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        javaPlugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        javaPlugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        javaPlugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        javaPlugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
+        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
+        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
+        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
+        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
+        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
+        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
+        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
+        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
     }
 
     @Override
@@ -178,9 +189,6 @@ public class ServerParkour extends ServerInterface {
 
 
     private void parkourStart() {
-        Player dummyPlayer = players.get(0).bukkitPlayer;
-        Location mapStart = new Location(dummyPlayer.getWorld(), 7.5, 78, 9.5, 90, 0);
-
         for (PlayerInterface player : players) {
             PlayerParkour parkourPlayer = (PlayerParkour) player;
             PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
@@ -280,11 +288,11 @@ public class ServerParkour extends ServerInterface {
                     finishedStage = true;
                     nextStart = stage6Checkpoints.get(0);
                 } else if (stage6Index == stage6Checkpoints.size() - 1) {
-                    bukkitPlayer.teleport(new Location(bukkitPlayer.getWorld(), 8.5, 131, 9.5, 90, 0));
+                    bukkitPlayer.teleport(mapEnd);
                     continue;
                 }
                 if (finishedStage) {
-                    Location nextStage = new Location(bukkitPlayer.getWorld(), nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
+                    Location nextStage = new Location(world, nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
                     bukkitPlayer.teleport(nextStage);
                     bukkitPlayer.setBedSpawnLocation(nextStage, true);
                 }
@@ -293,9 +301,6 @@ public class ServerParkour extends ServerInterface {
     }
 
     private void parkourEnd() {
-        Player dummyPlayer = players.get(0).bukkitPlayer;
-        Location mapEnd = new Location(dummyPlayer.getWorld(), 8.5, 131, 9.5);
-
         ArrayList<PlayerParkour> playerParkours = new ArrayList<>();
         for (PlayerInterface player : players) {
             playerParkours.add((PlayerParkour) player);

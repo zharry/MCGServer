@@ -50,12 +50,10 @@ public class ListenerSurvivalGames implements Listener {
                 player.setGameMode(GameMode.SURVIVAL);
             }
         } else {
-            Location serverSpawn = new Location(player.getWorld(), 0.5, 176, 0.5);
-            player.teleport(serverSpawn);
-            player.setBedSpawnLocation(serverSpawn, true);
+            player.teleport(server.serverSpawn);
+            player.setBedSpawnLocation(server.serverSpawn, true);
             PlayerUtils.resetPlayer(player, GameMode.SURVIVAL);
         }
-        player.setDisplayName(server.teams.get(server.teamLookup.get(player.getUniqueId())).chatColor + player.getName() + ChatColor.RESET);
     }
 
     @EventHandler
@@ -139,7 +137,7 @@ public class ListenerSurvivalGames implements Listener {
                 block.setType(Material.AIR);
                 Location location = block.getLocation();
                 location = location.add(0.5, 0, 0.5);
-                TNTPrimed tnt = block.getWorld().spawn(location, TNTPrimed.class);
+                TNTPrimed tnt = server.world.spawn(location, TNTPrimed.class);
                 tnt.setSource(event.getPlayer());
             } else if (block.getType() == Material.COBWEB) {
             } else if (block.getType() == Material.FIRE) {
@@ -205,7 +203,7 @@ public class ListenerSurvivalGames implements Listener {
     }
 
     @EventHandler
-    public void onTntExplode(EntityExplodeEvent event) {
+    public void onEntityExplode(EntityExplodeEvent event) {
         event.blockList().clear();
     }
 
@@ -224,7 +222,7 @@ public class ListenerSurvivalGames implements Listener {
             if (event.getFrom().getX() != event.getTo().getX() ||
                     event.getFrom().getY() != event.getTo().getY() ||
                     event.getFrom().getZ() != event.getTo().getZ()) {
-                Location location = new Location(player.getWorld(),
+                Location location = new Location(server.world,
                         event.getFrom().getX(), event.getFrom().getY(), event.getFrom().getZ());
                 location.setPitch(player.getLocation().getPitch());
                 location.setYaw(player.getLocation().getYaw());
@@ -247,10 +245,9 @@ public class ListenerSurvivalGames implements Listener {
     // Force load all chunks
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
-        World world = event.getWorld();
         for (int x = -16; x < 16; ++x) {
             for (int z = -16; z < 16; ++z) {
-                world.setChunkForceLoaded(x, z, true);
+                server.world.setChunkForceLoaded(x, z, true);
             }
         }
     }

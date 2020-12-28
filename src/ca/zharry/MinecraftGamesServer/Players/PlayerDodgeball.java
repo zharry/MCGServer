@@ -30,9 +30,8 @@ public class PlayerDodgeball extends PlayerInterface {
         super(bukkitPlayer, server, "dodgeball");
         this.server = server;
 
-        String[] metadataSplit = currentMetadata.split("\\|");
-
         try {
+            String[] metadataSplit = currentMetadata.split("\\|");
             totalKills = Integer.parseInt(metadataSplit[0]);
             invulnerable = Boolean.parseBoolean(metadataSplit[1]);
         } catch (Exception ignore) {
@@ -111,14 +110,14 @@ public class PlayerDodgeball extends PlayerInterface {
     }
 
     @Override
-    public String getPlayerNameFormatted(Player player) {
+    public String getPlayerNameForTabMenu(Player player) {
         if(server.state == ServerDodgeball.GAME_INPROGRESS) {
             PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
             if (playerInterface instanceof PlayerDodgeball && ((PlayerDodgeball) playerInterface).lives <= 0) {
-                return "§7" + player.getName();
+                return ChatColor.GRAY + player.getName();
             }
         }
-        return super.getPlayerNameFormatted(player);
+        return super.getPlayerNameForTabMenu(player);
     }
 
 }

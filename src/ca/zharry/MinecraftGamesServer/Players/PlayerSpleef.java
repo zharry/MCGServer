@@ -4,7 +4,6 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.sql.ResultSet;
@@ -21,8 +20,6 @@ public class PlayerSpleef extends PlayerInterface {
     public PlayerSpleef(Player bukkitPlayer, ServerSpleef server) {
         super(bukkitPlayer, server, "spleef");
         this.server = server;
-
-        bukkitPlayer.setBedSpawnLocation(new Location(bukkitPlayer.getWorld(), 14.5, 75, 17.5), true);
     }
 
     @Override
@@ -77,12 +74,12 @@ public class PlayerSpleef extends PlayerInterface {
     }
 
     @Override
-    public String getPlayerNameFormatted(Player player) {
+    public String getPlayerNameForTabMenu(Player player) {
         PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
         if(playerInterface instanceof PlayerSpleef && ((PlayerSpleef) playerInterface).dead) {
             return "§7" + player.getName();
         }
-        return super.getPlayerNameFormatted(player);
+        return super.getPlayerNameForTabMenu(player);
     }
 
 }

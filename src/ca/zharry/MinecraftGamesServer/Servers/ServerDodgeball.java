@@ -59,6 +59,7 @@ public class ServerDodgeball extends ServerInterface {
 
     public ServerDodgeball(JavaPlugin plugin) {
         super(plugin);
+        serverSpawn = new Location(world, -15.5, 4, 1.5);
         initArenaSpawns();
 
         roundRobin = new ArrayList<ArrayList<Integer>>();
@@ -67,7 +68,9 @@ public class ServerDodgeball extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
-            Location serverSpawn = new Location(player.getWorld(), -15.5, 4, 1.5);
+            if (teamLookup.get(player.getUniqueId()) == null)
+                return;
+
             player.teleport(serverSpawn);
             PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
             addPlayer(new PlayerDodgeball(player, this));
@@ -176,16 +179,16 @@ public class ServerDodgeball extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        javaPlugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
-        javaPlugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        javaPlugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        javaPlugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        javaPlugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        javaPlugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        javaPlugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        javaPlugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        javaPlugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        javaPlugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
+        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
+        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
+        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
+        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
+        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
+        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
+        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
+        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
     }
 
     @Override
@@ -203,7 +206,7 @@ public class ServerDodgeball extends ServerInterface {
         world.setGameRule(GameRule.MOB_GRIEFING, false);
         world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-        world.setFullTime(18000);
+        world.setFullTime(6000);
     }
 
     public void giveBow(PlayerDodgeball player) {
@@ -291,7 +294,7 @@ public class ServerDodgeball extends ServerInterface {
 
     private void dodgeballStart() {
         // Remove all lingering item drops
-        List<Entity> entList = players.get(0).bukkitPlayer.getWorld().getEntities();
+        List<Entity> entList = world.getEntities();
         for (Entity current : entList) {
             if (current instanceof Item || current instanceof Arrow) {
                 current.remove();
@@ -324,7 +327,7 @@ public class ServerDodgeball extends ServerInterface {
                         if (player.myTeam.id == team1.id) {
                             playerDodgeball.opponentTeam = team2;
                             playerDodgeball.arena = arenaNo;
-                            Location redSpawn = new Location(player.bukkitPlayer.getWorld(),
+                            Location redSpawn = new Location(world,
                                     redSpawnLocation.getX(), redSpawnLocation.getY(), redSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(redSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(redSpawn, true);
@@ -333,7 +336,7 @@ public class ServerDodgeball extends ServerInterface {
                         if (player.myTeam.id == team2.id) {
                             playerDodgeball.opponentTeam = team1;
                             playerDodgeball.arena = arenaNo;
-                            Location blueSpawn = new Location(player.bukkitPlayer.getWorld(),
+                            Location blueSpawn = new Location(world,
                                     blueSpawnLocation.getX(), blueSpawnLocation.getY(), blueSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(blueSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(blueSpawn, true);
@@ -358,7 +361,6 @@ public class ServerDodgeball extends ServerInterface {
 
     private void dodgeballTick() {
         // Logic for spawning arrows
-        World world = players.get(0).bukkitPlayer.getWorld();
         spawnArrowsTick--;
         if (spawnArrowsTick <= 0) {
             spawnArrowsTick = SPAWN_ARROWS_TICK;
@@ -393,7 +395,6 @@ public class ServerDodgeball extends ServerInterface {
         ArrayList<PlayerDodgeball> playerDodgeballs = new ArrayList<>();
         for (PlayerInterface player : players) {
             playerDodgeballs.add((PlayerDodgeball) player);
-            Location serverSpawn = new Location(player.bukkitPlayer.getWorld(), -15.5, 4, 1.5);
             PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
             player.bukkitPlayer.teleport(serverSpawn);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);

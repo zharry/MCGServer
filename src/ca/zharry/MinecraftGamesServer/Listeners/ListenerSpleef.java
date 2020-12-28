@@ -6,7 +6,6 @@ import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -33,8 +32,7 @@ public class ListenerSpleef implements Listener {
         if (server.state == ServerSpleef.GAME_WAITING ||
                 server.state == ServerSpleef.GAME_STARTING ||
                 server.state == ServerSpleef.GAME_FINISHED) {
-            Location gameSpectate = new Location(player.getWorld(), 14.5, 75, 17.5);
-            player.teleport(gameSpectate);
+            player.teleport(server.serverSpawn);
             player.setGameMode(GameMode.ADVENTURE);
         }
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
@@ -42,7 +40,6 @@ public class ListenerSpleef implements Listener {
                 playerSpleef.dead = true;
             }
         }
-        player.setDisplayName(server.teams.get(server.teamLookup.get(player.getUniqueId())).chatColor + player.getName() + ChatColor.RESET);
     }
 
     @EventHandler
@@ -89,15 +86,14 @@ public class ListenerSpleef implements Listener {
         new BukkitRunnable() {
             public void run() {
                 Player player = event.getPlayer();
-                Location serverSpawn = new Location(player.getWorld(), 14.5, 75, 17.5);
-                player.teleport(serverSpawn);
+                player.teleport(server.serverSpawn);
                 if(server.state == ServerSpleef.GAME_INPROGRESS) {
                     PlayerUtils.resetPlayer(player, GameMode.SPECTATOR);
                 } else {
                     PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
                 }
             }
-        }.runTaskLater(server.javaPlugin, 1);
+        }.runTaskLater(server.plugin, 1);
     }
 
     @EventHandler
@@ -107,23 +103,21 @@ public class ListenerSpleef implements Listener {
         }
     }
 
-    // Prevent blocks above COMPETITION_MAX_HEIGHT from being destroyed by explosions
     @EventHandler
-    public void onTntExplode(EntityExplodeEvent event) {
+    public void onEntityExplode(EntityExplodeEvent event) {
         event.blockList().removeIf(block -> block.getLocation().getY() > ServerSpleef.COMPETITION_MAX_HEIGHT);
-
-        event.getLocation().getWorld().spawnParticle(Particle.EXPLOSION_LARGE, event.getLocation(), 0);
+        server.world.spawnParticle(Particle.EXPLOSION_LARGE, event.getLocation(), 0);
     }
 
     @EventHandler
-    public void playerAccidentallyDroppedPickaxe(PlayerDropItemEvent event) {
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
         if(event.getPlayer().getGameMode() != GameMode.CREATIVE) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
-    public void playerTriesToClickInInventory(InventoryClickEvent event) {
+    public void onInventoryClick(InventoryClickEvent event) {
         if(event.getWhoClicked().getGameMode() != GameMode.CREATIVE) {
             event.setCancelled(true);
         }

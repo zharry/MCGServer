@@ -4,6 +4,7 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGScore;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import ca.zharry.MinecraftGamesServer.Utils.ChatStringUtils;
 import ca.zharry.MinecraftGamesServer.Utils.SidebarDisplay;
 import ca.zharry.MinecraftGamesServer.Utils.StringAlignUtils;
 import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
@@ -58,6 +59,9 @@ public abstract class PlayerInterface {
         }
         // Add our entry to our scoreboard
         addPlayerTeamToScoreboard(scoreboard, myTeam, this);
+
+        // Set display name and color properly
+        bukkitPlayer.setDisplayName(server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId())).chatColor + bukkitPlayer.getName() + ChatColor.RESET);
     }
 
     private void addPlayerTeamToScoreboard(Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
@@ -88,13 +92,11 @@ public abstract class PlayerInterface {
 
     private static final StringAlignUtils strFmt = new StringAlignUtils(70,5);
 
-
-    public String getPlayerNameFormatted(Player player) {
+    public String getPlayerNameForTabMenu(Player player) {
         return player.getDisplayName();
     }
 
     public void updateTabList() {
-
         StringBuilder sb = new StringBuilder(EMPTY_LINE);
         for (String header : HEADERS) {
             sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', header))).append("\n");
@@ -125,13 +127,11 @@ public abstract class PlayerInterface {
             for (UUID uuid : uuids) {
                 Player p = Bukkit.getPlayer(uuid);
                 if (p != null) {
-                    String name = getPlayerNameFormatted(p);
-                    String nameStripped = ChatColor.stripColor(name);
-                    int nOverflow = Math.max(0, nameStripped.length() - maxLen);
-                    nameStrs.append(name, 0, name.length() - nOverflow).append(" ");
+                    String name = getPlayerNameForTabMenu(p);
+                    nameStrs.append(ChatStringUtils.truncateChatString(name, maxLen)).append(" ");
                 }
             }
-            table.addRow("§" + team.chatColor.getChar() + nameStrs.toString());
+            table.addRow(nameStrs.toString());
             table.addRow();
         }
 
@@ -199,6 +199,35 @@ public abstract class PlayerInterface {
     }
 
     public abstract void updateScoreboard();
+
+//    public void commit() {
+//        new BukkitRunnable() {
+//            public void run() {
+//                //currentMetadata = totalKills + "|" + invulnerable;
+//
+//                try {
+//                    int id = -1;
+//                    Statement statement = MCGMain.conn.connection.createStatement();
+//                    ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
+//                            "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
+//                            "`season` = '" + MCGMain.SEASON + "' AND " +
+//                            "`minigame` = '" + curMinigame + "';");
+//                    while (resultSet.next()) {
+//                        id = resultSet.getInt("id");
+//                    }
+//
+//                    statement.execute("INSERT INTO `scores` " +
+//                            "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
+//                            "VALUES " +
+//                            "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
+//                            "ON DUPLICATE KEY UPDATE" +
+//                            "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
+//                } catch (SQLException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }.runTaskAsynchronously(server.plugin);
+//    }
 
     public abstract void commit();
 

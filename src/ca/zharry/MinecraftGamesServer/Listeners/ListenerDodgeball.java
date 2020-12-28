@@ -6,7 +6,6 @@ import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -35,10 +34,8 @@ public class ListenerDodgeball implements Listener {
         server.addPlayer(playerDodgeball);
 
         PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
-        Location serverSpawn = new Location(player.getWorld(), -15.5, 4, 1.5);
-        player.teleport(serverSpawn);
-        player.setBedSpawnLocation(serverSpawn, true);
-        player.setDisplayName(server.teams.get(server.teamLookup.get(player.getUniqueId())).chatColor + player.getName() + ChatColor.RESET);
+        player.teleport(server.serverSpawn);
+        player.setBedSpawnLocation(server.serverSpawn, true);
     }
 
     @EventHandler
@@ -121,12 +118,6 @@ public class ListenerDodgeball implements Listener {
                         playerDodgeball.currentScore += 250;
                         playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
                         playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "You and your teammates have received 250 points each!", 10, 60, 10);
-
-                        // Teleport winning team to spawn
-//                        Location serverSpawn = new Location(playerDodgeball.bukkitPlayer.getWorld(), -15.5, 4, 1.5);
-//                        PlayerUtils.resetPlayer(playerDodgeball.bukkitPlayer, GameMode.ADVENTURE);
-//                        playerDodgeball.bukkitPlayer.teleport(serverSpawn);
-//                        playerDodgeball.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
                     }
                 }
 
@@ -136,10 +127,6 @@ public class ListenerDodgeball implements Listener {
                     if (playerDodgeball != null) {
                         playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
                         playerDodgeball.bukkitPlayer.sendTitle(ChatColor.RED + "Defeat!", "Your team has been eliminated by " + killerTeam.chatColor + "" + killerTeam.teamname, 0, 60, 10);
-//                        Location serverSpawn = new Location(playerDodgeball.bukkitPlayer.getWorld(), -15.5, 4, 1.5);
-//                        PlayerUtils.resetPlayer(playerDodgeball.bukkitPlayer, GameMode.ADVENTURE);
-//                        playerDodgeball.bukkitPlayer.teleport(serverSpawn);
-//                        playerDodgeball.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
                     }
                 }
             }

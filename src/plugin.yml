@@ -4,6 +4,9 @@ author: Harry Zhang
 main: ca.zharry.MinecraftGamesServer.MCGMain
 api-version: 1.16
 commands:
+  setteam:
+    description: Adds a specific player to a team
+    usage: /setteam
   setgame:
     description: Starts the specified minigame
     usage: /setgame [game]

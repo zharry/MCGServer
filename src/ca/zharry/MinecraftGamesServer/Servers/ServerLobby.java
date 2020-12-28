@@ -10,6 +10,7 @@ import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -32,10 +33,14 @@ public class ServerLobby extends ServerInterface {
 
     public ServerLobby(JavaPlugin plugin) {
         super(plugin);
+        serverSpawn = new Location(world, 1484.5, 4, 530, 90, 0);
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
+            if (teamLookup.get(player.getUniqueId()) == null)
+                return;
+
             addPlayer(new PlayerLobby(player, this));
         }
 
@@ -79,10 +84,10 @@ public class ServerLobby extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        javaPlugin.getCommand("setgame").setExecutor(new CommandLobbySetNextGame(this, timerNextGame));
-        javaPlugin.getCommand("timernextset").setExecutor(new CommandTimerSet(timerNextGame));
-        javaPlugin.getCommand("timernextpause").setExecutor(new CommandTimerPause(timerNextGame));
-        javaPlugin.getCommand("timernextresume").setExecutor(new CommandTimerResume(timerNextGame));
+        plugin.getCommand("setgame").setExecutor(new CommandLobbySetNextGame(this, timerNextGame));
+        plugin.getCommand("timernextset").setExecutor(new CommandTimerSet(timerNextGame));
+        plugin.getCommand("timernextpause").setExecutor(new CommandTimerPause(timerNextGame));
+        plugin.getCommand("timernextresume").setExecutor(new CommandTimerResume(timerNextGame));
     }
 
     @Override
