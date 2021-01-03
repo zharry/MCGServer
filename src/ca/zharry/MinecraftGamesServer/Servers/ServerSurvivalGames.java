@@ -1,13 +1,12 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
+import ca.zharry.MinecraftGamesServer.Commands.*;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSurvivalGames;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSurvivalGames;
+import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
+import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.Coord3D;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
@@ -61,6 +60,18 @@ public class ServerSurvivalGames extends ServerInterface {
             "Game End"
     ));
 
+    public static class SpecialItem {
+        public String location;
+        public ItemStack item;
+
+        public SpecialItem(String location, ItemStack item) {
+            this.location = location;
+            this.item = item;
+        }
+    }
+
+    public static final HashMap<Coord3D, SpecialItem> specialChests = new HashMap<>();
+
     public static final ArrayList<Point3D> spawnpoints = new ArrayList<Point3D>();
     public static final HashSet<Integer> filledSpawnpoints = new HashSet<Integer>();
     public static final HashMap<Coord3D, Double> chests = new HashMap<Coord3D, Double>();
@@ -87,6 +98,7 @@ public class ServerSurvivalGames extends ServerInterface {
     public Timer timerBegin;
     public Timer timerInProgress;
     public Timer timerFinished;
+    public Cutscene startGameTutorial;
 
     public ServerSurvivalGames(JavaPlugin plugin) {
         super(plugin);
@@ -96,18 +108,11 @@ public class ServerSurvivalGames extends ServerInterface {
         initChestLocations();
         initLootTables();
 
-        WorldBorder border = world.getWorldBorder();
-        border.setSize(500 + 1);
-        border.setCenter(0.5, 0.5);
-        border.setDamageBuffer(0);
+        resetWorldBorder();
 
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
-            if (teamLookup.get(player.getUniqueId()) == null)
-                return;
-
-            addPlayer(new PlayerSurvivalGames(player, this));
             PlayerUtils.resetPlayer(player, GameMode.SURVIVAL);
             player.teleport(serverSpawn);
         }
@@ -117,6 +122,22 @@ public class ServerSurvivalGames extends ServerInterface {
             public void onStart() {
                 state = GAME_STARTING;
                 survivalGamesPreStart();
+
+                sendTitleAll("Good luck, have fun!", "Game will begin in 60 seconds!");
+                sendMultipleMessageAll(new String[]{
+                        ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
+                                "This map is " + ChatColor.BOLD + "Breeze Island 2" + ChatColor.RESET + ", by xBayani\n" +
+                                " \n" +
+                                " \n",
+                        ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
+                                "1. Collect loot from chests around the map\n" +
+                                "2. Kill other players (+50pts)\n" +
+                                "3. Survive longer than the other players (+25pts)\n" +
+                                "4. Watch out for server events (border shrink, chest refills, and etc...)",
+                }, new int[]{
+                        10,
+                        45,
+                });
             }
 
             @Override
@@ -197,6 +218,128 @@ public class ServerSurvivalGames extends ServerInterface {
                 timerFinished.set(TIMER_FINISHED);
             }
         }.set(TIMER_FINISHED);
+
+        ArrayList<CutsceneStep> steps = new ArrayList<>();
+        int time = 0;
+        steps.add(new CutsceneStep(time)
+                .pos(-20, 71, 12, -120, 25)
+                .title("Welcome to Survival Games", "Map made by xBayani", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(-6.5, 69.5, 0.5, -90, 10)
+                .title("Collect loot from chests", "There is an additional chest refill at 13 mins!", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(13.5, 90, 20, 145, 55)
+                .title("Kill all other players", "and gain 50 points per kill!", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(90, 102, 72, 135, 25)
+                .title("You can also earn survival points", "25 points every time another player dies.", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(90, 102, 72, -102, 0)
+                .title("The map is 400 blocks wide", "and shrinks to 200 at 11 mins, and 50 at 20 mins!", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(0, 78, -100, -155, 10)
+                .title("There are 4 special items", "which are guaranteed to generate in 4 special chests!", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(38.5, 125, -156.5, -155, 90)
+                .title("The first item is here", "inside the volcano on the north island!", 60)
+                .freeze(50)
+                .linear());
+        steps.add(new CutsceneStep(time += 120)
+                .pos(37.5, 38, -157.5, 55, 90)
+                .comment("Go to the chest")
+                .linear());
+        steps.add(new CutsceneStep(time += 20).pos(39.5, 36.5, -159.5, 45, 10)
+                .comment("Pan to chest")
+                .linear());
+        steps.add(new CutsceneStep(time += 30)
+                .comment("Open Chest")
+                .action((entry) -> {
+                    Inventory inventory = ((Chest) world.getBlockAt(37, 37, -158).getState()).getInventory();
+                    players.forEach(player -> player.bukkitPlayer.openInventory(inventory));
+                }));
+
+        steps.add(new CutsceneStep(time += 100)
+                .action((entry) -> players.forEach(player -> player.bukkitPlayer.closeInventory()))
+                .pos(13, 100, 7, 25, -16)
+                .title("The second item is here", "inside the temple south of spawn", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(27.5, 80, 51, -30, 35)
+                .comment("Go to the chest")
+                .linear());
+        steps.add(new CutsceneStep(time += 20)
+                .pos(27, 80, 53.5, 156, 30)
+                .comment("Pan to the chest")
+                .linear());
+        steps.add(new CutsceneStep(time += 30)
+                .comment("Open Chest")
+                .action((entry) -> {
+                    Inventory inventory = ((Chest) world.getBlockAt(26, 80, 51).getState()).getInventory();
+                    players.forEach(player -> player.bukkitPlayer.openInventory(inventory));
+                }));
+
+        steps.add(new CutsceneStep(time += 100)
+                .action((entry) -> players.forEach(player -> player.bukkitPlayer.closeInventory()))
+                .pos(-159, 65, -49, -51, -19)
+                .title("The third item is here", "on the top of the pirate ship west of spawn", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(-136.5, 125, -16, -40, 37)
+                .comment("Go to the chest")
+                .linear());
+        steps.add(new CutsceneStep(time += 30)
+                .comment("Open Chest").action((entry) -> {
+                    Inventory inventory = ((Chest) world.getBlockAt(-135, 124, -14).getState()).getInventory();
+                    players.forEach(player -> player.bukkitPlayer.openInventory(inventory));
+                }));
+
+        steps.add(new CutsceneStep(time += 100)
+                .action((entry) -> players.forEach(player -> player.bukkitPlayer.closeInventory()))
+                .pos(-1.5, 84, -1.5, -180, -10)
+                .title("The final item is here", "inside the north waterfall at spawn", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(-1.5, 84, -31.5, 155, 20)
+                .comment("Go to the chest")
+                .linear());
+        //-3 84 -31
+        steps.add(new CutsceneStep(time += 30).comment("Open Chest")
+                .action((entry) -> {
+                    Inventory inventory = ((Chest) world.getBlockAt(-3, 84, -34).getState()).getInventory();
+                    players.forEach(player -> player.bukkitPlayer.openInventory(inventory));
+                }));
+        steps.add(new CutsceneStep(time += 100).comment("Close chest")
+                .action((entry) -> players.forEach(player -> player.bukkitPlayer.closeInventory())));
+
+
+        startGameTutorial = new Cutscene(plugin, this, steps) {
+            @Override
+            public void onStart() {
+                for (PlayerInterface p : players) {
+                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                }
+            }
+
+            @Override
+            public void onEnd() {
+                timerStartGame.start();
+                for (PlayerInterface player : players) {
+                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+                    player.bukkitPlayer.teleport(serverSpawn);
+                    player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
+                }
+            }
+        };
     }
 
     @Override
@@ -213,7 +356,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
         plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
         plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
         plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
@@ -237,60 +380,26 @@ public class ServerSurvivalGames extends ServerInterface {
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
         world.setGameRule(GameRule.MOB_GRIEFING, false);
-        world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+        world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, true);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
         world.setFullTime(6000);
-    }
 
-
-    public int getWorldBorder() {
-        WorldBorder border = world.getWorldBorder();
-        int size = (int) border.getSize();
-        // Ask Jacky about this one...
-        if (size == 501)
-            size = 500;
-        if (size == 201)
-            size = 200;
-        if (size == 51)
-            size = 50;
-        return size;
-    }
-
-    public String getNextEvent() {
-        if (stage != -1)
-            return stages.get(stage);
-        return "Please wait...";
-    }
-
-    public int getPlayersAlive() {
-        int counter = 0;
-        for (PlayerInterface player : players) {
-            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
-            if (!playerSurvivalGames.dead) {
-                counter++;
+        for (int x = -16; x < 16; ++x) {
+            for (int z = -16; z < 16; ++z) {
+                world.setChunkForceLoaded(x, z, true);
             }
         }
-        return counter;
     }
+
+    @Override
+    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+        return new PlayerSurvivalGames(this, uuid, name);
+    }
+
+    /* GAME LOGIC */
 
     private void survivalGamesPreStart() {
         fillChestsStage1();
-
-        sendTitleAll("Welcome to Survival Games!", "Game will begin in 60 seconds!");
-        sendMultipleMessageAll(new String[]{
-                ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Survival Games!\n" + ChatColor.RESET +
-                        "This map is " + ChatColor.BOLD + "Breeze Island 2" + ChatColor.RESET + ", by xBayani\n" +
-                        " \n" +
-                        " \n",
-                ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
-                        "1. Collect loot from chests around the map\n" +
-                        "2. Kill other players (+50pts)\n" +
-                        "3. Survive longer than the other players (+25pts)\n" +
-                        "4. Watch out for server events (border shrink, chest refills, and etc...)",
-        }, new int[]{
-                10,
-                45,
-        });
     }
 
     private void survivalGamesBegin() {
@@ -322,10 +431,10 @@ public class ServerSurvivalGames extends ServerInterface {
     private void survivalGamesStageStart() {
         timerInProgress.set(stageTimes.get(stage));
         WorldBorder border = world.getWorldBorder();
+        border.setCenter(0.5, 0.5);
         switch (stage) {
             case 1:
                 border.setSize(200 + 1, 60);
-                border.setCenter(0.5, 0.5);
                 sendTitleAll("Border is shrinking to 200 blocks", "over the next 60 seconds!");
                 break;
             case 2:
@@ -334,12 +443,10 @@ public class ServerSurvivalGames extends ServerInterface {
                 break;
             case 3:
                 border.setSize(50 + 1, 60);
-                border.setCenter(0.5, 0.5);
                 sendTitleAll("Border is shrinking to 50 blocks", "over the next 60 seconds!");
                 break;
             case 4:
                 border.setSize(25, 30);
-                border.setCenter(0.5, 0.5);
                 sendTitleAll(ChatColor.RED + "Deathmatch!" + ChatColor.RESET, "Border is shrinking to 25 blocks");
                 break;
             default:
@@ -354,7 +461,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
         // Go through all the teams
         for (int teamID : teamIDs) {
-            MCGTeam team = teams.get(teamID);
+            MCGTeam team = getTeamFromTeamID(teamID);
             // Check if each team still has at least one player alive
             boolean alive = false;
             for (UUID uuid : team.players) {
@@ -385,10 +492,7 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     private void survivalGamesEnd() {
-        WorldBorder border = world.getWorldBorder();
-        border.setSize(500 + 1);
-        border.setCenter(0.5, 0.5);
-
+        resetWorldBorder();
         timerInProgress.pause();
         timerFinished.start();
 
@@ -410,7 +514,7 @@ public class ServerSurvivalGames extends ServerInterface {
         int count = 0;
         playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.currentScore));
         for (PlayerSurvivalGames player : playerSurvivalGamess) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
@@ -420,14 +524,14 @@ public class ServerSurvivalGames extends ServerInterface {
         count = 0;
         playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.kills));
         for (PlayerSurvivalGames player : playerSurvivalGamess) {
-            topKillers += ChatColor.RESET + "" + player.kills + " kills - " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topKillers += ChatColor.RESET + "" + player.kills + " kills - " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
         }
 
         String topTeams = "";
-        ArrayList<MCGTeam> teamParkours = new ArrayList<>(teams.values());
+        ArrayList<MCGTeam> teamParkours = getRealTeams();
         teamParkours.sort(Comparator.comparingInt(o -> -o.getScore("survivalgames")));
         for (MCGTeam team : teamParkours) {
             topTeams += ChatColor.RESET + "[" + team.getScore("survivalgames") + "] " + team.chatColor + "" + team.teamname + "\n";
@@ -445,6 +549,46 @@ public class ServerSurvivalGames extends ServerInterface {
                 60,
         });
     }
+
+    /* SUPPORTING LOGIC */
+    public int getPlayersAlive() {
+        int counter = 0;
+        for (PlayerInterface player : players) {
+            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
+            if (!playerSurvivalGames.dead) {
+                counter++;
+            }
+        }
+        return counter;
+    }
+
+    public void resetWorldBorder() {
+        WorldBorder border = world.getWorldBorder();
+        border.setSize(500 + 1);
+        border.setCenter(0.5, 0.5);
+        border.setDamageBuffer(0);
+    }
+
+    public int getWorldBorder() {
+        WorldBorder border = world.getWorldBorder();
+        int size = (int) border.getSize();
+        // Ask Jacky about this one...
+        if (size == 501)
+            size = 500;
+        if (size == 201)
+            size = 200;
+        if (size == 51)
+            size = 50;
+        return size;
+    }
+
+    public String getNextEvent() {
+        if (stage != -1)
+            return stages.get(stage);
+        return "Please wait...";
+    }
+
+    /* MAP LOGIC*/
 
     private void initCornucopiaSpawns() {
         spawnpoints.add(new Point3D(0, 67, -23));
@@ -503,6 +647,8 @@ public class ServerSurvivalGames extends ServerInterface {
         }
     }
 
+    /* LOOT TABLE LOGIC */
+
     private void initLootTables() {
         ItemStack fireResistance = new ItemStack(Material.POTION, 1);
         PotionMeta potionMeta = (PotionMeta) fireResistance.getItemMeta();
@@ -511,7 +657,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
         ItemStack instantDamage = new ItemStack(Material.SPLASH_POTION, 1);
         potionMeta = (PotionMeta) fireResistance.getItemMeta();
-        potionMeta.setBasePotionData(new PotionData(PotionType.INSTANT_DAMAGE, false, true));
+        potionMeta.setBasePotionData(new PotionData(PotionType.INSTANT_DAMAGE, false, false));
         instantDamage.setItemMeta(potionMeta);
 
         lootTable.put(3.000010, new ItemChoice(Material.LEATHER_HELMET, 1));
@@ -541,7 +687,7 @@ public class ServerSurvivalGames extends ServerInterface {
         lootTable.put(2.500036, new ItemChoice(Material.COBWEB, 2, 0.5));
         lootTable.put(0.500037, new ItemChoice(Material.FLINT_AND_STEEL, 1));
         lootTable.put(3.000040, new ItemChoice(fireResistance, 1, 0));
-        lootTable.put(4.000041, new ItemChoice(instantDamage, 1, 0));
+        lootTable.put(3.000041, new ItemChoice(instantDamage, 1, 0));
         lootTable.put(3.000050, new ItemChoice(Material.APPLE, 5, 1));
         lootTable.put(3.000051, new ItemChoice(Material.COOKIE, 4, 1.5));
         lootTable.put(3.000052, new ItemChoice(Material.COOKED_CHICKEN, 1));
@@ -590,7 +736,7 @@ public class ServerSurvivalGames extends ServerInterface {
         lootTableTier2.put(2.500036, new ItemChoice(Material.COBWEB, 3, 0.5));
         lootTableTier2.put(1.500037, new ItemChoice(Material.FLINT_AND_STEEL, 1));
         lootTableTier2.put(3.000040, new ItemChoice(fireResistance, 1, 0));
-        lootTableTier2.put(4.000041, new ItemChoice(instantDamage, 1, 0));
+        lootTableTier2.put(3.000041, new ItemChoice(instantDamage, 1, 0));
         lootTableTier2.put(3.000052, new ItemChoice(Material.COOKED_CHICKEN, 3, 0.5));
         lootTableTier2.put(1.500060, new ItemChoice(Material.ENCHANTED_BOOK, 1));
         lootTableTier2.put(3.000061, new ItemChoice(Material.EXPERIENCE_BOTTLE, 3, 1));
@@ -707,10 +853,10 @@ public class ServerSurvivalGames extends ServerInterface {
         ItemStack guardiansScaledVest = new ItemStack(Material.IRON_CHESTPLATE, 1);
         ItemMeta guardiansScaledVestMeta = guardiansScaledVest.getItemMeta();
         guardiansScaledVestMeta.setDisplayName(ChatColor.BLUE + "" + ChatColor.BOLD + "Guardian's Scaled Vest" + ChatColor.RESET);
-        guardiansScaledVestMeta.addEnchant(EnchantmentWrapper.PROTECTION_ENVIRONMENTAL, 1, false);
-        guardiansScaledVestMeta.addEnchant(EnchantmentWrapper.PROTECTION_FIRE, 1, false);
+        guardiansScaledVestMeta.addEnchant(EnchantmentWrapper.PROTECTION_ENVIRONMENTAL, 2, false);
         guardiansScaledVestMeta.addEnchant(EnchantmentWrapper.THORNS, 1, false);
         guardiansScaledVestMeta.addEnchant(EnchantmentWrapper.VANISHING_CURSE, 1, false);
+        guardiansScaledVestMeta.addAttributeModifier(Attribute.GENERIC_ARMOR, new AttributeModifier(UUID.randomUUID(), "generic.armor", 6, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.CHEST));
         guardiansScaledVestMeta.addAttributeModifier(Attribute.GENERIC_KNOCKBACK_RESISTANCE, new AttributeModifier(UUID.randomUUID(), "generic.knockback_resistance", 1.0, AttributeModifier.Operation.ADD_SCALAR, EquipmentSlot.CHEST));
         guardiansScaledVestMeta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(UUID.randomUUID(), "generic.movement_speed", -0.2, AttributeModifier.Operation.ADD_SCALAR, EquipmentSlot.CHEST));
         guardiansScaledVest.setItemMeta(guardiansScaledVestMeta);
@@ -720,6 +866,7 @@ public class ServerSurvivalGames extends ServerInterface {
         solitudesScimitarMeta.setDisplayName(ChatColor.BLUE + "" + ChatColor.BOLD + "Solitude's Scimitar" + ChatColor.RESET);
         solitudesScimitarMeta.addEnchant(EnchantmentWrapper.DAMAGE_ALL, 2, false);
         solitudesScimitarMeta.addEnchant(EnchantmentWrapper.VANISHING_CURSE, 1, false);
+        solitudesScimitarMeta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, new AttributeModifier(UUID.randomUUID(), "generic.attack_damage", 6, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND));
         solitudesScimitarMeta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(UUID.randomUUID(), "generic.movement_speed", 0.3, AttributeModifier.Operation.ADD_SCALAR, EquipmentSlot.HAND));
         solitudesScimitarMeta.addAttributeModifier(Attribute.GENERIC_ATTACK_SPEED, new AttributeModifier(UUID.randomUUID(), "generic.attack_speed", 1, AttributeModifier.Operation.ADD_SCALAR, EquipmentSlot.HAND));
         solitudesScimitar.setItemMeta(solitudesScimitarMeta);
@@ -735,14 +882,24 @@ public class ServerSurvivalGames extends ServerInterface {
         assassinsWindbreaker.setItemMeta(assassinsWindbreakerMeta);
 
         placeItemInChest(world, new Coord3D(37, 37, -158), rebornGod); // Legendary Chest, under the volcano, north of spawn
+        specialChests.put(new Coord3D(37, 37, -158), new SpecialItem("under the volcano", rebornGod));
+
         placeItemInChest(world, new Coord3D(-135, 124, -14), solitudesScimitar); // Special Chest, on top of big pirate ship, west of spawn
+        specialChests.put(new Coord3D(-135, 124, -14), new SpecialItem("on top of the pirate ship", solitudesScimitar));
+
         placeItemInChest(world, new Coord3D(26, 80, 51), assassinsWindbreaker); // Special Chest, inside the cave, south east of spawn
+        specialChests.put(new Coord3D(26, 80, 51), new SpecialItem("inside a cave", assassinsWindbreaker));
+
         placeItemInChest(world, new Coord3D(-3, 84, -34), guardiansScaledVest); // Special Chest, at spawn, waterfall, north of spawn
+        specialChests.put(new Coord3D(-3, 84, -34), new SpecialItem("inside the spawn waterfall", guardiansScaledVest));
     }
 
     private void fillChestsStage2() {
         fillChestWithLootTableIntegrated(world, lootTableTier2Integrated);
+        specialChests.clear();
     }
+
+    /* SUPPORTING CLASSES */
 
     public static class ItemChoice {
         public ItemStack item;

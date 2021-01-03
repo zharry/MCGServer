@@ -4,6 +4,7 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGScore;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Utils.ChatStringUtils;
 import ca.zharry.MinecraftGamesServer.Utils.SidebarDisplay;
 import ca.zharry.MinecraftGamesServer.Utils.StringAlignUtils;
@@ -14,7 +15,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -25,31 +28,37 @@ public abstract class PlayerInterface {
     public String curMinigame = "lobby";
     public int currentScore = 0;
     public String currentMetadata = "";
-    public ArrayList<MCGScore> previousScores;
+    public ArrayList<MCGScore> previousScores = new ArrayList<>();
 
-    public Player bukkitPlayer;
+    public Player bukkitPlayer; // null if the player is offline
+    public UUID uuid;
+    public String name; // Unformatted raw username
     public ServerInterface server;
     public Scoreboard scoreboard;
     public SidebarDisplay sidebar;
     public MCGTeam myTeam;
+    public Cutscene cutscene;
 
-    public PlayerInterface(Player bukkitPlayer, ServerInterface server, String curMinigame) {
-        this.bukkitPlayer = bukkitPlayer;
+    public PlayerInterface(ServerInterface server, UUID uuid, String name, String curMinigame) {
         this.server = server;
+        this.uuid = uuid;
+        this.name = name;
         this.curMinigame = curMinigame;
 
-        this.previousScores = new ArrayList<MCGScore>();
-        getData();
+        fetchData();
 
         scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
         sidebar = new SidebarDisplay(scoreboard, "MCG Season " + MCGMain.SEASON);
-        this.bukkitPlayer.setScoreboard(scoreboard);
-        myTeam = server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId()));
+        myTeam = server.getTeamFromPlayerUUID(uuid);
+
+        ArrayList<PlayerInterface> combinedPlayers = new ArrayList<>();
+        combinedPlayers.addAll(server.offlinePlayers);
+        combinedPlayers.addAll(server.players);
 
         // For all other players
-        for (PlayerInterface player : server.players) {
+        for (PlayerInterface player : combinedPlayers) {
             // Get their team
-            MCGTeam playerTeam = server.teams.get(server.teamLookup.get(player.bukkitPlayer.getUniqueId()));
+            MCGTeam playerTeam = server.getTeamFromPlayerUUID(player.uuid);
 
             // Add their team to our own scoreboard
             addPlayerTeamToScoreboard(scoreboard, playerTeam, player);
@@ -59,9 +68,6 @@ public abstract class PlayerInterface {
         }
         // Add our entry to our scoreboard
         addPlayerTeamToScoreboard(scoreboard, myTeam, this);
-
-        // Set display name and color properly
-        bukkitPlayer.setDisplayName(server.teams.get(server.teamLookup.get(bukkitPlayer.getUniqueId())).chatColor + bukkitPlayer.getName() + ChatColor.RESET);
     }
 
     private void addPlayerTeamToScoreboard(Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
@@ -69,194 +75,38 @@ public abstract class PlayerInterface {
         if (minecraftTeam == null) {
             minecraftTeam = scoreboard.registerNewTeam(team.teamname);
         }
-        minecraftTeam.addEntry(player.bukkitPlayer.getName());
+        minecraftTeam.addEntry(player.name);
         minecraftTeam.setColor(team.chatColor);
         minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
-        minecraftTeam.setCanSeeFriendlyInvisibles(true);
-        minecraftTeam.setAllowFriendlyFire(false);
-    }
-
-    public void doStatsRefresh() {
-        updateTabList();
-        updateScoreboard();
-    }
-
-    private static final String EMPTY_LINE = "                                                                      \n";
-    private static final String LINE = "&5&m                                                            &r";
-    private static final String[] HEADERS = {
-            "&bMCG Season " + MCGMain.SEASON,
-            "",
-            LINE,
-            "&fOverall Game Scores:"
-    };
-
-    private static final StringAlignUtils strFmt = new StringAlignUtils(70,5);
-
-    public String getPlayerNameForTabMenu(Player player) {
-        return player.getDisplayName();
-    }
-
-    public void updateTabList() {
-        StringBuilder sb = new StringBuilder(EMPTY_LINE);
-        for (String header : HEADERS) {
-            sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', header))).append("\n");
-        }
-
-        ArrayList<MCGTeam> teams = server.getOrderedTeams();
-        int columnCnt = 2;
-
-        TableGenerator.Alignment[] alignments = new TableGenerator.Alignment[columnCnt];
-        alignments[columnCnt-1] = TableGenerator.Alignment.RIGHT;
-        for (int i = 0; i < columnCnt-1; i++) {
-            alignments[i] = TableGenerator.Alignment.LEFT;
-        }
-
-        TableGenerator table = new TableGenerator(alignments);
-        table.addRow("                                                  ");
-
-        for (int place = 1; place <= teams.size(); place++) {
-            MCGTeam team = teams.get(place-1);
-            String[] teamInfo = new String[columnCnt];
-            teamInfo[0] = "§r" + place + ". §" + team.chatColor.getChar() + team.teamname;
-            teamInfo[columnCnt-1] = team.getScore() + "";
-            table.addRow(teamInfo);
-            ArrayList<UUID> uuids = team.players;
-            StringBuilder nameStrs = new StringBuilder();
-
-            int maxLen = (50-uuids.size()+1) / uuids.size();
-            for (UUID uuid : uuids) {
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null) {
-                    String name = getPlayerNameForTabMenu(p);
-                    nameStrs.append(ChatStringUtils.truncateChatString(name, maxLen)).append(" ");
-                }
-            }
-            table.addRow(nameStrs.toString());
-            table.addRow();
-        }
-
-        for (String line : table.generate(TableGenerator.Receiver.CLIENT, true, true)) {
-            sb.append(line).append("\n");
-        }
-        sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', LINE))).append("\n");
-
-        for (int i = 0; i < 100; i++) sb.append(EMPTY_LINE);
-        bukkitPlayer.setPlayerListHeader(sb.toString());
-    }
-
-    public void setGameScores(String curMinigameStr, int curTeamID) {
-        ArrayList<MCGTeam> sortedTeams = new ArrayList<>(server.teams.values());
-        sortedTeams.sort((a, b) -> b.getScore(curMinigameStr) - a.getScore(curMinigameStr)); // sorted in descending order
-        int curTeamPlace = -1;
-        for (int i = 0; i < sortedTeams.size(); i++) {
-            int curId = sortedTeams.get(i).id;
-            if (curId == curTeamID) {
-                curTeamPlace = i;
-                break;
-            }
-        }
-        int[] resIds;
-        int[] placements;
-        if (curTeamPlace == 0 || curTeamPlace == 1) {
-            resIds = new int[] {
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(1).id,
-                    sortedTeams.get(2).id,
-                    sortedTeams.get(3).id
-            };
-            placements = new int[] {1,2,3,4};
-        } else if (curTeamPlace == sortedTeams.size() - 1) {
-            resIds =  new int[] {
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(1).id,
-                    sortedTeams.get(curTeamPlace-1).id,
-                    curTeamID
-            };
-            placements = new int[] {1,2,curTeamPlace,curTeamPlace+1};
-        } else {
-            resIds =  new int[] {
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(curTeamPlace-1).id,
-                    curTeamID,
-                    sortedTeams.get(curTeamPlace+1).id
-            };
-            placements = new int[] {1,curTeamPlace,curTeamPlace+1,curTeamPlace+2};
-        }
-//        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
-
-        for (int i = 0; i < 5; i++) {
-            if (i == 0) {
-                sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
-                continue;
-            }
-            String bold = "";
-            if (resIds[i-1] == curTeamID) {
-                bold = ChatColor.BOLD.toString();
-            }
-            MCGTeam t = server.teams.get(resIds[i-1]);
-            sidebar.add(t.chatColor + " " + placements[i-1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr));
+        minecraftTeam.setCanSeeFriendlyInvisibles(false);
+        if(team != server.defaultTeam) {
+            minecraftTeam.setAllowFriendlyFire(false);
         }
     }
 
-    public abstract void updateScoreboard();
+    /* PLAYER LOGIC */
 
-//    public void commit() {
-//        new BukkitRunnable() {
-//            public void run() {
-//                //currentMetadata = totalKills + "|" + invulnerable;
-//
-//                try {
-//                    int id = -1;
-//                    Statement statement = MCGMain.conn.connection.createStatement();
-//                    ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-//                            "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
-//                            "`season` = '" + MCGMain.SEASON + "' AND " +
-//                            "`minigame` = '" + curMinigame + "';");
-//                    while (resultSet.next()) {
-//                        id = resultSet.getInt("id");
-//                    }
-//
-//                    statement.execute("INSERT INTO `scores` " +
-//                            "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
-//                            "VALUES " +
-//                            "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
-//                            "ON DUPLICATE KEY UPDATE" +
-//                            "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
-//                } catch (SQLException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }.runTaskAsynchronously(server.plugin);
-//    }
+    public void playerJoin(Player player) {
+        bukkitPlayer = player;
+        name = player.getName();
+        commitName();// TODO commit less for performance
+        bukkitPlayer.setScoreboard(scoreboard);
 
-    public abstract void commit();
+        // Set display name and color properly
+        bukkitPlayer.setDisplayName(server.getTeamFromPlayerUUID(uuid).chatColor + name + ChatColor.RESET);
 
-    public void getData() {
-        this.previousScores.clear();
-
-        try {
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE `uuid` = '" + bukkitPlayer.getUniqueId() + "';");
-            while (resultSet.next()) {
-                int id = resultSet.getInt("id");
-                String uuid = resultSet.getString("uuid").trim();
-                int season = resultSet.getInt("season");
-                String minigame = resultSet.getString("minigame").trim();
-                int score = resultSet.getInt("score");
-                String metadata = resultSet.getString("metadata");
-
-                if (season == MCGMain.SEASON && minigame.equals(curMinigame)) {
-                    currentScore = score;
-                    currentMetadata = metadata;
-                } else {
-                    MCGScore newScore = new MCGScore(id, uuid, season, minigame, score, metadata);
-                    this.previousScores.add(newScore);
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (myTeam == server.defaultTeam) {
+            server.defaultTeam.addPlayer(uuid);
         }
+    }
+
+    public void playerQuit(Player player) {
+        commit();
+        bukkitPlayer = null;
+    }
+
+    public boolean isOnline() {
+        return bukkitPlayer != null;
     }
 
     public int getScore() {
@@ -280,6 +130,209 @@ public abstract class PlayerInterface {
             }
         }
         return val;
+    }
+
+    /* SCOREBOARD LOGIC */
+    private static final StringAlignUtils strFmt = new StringAlignUtils(70, 5);
+    private static final String EMPTY_LINE = "                                                                      \n";
+    private static final String LINE = "&5&m                                                            &r";
+    private static final String[] HEADERS = {
+            "&bMCG Season " + MCGMain.SEASON,
+            "",
+            LINE,
+            "&fOverall Game Scores:"
+    };
+
+    public void doStatsRefresh() {
+        updateTabList();
+        updateSidebar();
+    }
+
+    /* TAB MENU */
+
+    public void updateTabList() {
+        StringBuilder sb = new StringBuilder(EMPTY_LINE);
+        for (String header : HEADERS) {
+            sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', header))).append("\n");
+        }
+
+        ArrayList<MCGTeam> teams = server.getTeamsOrderedByScore();
+        int columnCnt = 2;
+
+        TableGenerator.Alignment[] alignments = new TableGenerator.Alignment[columnCnt];
+        alignments[columnCnt - 1] = TableGenerator.Alignment.RIGHT;
+        for (int i = 0; i < columnCnt - 1; i++) {
+            alignments[i] = TableGenerator.Alignment.LEFT;
+        }
+
+        TableGenerator table = new TableGenerator(alignments);
+        table.addRow("                                                  ");
+
+        for (int place = 1; place <= teams.size(); place++) {
+            MCGTeam team = teams.get(place - 1);
+            String[] teamInfo = new String[columnCnt];
+            teamInfo[0] = "§r" + place + ". §" + team.chatColor.getChar() + team.teamname;
+            teamInfo[columnCnt - 1] = team.getScore() + "";
+            table.addRow(teamInfo);
+            ArrayList<UUID> uuids = team.players;
+            StringBuilder nameStrs = new StringBuilder();
+
+            if (uuids.size() > 0) {
+                int maxLen = (50 - uuids.size() + 1) / uuids.size();
+                for (UUID uuid : uuids) {
+                    PlayerInterface p = server.getPlayerFromUUID(uuid);
+                    if (p != null) {
+                        String name = p.getPlayerNameForTabMenu();
+                        nameStrs.append(ChatStringUtils.truncateChatString(name, maxLen)).append(" ");
+                    }
+                }
+            }
+            table.addRow(nameStrs.toString());
+            table.addRow();
+        }
+
+        for (String line : table.generate(TableGenerator.Receiver.CLIENT, true, true)) {
+            sb.append(line).append("\n");
+        }
+
+        sb.append(strFmt.center(ChatColor.translateAlternateColorCodes('&', LINE))).append("\n");
+
+        StringBuilder noTeamSB = new StringBuilder();
+
+        for (UUID uuid : server.defaultTeam.players) {
+            PlayerInterface player = server.getPlayerFromUUID(uuid);
+            if(player.isOnline()) {
+                noTeamSB.append(player.getPlayerNameForTabMenu()).append("\n");
+            }
+        }
+
+        if(noTeamSB.length() != 0) {
+            sb.append("\n").append(server.defaultTeam.teamname).append(":\n\n");
+            sb.append(noTeamSB);
+        }
+
+        for (int i = 0; i < 100; i++) sb.append(EMPTY_LINE);
+        bukkitPlayer.setPlayerListHeader(sb.toString());
+    }
+
+    public String getPlayerNameForTabMenu() {
+        if (isOnline()) {
+            return bukkitPlayer.getDisplayName();
+        }
+        return ChatColor.GRAY + name + ChatColor.RESET;
+    }
+
+    public String getPlayerNameForTabMenu(boolean strikethrough) {
+        if (!strikethrough)
+            return getPlayerNameForTabMenu();
+
+        if (isOnline()) {
+            return myTeam.chatColor + "" + ChatColor.STRIKETHROUGH + name + ChatColor.RESET;
+        }
+        return ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + name + ChatColor.RESET;
+    }
+
+    /* SIDEBAR */
+
+    public abstract void updateSidebar();
+
+    public void setTeamScoresForSidebar(String curMinigameStr, int curTeamID) {
+        ArrayList<MCGTeam> sortedTeams = server.getTeamsOrderedByScore(curMinigameStr);
+        int curTeamPlace = -1;
+        for (int i = 0; i < sortedTeams.size(); i++) {
+            int curId = sortedTeams.get(i).id;
+            if (curId == curTeamID) {
+                curTeamPlace = i;
+                break;
+            }
+        }
+
+        int[] resIds;
+        int[] placements;
+        if (curTeamPlace == 0 || curTeamPlace == 1 || curTeamPlace == -1) {
+            resIds = new int[]{
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(1).id,
+                    sortedTeams.get(2).id,
+                    sortedTeams.get(3).id
+            };
+            placements = new int[]{1, 2, 3, 4};
+        } else if (curTeamPlace == sortedTeams.size() - 1) {
+            resIds = new int[]{
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(1).id,
+                    sortedTeams.get(curTeamPlace - 1).id,
+                    curTeamID
+            };
+            placements = new int[]{1, 2, curTeamPlace, curTeamPlace + 1};
+        } else {
+            resIds = new int[]{
+                    sortedTeams.get(0).id,
+                    sortedTeams.get(curTeamPlace - 1).id,
+                    curTeamID,
+                    sortedTeams.get(curTeamPlace + 1).id
+            };
+            placements = new int[]{1, curTeamPlace, curTeamPlace + 1, curTeamPlace + 2};
+        }
+//        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
+
+        for (int i = 0; i < 5; i++) {
+            if (i == 0) {
+                sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
+                continue;
+            }
+            String bold = "";
+            if (resIds[i - 1] == curTeamID) {
+                bold = ChatColor.BOLD.toString();
+            }
+            MCGTeam t = server.getTeamFromTeamID(resIds[i - 1]);
+            sidebar.add(t.chatColor + " " + placements[i - 1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr));
+        }
+    }
+
+    /* SQL LOGIC */
+
+    public void fetchData() {
+        this.previousScores.clear();
+
+        try {
+            Statement statement = MCGMain.conn.connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE `uuid` = '" + uuid + "';");
+            while (resultSet.next()) {
+                int id = resultSet.getInt("id");
+                String uuid = resultSet.getString("uuid").trim();
+                int season = resultSet.getInt("season");
+                String minigame = resultSet.getString("minigame").trim();
+                int score = resultSet.getInt("score");
+                String metadata = resultSet.getString("metadata");
+
+                if (season == MCGMain.SEASON && minigame.equals(curMinigame)) {
+                    currentScore = score;
+                    currentMetadata = metadata;
+                } else {
+                    MCGScore newScore = new MCGScore(id, uuid, season, minigame, score, metadata);
+                    this.previousScores.add(newScore);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public abstract void commit();
+
+    public void commitName() {
+        try {
+            PreparedStatement stmt = MCGMain.conn.connection.prepareStatement("INSERT INTO `usernames`(`uuid`, `season`, `username`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `username` = ?;");
+            stmt.setString(1, uuid.toString());
+            stmt.setInt(2, MCGMain.SEASON);
+            stmt.setString(3, name);
+            stmt.setString(4, name);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
 }

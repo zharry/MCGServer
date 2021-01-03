@@ -17,7 +17,7 @@ public class SidebarDisplay {
         this.scoreboard = scoreboard;
         objective = scoreboard.registerNewObjective("sidebarDisplay", "dummy", name);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        for(int i = 0; i < MAX_LINES; ++i) {
+        for (int i = 0; i < MAX_LINES; ++i) {
             teams[i] = scoreboard.registerNewTeam("" + ChatColor.BLACK + ChatColor.STRIKETHROUGH + ChatColor.MAGIC + "sidebar" + i);
             players[i] = "§" + Integer.toHexString(i);
             teams[i].addEntry(players[i]);
@@ -26,7 +26,7 @@ public class SidebarDisplay {
     }
 
     public void add(String s) {
-        if(counter >= MAX_LINES) {
+        if (counter >= MAX_LINES) {
             new RuntimeException("Too many lines of text added").printStackTrace();
             return;
         }
@@ -36,7 +36,7 @@ public class SidebarDisplay {
     }
 
     public void end() {
-        while(counter < MAX_LINES) {
+        while (counter < MAX_LINES) {
             scoreboard.resetScores(players[counter]);
             counter++;
         }

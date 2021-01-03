@@ -3,11 +3,11 @@ package ca.zharry.MinecraftGamesServer.Players;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 
 public class PlayerParkour extends PlayerInterface {
 
@@ -15,10 +15,12 @@ public class PlayerParkour extends PlayerInterface {
     public int stage = 0; // What stage they are currently on
     public int level = 0; // What level of the stage they have completed
 
+    public boolean waypointsEnabled = true;
+
     public ServerParkour server;
 
-    public PlayerParkour(Player bukkitPlayer, ServerParkour server) {
-        super(bukkitPlayer, server, "parkour");
+    public PlayerParkour(ServerParkour server, UUID uuid, String username) {
+        super(server, uuid, username, "parkour");
         this.server = server;
 
         try {
@@ -30,7 +32,7 @@ public class PlayerParkour extends PlayerInterface {
     }
 
     @Override
-    public void updateScoreboard() {
+    public void updateSidebar() {
         // This is a spacer
         sidebar.add("                          ");
 
@@ -52,7 +54,7 @@ public class PlayerParkour extends PlayerInterface {
         }
         sidebar.add("");
 
-        setGameScores("parkour", myTeam.id);
+        setTeamScoresForSidebar("parkour", myTeam.id);
         sidebar.add("");
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("parkour"));
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
@@ -67,7 +69,7 @@ public class PlayerParkour extends PlayerInterface {
             int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-                    "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
+                    "`uuid` = '" + uuid + "' AND " +
                     "`season` = '" + MCGMain.SEASON + "' AND " +
                     "`minigame` = 'parkour';");
             while (resultSet.next()) {
@@ -77,7 +79,7 @@ public class PlayerParkour extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'parkour', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'parkour', '" + currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {

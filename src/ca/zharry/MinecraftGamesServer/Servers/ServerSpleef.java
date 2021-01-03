@@ -1,15 +1,17 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
+import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSpleef;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSpleef;
+import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
+import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import com.comphenix.protocol.PacketType;
@@ -21,6 +23,7 @@ import com.comphenix.protocol.events.PacketEvent;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.inventory.ItemFlag;
@@ -33,36 +36,44 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Random;
+import java.util.UUID;
 
 public class ServerSpleef extends ServerInterface {
 
+    public ProtocolManager protocolManager;
+
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
+    public static final int TIMER_BEGIN = 10 * 20;
     public static final int TIMER_INPROGRESS = 15 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int COMPETITION_MAX_HEIGHT = 73;
+    public static final int COMPETITION_MIN_HEIGHT = 15;
     public static final int TOTAL_GAMES = 3;
-
     public static final int TNT_WARNING_TIME = 6 * 20;
     public static final int TNT_PRIME_TIME = 1 * 20;
+    public static final int TELEPORT_MAX_Y = 64;
+    public static final int TELEPORT_MIN_Y = 61;
+    public static final int TELEPORT_SPREAD_RADIUS = 30;
 
     // Server state
     public static final int ERROR = -1;
     public static final int GAME_WAITING = 0;
     public static final int GAME_STARTING = 1;
+    public static final int GAME_BEGIN = 4;
     public static final int GAME_INPROGRESS = 2;
     public static final int GAME_FINISHED = 3;
     public int state = ERROR;
     public int currentGame = 1;
-    public boolean displayedWelcomeMessage = false;
+    public boolean firstRun = true;
     public int tntCooldown = 0;
 
     // Server tasks
     public Timer timerStartGame;
+    public Timer timerBegin;
     public Timer timerInProgress;
     public Timer timerFinished;
-
-    public ProtocolManager protocolManager;
+    public Cutscene startGameTutorial;
 
     public ServerSpleef(JavaPlugin plugin) {
         super(plugin);
@@ -71,10 +82,6 @@ public class ServerSpleef extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
-            if (teamLookup.get(player.getUniqueId()) == null)
-                return;
-
-            addPlayer(new PlayerSpleef(player, this));
             PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
             player.teleport(serverSpawn);
         }
@@ -83,47 +90,89 @@ public class ServerSpleef extends ServerInterface {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
-                spleefRestore(world);
 
-                if (!displayedWelcomeMessage) {
-                    displayedWelcomeMessage = true;
-                    sendTitleAll("Welcome to Spleef!", "");
+                if (firstRun) {
+                    state = GAME_BEGIN;
+                    spleefBegin();
+                    sendTitleAll("Last one standing wins!", "Good luck! Game begins in 60 seconds!");
                     sendMultipleMessageAll(new String[]{
-                            ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Spleef!\n" + ChatColor.RESET +
+                            ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
                                     "This map is " + ChatColor.BOLD + "Makers Spleef 2" + ChatColor.RESET + ", by MineMakers Team\n" +
                                     " \n" +
                                     " \n",
                             ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                     "1. Destroy blocks to drop other players into the void\n" +
                                     "2. Survive longer than all of the other players\n" +
-                                    "3. Each time a player is eliminated everyone who is alive receives +100 points",
+                                    "3. Each time a player is eliminated everyone will receive +100 points\n" +
+                                    "4. If you are the last team on the layer, TNT will start spawning at your feet!"
                     }, new int[]{
-                            10,
+                            120,
                             45,
                     });
+                } else {
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            sendTitleAll("Next game starts in 50 seconds!", "");
+                        }
+                    }.runTaskLater(plugin, 200);
                 }
             }
 
             @Override
             public void onTick() {
+                if (firstRun) {
+                    countdownTimer(this, 11,
+                            "",
+                            "",
+                            "",
+                            "Begin!");
+                } else {
+                    countdownTimer(this, 0,
+                            "Teleporting to arena...",
+                            "",
+                            "",
+                            "Teleporting to arena...");
+                }
+            }
+
+            @Override
+            public void onEnd() {
+                if (firstRun) {
+                    timerInProgress.start();
+                    firstRun = false;
+                } else {
+                    timerBegin.start();
+                }
+            }
+        }.set(TIMER_STARTING);
+
+        timerBegin = new Timer(plugin) {
+            @Override
+            public void onStart() {
+                state = GAME_BEGIN;
+                spleefBegin();
+            }
+
+            @Override
+            public void onTick() {
                 countdownTimer(this, 11,
-                        "Game is starting!",
                         "",
                         "",
-                        ChatColor.GREEN + "Go!");
+                        "",
+                        ChatColor.GREEN + "Begin!");
             }
 
             @Override
             public void onEnd() {
                 timerInProgress.start();
             }
-        }.set(TIMER_STARTING);
+        }.set(TIMER_BEGIN);
 
         timerInProgress = new Timer(plugin) {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
-                spleefStart();
             }
 
             @Override
@@ -158,20 +207,49 @@ public class ServerSpleef extends ServerInterface {
                 sendPlayersToLobby();
 
                 state = GAME_WAITING;
-                displayedWelcomeMessage = false;
+                firstRun = true;
                 timerStartGame.set(TIMER_STARTING);
+                timerBegin.set(TIMER_BEGIN);
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
             }
         }.set(TIMER_FINISHED);
 
-        protocolManager = ProtocolLibrary.getProtocolManager();
-        protocolManager.addPacketListener(new PacketAdapter(this.plugin, ListenerPriority.HIGHEST, PacketType.Play.Server.EXPLOSION) {
+        ArrayList<CutsceneStep> steps = new ArrayList<>();
+        int time = 0;
+        steps.add(new CutsceneStep(time)
+                .pos(45, 65, 35, 125, 30)
+                .title("Welcome to Spleef", "Map made by MineMakers Team", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 80)
+                .pos(14.5, 65, 15.5, 90, 0)
+                .comment("Looking at snowman")
+                .linear()
+                .freeze(25));
+        steps.add(new CutsceneStep(time += 50)
+                .pos(6, 38, 11, -64, -12)
+                .title("Survive as long as you can", "and try to eliminate other players", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(-16, 50, -10, -45, 35)
+                .title("Each time a player is eliminated", "everyone will receive 100 survival points!", 60)
+                .linear());
+
+        startGameTutorial = new Cutscene(plugin, this, steps) {
             @Override
-            public void onPacketSending(PacketEvent event) {
-                event.setCancelled(true);
+            public void onStart() {
+                spleefRestore(world);
+                for (PlayerInterface p : players) {
+                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                }
             }
-        });
+
+            @Override
+            public void onEnd() {
+                timerStartGame.start();
+            }
+        };
     }
 
     @Override
@@ -188,7 +266,7 @@ public class ServerSpleef extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
         plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
         plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
         plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
@@ -217,58 +295,30 @@ public class ServerSpleef extends ServerInterface {
         world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
         world.setFullTime(6000);
-    }
 
-
-    public int getPlayersAlive() {
-        int counter = 0;
-        for (PlayerInterface player : players) {
-            PlayerSpleef playerSpleef = (PlayerSpleef) player;
-            if (!playerSpleef.dead) {
-                counter++;
+        protocolManager = ProtocolLibrary.getProtocolManager();
+        protocolManager.addPacketListener(new PacketAdapter(this.plugin, ListenerPriority.HIGHEST, PacketType.Play.Server.EXPLOSION) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                event.setCancelled(true);
             }
-        }
-        return counter;
+        });
     }
 
-    private void spleefStart() {
+    @Override
+    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+        return new PlayerSpleef(this, uuid, name);
+    }
+
+    /* GAME LOGIC */
+
+    private void spleefBegin() {
+        spleefRestore(world);
+        world.getEntitiesByClass(TNTPrimed.class).forEach(Entity::remove);
         players.forEach((player) -> ((PlayerSpleef) player).dead = false);
 
-        int maxY = 64, minY = 61, spreadRadius = 30;
-        Random random = new Random();
-
         for (PlayerInterface player : players) {
-            Location spreadStart = serverSpawn;
-
-            while (true) {
-                int x = random.nextInt(spreadRadius * 2 + 1) - spreadRadius + (int) spreadStart.getX();
-                int z = random.nextInt(spreadRadius * 2 + 1) - spreadRadius + (int) spreadStart.getZ();
-                int y = minY;
-
-                boolean found = false;
-                for (; y <= maxY; y++) {
-                    if (world.getBlockAt(x, y, z).getType() != Material.AIR &&
-                            world.getBlockAt(x, y + 1, z).getType() == Material.AIR) {
-                        spreadStart = new Location(world, x + 0.5, y + 2, z + 0.5);
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
-                    break;
-                }
-            }
-
-            ItemStack pickaxe = new ItemStack(Material.DIAMOND_PICKAXE, 1);
-            ItemMeta pickaxeMeta = pickaxe.getItemMeta();
-            pickaxeMeta.addEnchant(Enchantment.DIG_SPEED, 32767, true);
-            pickaxeMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            pickaxeMeta.setUnbreakable(true);
-            pickaxe.setItemMeta(pickaxeMeta);
-
-            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.SURVIVAL);
-            player.bukkitPlayer.getInventory().addItem(pickaxe);
-            player.bukkitPlayer.teleport(spreadStart);
+            sendToArena((PlayerSpleef) player);
         }
     }
 
@@ -365,9 +415,9 @@ public class ServerSpleef extends ServerInterface {
                 @Override
                 public void run() {
                     PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+                    player.bukkitPlayer.teleport(serverSpawn);
                 }
             }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
-            player.bukkitPlayer.teleport(serverSpawn);
             if (!((PlayerSpleef) player).dead) {
                 ((PlayerSpleef) player).currentScore += 500;
                 player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 500 additional points!", 0, 60, 10);
@@ -379,6 +429,7 @@ public class ServerSpleef extends ServerInterface {
 
         if (currentGame++ < TOTAL_GAMES) {
             timerStartGame.set(TIMER_STARTING);
+            timerBegin.set(TIMER_BEGIN);
             timerInProgress.set(TIMER_INPROGRESS);
             timerStartGame.start();
             return;
@@ -392,14 +443,14 @@ public class ServerSpleef extends ServerInterface {
         int count = 0;
         playerSpleefs.sort(Comparator.comparingInt(o -> -o.currentScore));
         for (PlayerSpleef player : playerSpleefs) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
         }
 
         String topTeams = "";
-        ArrayList<MCGTeam> teamSpleefs = new ArrayList<>(teams.values());
+        ArrayList<MCGTeam> teamSpleefs = getRealTeams();
         teamSpleefs.sort(Comparator.comparingInt(o -> -o.getScore("spleef")));
         for (MCGTeam team : teamSpleefs) {
             topTeams += ChatColor.RESET + "[" + team.getScore("spleef") + "] " + team.chatColor + "" + team.teamname + "\n";
@@ -415,7 +466,57 @@ public class ServerSpleef extends ServerInterface {
         });
     }
 
-    private void spleefRestore(World world) {
+    /* SUPPORTING LOGIC */
+
+    public int getPlayersAlive() {
+        int counter = 0;
+        for (PlayerInterface player : players) {
+            PlayerSpleef playerSpleef = (PlayerSpleef) player;
+            if (!playerSpleef.dead) {
+                counter++;
+            }
+        }
+        return counter;
+    }
+
+    public void sendToArena(PlayerSpleef player) {
+        Random random = new Random();
+
+        Location spreadStart = serverSpawn;
+        while (true) {
+            int x = random.nextInt(TELEPORT_SPREAD_RADIUS * 2 + 1) - TELEPORT_SPREAD_RADIUS + (int) spreadStart.getX();
+            int z = random.nextInt(TELEPORT_SPREAD_RADIUS * 2 + 1) - TELEPORT_SPREAD_RADIUS + (int) spreadStart.getZ();
+            int y = TELEPORT_MIN_Y;
+
+            boolean found = false;
+            for (; y <= TELEPORT_MAX_Y; y++) {
+                if (world.getBlockAt(x, y, z).getType() != Material.AIR &&
+                        world.getBlockAt(x, y + 1, z).getType() == Material.AIR) {
+                    spreadStart = new Location(world, x + 0.5, y + 1, z + 0.5);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                break;
+            }
+        }
+
+        PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.SURVIVAL);
+        ItemStack pickaxe = new ItemStack(Material.DIAMOND_PICKAXE, 1);
+        ItemMeta pickaxeMeta = pickaxe.getItemMeta();
+        pickaxeMeta.addEnchant(Enchantment.DIG_SPEED, 32767, true);
+        pickaxeMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        pickaxeMeta.setUnbreakable(true);
+        pickaxe.setItemMeta(pickaxeMeta);
+        player.bukkitPlayer.getInventory().addItem(pickaxe);
+
+        player.bukkitPlayer.teleport(spreadStart);
+    }
+
+    /* MAP LOGIC */
+
+    public void spleefRestore(World world) {
         for (int x = -24; x < 53; ++x) {
             for (int y = 38; y < 74; ++y) {
                 for (int z = -19; z < 54; ++z) {

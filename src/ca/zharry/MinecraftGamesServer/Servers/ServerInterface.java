@@ -1,17 +1,21 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
 import ca.zharry.MinecraftGamesServer.Listeners.ChangeGameRule;
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerJoinQuit;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
+import ca.zharry.MinecraftGamesServer.Utils.SQLQueryUtil;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -20,6 +24,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public abstract class ServerInterface {
@@ -28,20 +33,22 @@ public abstract class ServerInterface {
 
     public JavaPlugin plugin;
     public BukkitTask taskScoreboard;
-    public ArrayList<PlayerInterface> players;
-    public HashMap<UUID, PlayerInterface> playerLookup;
 
     public World world;
     public Location serverSpawn;
 
-    public ArrayList<Integer> teamIDs;
-    public HashMap<Integer, MCGTeam> teams;
-    public HashMap<UUID, Integer> teamLookup;
+    public ArrayList<PlayerInterface> players = new ArrayList<>();
+    public HashMap<UUID, PlayerInterface> playerLookup = new HashMap<>();
+    public ArrayList<PlayerInterface> offlinePlayers = new ArrayList<>();
+    public HashMap<UUID, PlayerInterface> offlinePlayerLookup = new HashMap<>();
+
+    public ArrayList<Integer> teamIDs = new ArrayList<>();
+    private HashMap<Integer, MCGTeam> teams = new HashMap<>(); // Team ID to MCGTeam Mapping
+    private HashMap<UUID, Integer> teamLookup = new HashMap<>(); // Player UUID to Team ID Mapping
+    public MCGTeam defaultTeam;
 
     public ServerInterface(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.players = new ArrayList<>();
-        this.playerLookup = new HashMap<UUID, PlayerInterface>();
 
         world = plugin.getServer().getWorld("world");
 
@@ -50,10 +57,7 @@ public abstract class ServerInterface {
         minigames.put("dodgeball", "Dodgeball");
         minigames.put("survivalgames", "Survival Games");
 
-        this.teamIDs = new ArrayList<Integer>();
-        this.teams = new HashMap<Integer, MCGTeam>();
-        this.teamLookup = new HashMap<UUID, Integer>();
-        this.getTeams();
+        defaultTeam = new MCGTeam(0, "No Team", "WHITE", this);
 
         taskScoreboard = new BukkitRunnable() {
             @Override
@@ -64,26 +68,103 @@ public abstract class ServerInterface {
             }
         }.runTaskTimer(plugin, 0, 5);
 
+        reloadTeamsAndPlayers();
+
         applyGameRules(world);
         plugin.getServer().getPluginManager().registerEvents(new ChangeGameRule(this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new ListenerJoinQuit(this), plugin);
     }
+
+    /* ABSTRACT FUNCTIONS */
+
+    public void onEnableCall() {
+        this.registerCommands();
+        this.registerListeners();
+    }
+
+    public void onDisableCall() {
+        // Commit existing players (for hot-reloading)
+        for (PlayerInterface player : players) {
+            player.commit();
+        }
+    }
+
+    public abstract void registerCommands();
+
+    public abstract void registerListeners();
 
     public void applyGameRules(World world) {
     }
 
-    public void addPlayer(PlayerInterface player) {
-        players.add(player);
-        playerLookup.put(player.bukkitPlayer.getUniqueId(), player);
+    public abstract PlayerInterface createNewPlayerInterface(UUID uuid, String name);
+
+    /* PLAYER LOGIC */
+
+    public PlayerInterface getPlayerFromUUID(UUID uuid) {
+        if(playerLookup.containsKey(uuid)) {
+            return playerLookup.get(uuid);
+        }
+        else if(offlinePlayerLookup.containsKey(uuid)) {
+            return offlinePlayerLookup.get(uuid);
+        }
+        return null;
     }
 
-    public ArrayList<MCGTeam> getOrderedTeams() {
-        ArrayList<MCGTeam> res = new ArrayList<>(teams.values());
-        res.sort((a, b) -> b.getScore() - a.getScore());
-        return res;
+    public void playerJoin(Player player) {
+        UUID uuid = player.getUniqueId();
+        PlayerInterface playerInterface = offlinePlayerLookup.get(uuid);
+        System.out.println(playerInterface);
+        if(playerInterface != null) {
+            players.add(playerInterface);
+            playerLookup.put(uuid, playerInterface);
+            offlinePlayers.remove(playerInterface);
+            offlinePlayerLookup.remove(uuid);
+            playerInterface.fetchData();
+        } else {
+            playerInterface = createNewPlayerInterface(player.getUniqueId(), player.getName());
+            players.add(playerInterface);
+            playerLookup.put(uuid, playerInterface);
+        }
+        playerInterface.playerJoin(player);
     }
 
-    public void getTeams() {
+    public void playerQuit(Player player) {
+        UUID uuid = player.getUniqueId();
+        PlayerInterface playerInterface = playerLookup.get(uuid);
+        playerInterface.playerQuit(player);
+        offlinePlayers.add(playerInterface);
+        offlinePlayerLookup.put(uuid, playerInterface);
+        players.remove(playerInterface);
+        playerLookup.remove(uuid);
+    }
+
+    /* PROXY LOGIC */
+
+    public void sendPlayersToLobby() {
+        sendPlayersToGame("lobby");
+    }
+
+    public void sendPlayersToGame(String minigame) {
+        if(players.size() > 0) {
+            ByteArrayDataOutput out = ByteStreams.newDataOutput();
+            out.writeUTF("PlayerList");
+            out.writeUTF("ALL");
+            MCGMain.serverToSendAll = minigame;
+            PlayerInterface player = players.get(0);
+            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        } else {
+            System.err.println("There are no players connected to this server, cannot send");
+        }
+    }
+
+    /* TEAM LOGIC */
+
+    public void fetchTeams() {
         this.teams.clear();
+        this.teamLookup.clear();
+        this.teamIDs.clear();
+
+        teams.put(defaultTeam.id, defaultTeam);
 
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
@@ -93,6 +174,9 @@ public abstract class ServerInterface {
                 String teamname = resultSet.getString("teamname").trim();
                 String playerList = resultSet.getString("players").trim();
                 String[] players = playerList.split(",");
+                if(playerList.trim().length() == 0) {
+                    players = new String[0];
+                }
                 String color = resultSet.getString("color").trim();
 
                 MCGMain.logger.info("Found team: " + teamname);
@@ -114,41 +198,72 @@ public abstract class ServerInterface {
         }
     }
 
-    public void onEnableCall() {
-        this.registerCommands();
-        this.registerListeners();
-    }
+    public void reloadTeamsAndPlayers() {
+//        offlinePlayers.forEach(PlayerInterface::commit);
+        offlinePlayers.clear();
+        offlinePlayerLookup.clear();
 
-    public void onDisableCall() {
-        // Commit existing players (for hot-reloading)
-        for (PlayerInterface player : players) {
-            player.commit();
+        players.forEach(PlayerInterface::commit);
+        players.clear();
+        playerLookup.clear();
+
+        defaultTeam.players.clear();
+
+        this.fetchTeams();
+
+        HashMap<UUID, String> users = SQLQueryUtil.queryAllPlayers(MCGMain.SEASON);
+        for(Map.Entry<UUID, String> user : users.entrySet()) {
+            PlayerInterface playerInterface = createNewPlayerInterface(user.getKey(), user.getValue());
+            offlinePlayers.add(playerInterface);
+            offlinePlayerLookup.put(user.getKey(), playerInterface);
+            if(playerInterface.myTeam == defaultTeam) {
+                defaultTeam.addPlayer(playerInterface.uuid);
+            }
+        }
+
+        for(Player onlinePlayer : Bukkit.getServer().getOnlinePlayers()) {
+            playerJoin(onlinePlayer);
         }
     }
 
-    public abstract void registerCommands();
-
-    public abstract void registerListeners();
-
-    public void sendPlayersToLobby() {
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("Connect");
-        out.writeUTF("lobby");
-
-        for (PlayerInterface player : players) {
-            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
-        }
+    public ArrayList<MCGTeam> getTeamsOrderedByScore() {
+        ArrayList<MCGTeam> res = new ArrayList<>(teams.values());
+        res.removeIf(team -> team == defaultTeam);
+        res.sort((a, b) -> b.getScore() - a.getScore());
+        return res;
     }
 
-    public void sendPlayersToGame(String minigame) {
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("Connect");
-        out.writeUTF(minigame);
-
-        for (PlayerInterface player : players) {
-            player.bukkitPlayer.sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
-        }
+    public ArrayList<MCGTeam> getTeamsOrderedByScore(String minigame) {
+        ArrayList<MCGTeam> res = new ArrayList<>(teams.values());
+        res.removeIf(team -> team == defaultTeam);
+        res.sort((a, b) -> b.getScore(minigame) - a.getScore(minigame));
+        return res;
     }
+
+    public ArrayList<MCGTeam> getRealTeams() {
+        ArrayList<MCGTeam> list = new ArrayList<>(this.teams.values());
+        list.removeIf(team -> team == defaultTeam);
+        System.out.println(list);
+        return list;
+    }
+
+    public MCGTeam getTeamFromPlayerUUID(UUID uuid) {
+        return teams.get(getTeamIDFromPlayerUUID(uuid));
+    }
+
+    public int getTeamIDFromPlayerUUID(UUID uuid) {
+        Integer teamId = teamLookup.get(uuid);
+        if(teamId == null) {
+            return 0;
+        }
+        return teamId;
+    }
+
+    public MCGTeam getTeamFromTeamID(int id) {
+        return teams.get(id);
+    }
+
+    /* MESSAGE AND TITLE LOGIC */
 
     public void countdownTimer(Timer timer, int startSeconds, String startingText, String startingSubtext, String progressText, String finishedText) {
         if (timer.get() < (startSeconds + 1) * 20) {
@@ -186,12 +301,6 @@ public abstract class ServerInterface {
         }
     }
 
-    public void sendActionBarAll(String message) {
-        for (PlayerInterface player : players) {
-            player.bukkitPlayer.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(message));
-        }
-    }
-
     public void sendMultipleMessageAll(String[] message, int[] delays) {
         for (int i = 0; i < 5; i++)
             sendMessageAll("");
@@ -205,6 +314,12 @@ public abstract class ServerInterface {
                     sendMessageAll(str);
                 }
             }.runTaskLater(this.plugin, delay);
+        }
+    }
+
+    public void sendActionBarAll(String message) {
+        for (PlayerInterface player : players) {
+            player.bukkitPlayer.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(message));
         }
     }
 

@@ -1,15 +1,18 @@
 package ca.zharry.MinecraftGamesServer;
 
+import ca.zharry.MinecraftGamesServer.Commands.CommandReloadTeamScores;
+import ca.zharry.MinecraftGamesServer.Commands.CommandSetTeam;
 import ca.zharry.MinecraftGamesServer.MysqlConnection.MysqlConnection;
 import ca.zharry.MinecraftGamesServer.Servers.*;
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.messaging.PluginMessageListener;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
@@ -17,6 +20,7 @@ import java.util.logging.Logger;
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
     public static MysqlConnection conn;
+    public static ProtocolManager protocolManager;
 
     // Global configuration
     public static final int SEASON = 0;
@@ -26,10 +30,36 @@ public class MCGMain extends JavaPlugin {
     public String serverMinigame;
     public ServerInterface server;
 
+    public static String serverToSendAll;
+
     @Override
     public void onEnable() {
+        protocolManager = ProtocolLibrary.getProtocolManager();
+
         logger.info("MCG Plugin Enabled! Test");
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+        getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new PluginMessageListener() {
+            @Override
+            public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+                ByteArrayDataInput input = ByteStreams.newDataInput(message);
+                String subchannel = input.readUTF();
+                if(subchannel.equals("PlayerList")) {
+                    if(serverToSendAll == null) {
+                        return;
+                    }
+                    input.readUTF();
+                    String[] players = input.readUTF().split(", ");
+                    for(String otherPlayerName : players) {
+                        ByteArrayDataOutput output = ByteStreams.newDataOutput();
+                        output.writeUTF("ConnectOther");
+                        output.writeUTF(otherPlayerName);
+                        output.writeUTF(serverToSendAll);
+                        player.sendPluginMessage(MCGMain.this, "BungeeCord", output.toByteArray());
+                    }
+                    serverToSendAll = null;
+                }
+            }
+        });
 
         conn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
         this.setupDatabase();
@@ -53,72 +83,23 @@ public class MCGMain extends JavaPlugin {
                 break;
         }
 
-        this.getCommand("setteam").setExecutor(new CommandExecutor() {
-            @Override
-            public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-                if (!sender.isOp())
-                    return false;
-
-                Player player = null;
-                String username = args[0];
-                int teamId = Integer.parseInt(args[1]);
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (p.getName().equals(username)) {
-                        player = p;
-                        break;
-                    }
-                }
-                if (player == null) {
-                    sender.sendMessage("Player " + username + " does not exist");
-                    return false;
-                }
-
-                try {
-                    // Check if the team they are being added to is valid
-                    int queryTeamId = -1;
-                    String queryTeamName = "";
-                    String queryTeamPlayers = "";
-                    Statement statement = MCGMain.conn.connection.createStatement();
-                    ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams`;");
-                    while (resultSet.next()) {
-                        queryTeamId = resultSet.getInt("id");
-                        if (queryTeamId == teamId) {
-                            queryTeamName = resultSet.getString("teamname");
-                            queryTeamPlayers = resultSet.getString("players");
-                            break;
-                        } else {
-                            queryTeamId = -1;
-                        }
-                    }
-                    if (queryTeamId == -1) {
-                        sender.sendMessage("Team with id " + teamId + " does not exist");
-                        return false;
-                    }
-
-                    // Construct new player list
-                    String newPlayerList = queryTeamPlayers + "," + player.getUniqueId();
-                    if (queryTeamPlayers.equals(""))
-                        newPlayerList = "" + player.getUniqueId();
-
-                    // Add them to the team
-                    statement.execute("UPDATE `teams` SET `players` = '" + newPlayerList + "' " +
-                            "WHERE `id` = " + teamId + ";");
-                    sender.sendMessage("Added " + player.getName() + " to team " + queryTeamName);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-
-                return true;
-            }
-        });
-
         server.onEnableCall();
+        this.getCommand("setteam").setExecutor(new CommandSetTeam(server));
+        this.getCommand("reloadteams").setExecutor(new CommandReloadTeamScores(server));
     }
 
     @Override
     public void onDisable() {
         logger.info("MCG Plugin Disabled!");
-        server.onDisableCall();
+        if(server != null) {
+            server.onDisableCall();
+        }
+
+        try {
+            conn.connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public void getConfigurationFile() {
@@ -147,6 +128,13 @@ public class MCGMain extends JavaPlugin {
                     "`players` VARCHAR(255) NOT NULL , " + // MAX TEAM SIZE IS 6
                     "`color` VARCHAR(255) NOT NULL , " +
                     "PRIMARY KEY (`id`)) ENGINE = InnoDB;");
+
+            statement.execute("CREATE TABLE IF NOT EXISTS `usernames` ( " +
+                    " `uuid` varchar(255) NOT NULL, " +
+                    " `season` int(11) NOT NULL, " +
+                    " `username` varchar(255) NOT NULL, " +
+                    " PRIMARY KEY (`uuid`,`season`) USING BTREE" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
         } catch (Exception e) {
             e.printStackTrace();

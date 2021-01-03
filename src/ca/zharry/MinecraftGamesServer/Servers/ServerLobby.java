@@ -7,18 +7,17 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
+import java.util.UUID;
 
 public class ServerLobby extends ServerInterface {
 
-    // Lobby config
+    // Game config
     public static final int TIMER_START = 60 * 20;
 
     // Server states
@@ -34,15 +33,6 @@ public class ServerLobby extends ServerInterface {
     public ServerLobby(JavaPlugin plugin) {
         super(plugin);
         serverSpawn = new Location(world, 1484.5, 4, 530, 90, 0);
-
-        // Add existing players (for hot-reloading)
-        ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player : currentlyOnline) {
-            if (teamLookup.get(player.getUniqueId()) == null)
-                return;
-
-            addPlayer(new PlayerLobby(player, this));
-        }
 
         timerNextGame = new Timer(plugin) {
             @Override
@@ -97,4 +87,8 @@ public class ServerLobby extends ServerInterface {
         plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
     }
 
+    @Override
+    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+        return new PlayerLobby(this, uuid, name);
+    }
 }

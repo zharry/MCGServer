@@ -1,19 +1,22 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
+import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerStart;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerDodgeball;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerDodgeball;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
+import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
+import org.bukkit.block.Sign;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -23,6 +26,8 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
@@ -36,9 +41,12 @@ public class ServerDodgeball extends ServerInterface {
     public boolean displayedWelcomeMessage = false;
     public int spawnArrowsTick = 0;
 
+    // Points of interest
+    public Location practiceArenaSelect;
+
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
-    public static final int TIMER_INPROGRESS = 1 * 60 * 20;
+    public static final int TIMER_INPROGRESS = 5 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int SPAWN_ARROWS_TICK = 20 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
@@ -56,10 +64,13 @@ public class ServerDodgeball extends ServerInterface {
     public Timer timerStartGame;
     public Timer timerInProgress;
     public Timer timerFinished;
+    public Cutscene startGameTutorial;
+    public BukkitTask practiceModeTimer;
 
     public ServerDodgeball(JavaPlugin plugin) {
         super(plugin);
         serverSpawn = new Location(world, -15.5, 4, 1.5);
+        practiceArenaSelect = new Location(world, 0.5, 5, 0.5, 180, 0);
         initArenaSpawns();
 
         roundRobin = new ArrayList<ArrayList<Integer>>();
@@ -68,14 +79,12 @@ public class ServerDodgeball extends ServerInterface {
         // Add existing players (for hot-reloading)
         ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player player : currentlyOnline) {
-            if (teamLookup.get(player.getUniqueId()) == null)
-                return;
-
             player.teleport(serverSpawn);
             PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
-            addPlayer(new PlayerDodgeball(player, this));
+            givePracticeModeSelect(player);
         }
 
+        dodgeballPracticeMode();
         dodgeballRoundRobinSetup();
 
         timerStartGame = new Timer(plugin) {
@@ -86,18 +95,19 @@ public class ServerDodgeball extends ServerInterface {
 
                 if (!displayedWelcomeMessage) {
                     displayedWelcomeMessage = true;
-                    sendTitleAll("Welcome to Dodgeball!", "");
+                    sendTitleAll("Good luck, have fun!", "Game begins in 60 seconds!");
                     sendMultipleMessageAll(new String[]{
-                            ChatColor.RED + "" + ChatColor.BOLD + "Welcome to Dodgeball!\n" + ChatColor.RESET +
+                            ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
                                     "This map is " + ChatColor.BOLD + "SG Dodgeball" + ChatColor.RESET + ", by SkyGames Team\n" +
                                     " \n" +
                                     " \n",
                             ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                     "1. You have three lives\n" +
-                                    "2. Kill the other team, each kill is worth +50 points!\n" +
-                                    "3. Eliminating all 3 lives of every opposing team's players awards everyone on your team +250 points each!",
+                                    "2. Arrows will spawn on the beacon every 20 seconds\n" +
+                                    "3. Kill the other team, each kill is worth +50 points!\n" +
+                                    "4. Eliminating all 3 lives of every opposing team's players awards everyone on your team +250 points each!"
                     }, new int[]{
-                            10,
+                            120,
                             45,
                     });
                 }
@@ -163,6 +173,59 @@ public class ServerDodgeball extends ServerInterface {
                 timerFinished.set(TIMER_FINISHED);
             }
         }.set(TIMER_FINISHED);
+
+        ArrayList<CutsceneStep> steps = new ArrayList<>();
+        int time = 0;
+        steps.add(new CutsceneStep(time)
+                .pos(10000, 21, 24, -90, 40)
+                .title("Welcome to Dodgeball", "Map made by SkyGames Team", 60)
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 70)
+                .pos(10015.75, 3.5, 6.5, -180, 8)
+                .comment("To Spawn Door")
+                .linear());
+        steps.add(new CutsceneStep(time += 30)
+                .pos(10014.5, 6.5, 0.25, 0, 52)
+                .title("This is your spawn", "You will start with three lives", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 60)
+                .pos(10014.5, 3.5, 6.5, -180, 8)
+                .comment("To Spawn Door")
+                .linear());
+        steps.add(new CutsceneStep(time += 30)
+                .pos(10011, 5.3, 10.5, -140, 20)
+                .title("You will have invincibility", "until you leave the spawn door", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 65)
+                .pos(10017, 4, 17.3, 126, 29.5f)
+                .title("Arrows will spawn here", "every 20 seconds", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 75)
+                .pos(10014.5, 4.5, 4, 0, 0)
+                .title("Each kill is worth 50 points", "Winning the game will award each team member 250 bonus points!", 80)
+                .linear());
+
+        startGameTutorial = new Cutscene(plugin, this, steps) {
+            @Override
+            public void onStart() {
+                for (PlayerInterface p : players) {
+                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                }
+            }
+
+            @Override
+            public void onEnd() {
+                timerStartGame.start();
+                for (PlayerInterface player : players) {
+                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+                    player.bukkitPlayer.teleport(serverSpawn);
+                    player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
+                }
+            }
+        };
     }
 
     @Override
@@ -179,7 +242,7 @@ public class ServerDodgeball extends ServerInterface {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandTimerStart(timerStartGame));
+        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
         plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
         plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
         plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
@@ -206,18 +269,32 @@ public class ServerDodgeball extends ServerInterface {
         world.setGameRule(GameRule.MOB_GRIEFING, false);
         world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
         world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-        world.setFullTime(6000);
+        world.setFullTime(18000);
+
+        // Arena 1
+        for (int x = 624; x <= 625 + 2; ++x)
+            for (int z = -1; z <= 3; ++z)
+                world.setChunkForceLoaded(x, z, true);
+        // Arena 2
+        for (int x = 1249; x <= 1250 + 2; ++x)
+            for (int z = -1; z <= 3; ++z)
+                world.setChunkForceLoaded(x, z, true);
+        // Arena 3
+        for (int x = 1874; x <= 1875 + 2; ++x)
+            for (int z = -1; z <= 3; ++z)
+                world.setChunkForceLoaded(x, z, true);
+        // Arena 4
+        for (int x = 2499; x <= 1875 + 2; ++x)
+            for (int z = -1; z <= 3; ++z)
+                world.setChunkForceLoaded(x, z, true);
     }
 
-    public void giveBow(PlayerDodgeball player) {
-        ItemStack bow = new ItemStack(Material.BOW, 1);
-        ItemMeta bowMeta = bow.getItemMeta();
-        bowMeta.addEnchant(Enchantment.ARROW_DAMAGE, 32767, true);
-        bowMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        bowMeta.setUnbreakable(true);
-        bow.setItemMeta(bowMeta);
-        player.bukkitPlayer.getInventory().addItem(bow);
+    @Override
+    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+        return new PlayerDodgeball(this, uuid, name);
     }
+
+    /* GAME LOGIC */
 
     private void dodgeballRoundRobinSetup() {
         // Check if there is an even number of teams
@@ -275,8 +352,8 @@ public class ServerDodgeball extends ServerInterface {
         for (int i = 0; i < roundRobin.size(); i++) {
             for (int j = 0; j < roundRobin.get(i).size(); j++) {
                 if (roundRobin.get(i).get(j) == currentGame) {
-                    MCGTeam team1 = teams.get(rrIndexToTeamId.get(i));
-                    MCGTeam team2 = teams.get(rrIndexToTeamId.get(j));
+                    MCGTeam team1 = getTeamFromTeamID(rrIndexToTeamId.get(i));
+                    MCGTeam team2 = getTeamFromTeamID(rrIndexToTeamId.get(j));
 
                     // This section of code is from dodgeballStart() except without the teleporting
                     // It's just for settings the opponentTeam field in each player
@@ -293,6 +370,9 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     private void dodgeballStart() {
+        // Clear Practice mode variables
+        Arrays.fill(practiceArenaNum, 0);
+
         // Remove all lingering item drops
         List<Entity> entList = world.getEntities();
         for (Entity current : entList) {
@@ -309,8 +389,8 @@ public class ServerDodgeball extends ServerInterface {
         for (int i = 0; i < roundRobin.size(); i++) {
             for (int j = 0; j < roundRobin.get(i).size(); j++) {
                 if (roundRobin.get(i).get(j) == currentGame) {
-                    MCGTeam team1 = teams.get(rrIndexToTeamId.get(i));
-                    MCGTeam team2 = teams.get(rrIndexToTeamId.get(j));
+                    MCGTeam team1 = getTeamFromTeamID(rrIndexToTeamId.get(i));
+                    MCGTeam team2 = getTeamFromTeamID(rrIndexToTeamId.get(j));
 
                     MCGMain.logger.info("Round " + currentGame + " starting: " +
                             "(" + i + ", " + team1.id + ", " + team1.teamname + ") vs " +
@@ -375,7 +455,7 @@ public class ServerDodgeball extends ServerInterface {
             sendActionBarAll("Next arrow spawns in: " + seconds + " seconds");
         }
 
-        if(timerInProgress.get() > 12 * 20) {
+        if (timerInProgress.get() > 12 * 20) {
             boolean terminate = true;
             for (PlayerInterface player : players) {
                 PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
@@ -395,6 +475,7 @@ public class ServerDodgeball extends ServerInterface {
         ArrayList<PlayerDodgeball> playerDodgeballs = new ArrayList<>();
         for (PlayerInterface player : players) {
             playerDodgeballs.add((PlayerDodgeball) player);
+            ((PlayerDodgeball) player).arena = -1;
             PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
             player.bukkitPlayer.teleport(serverSpawn);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
@@ -414,8 +495,8 @@ public class ServerDodgeball extends ServerInterface {
         String topPlayers = "";
         int count = 0;
         playerDodgeballs.sort(Comparator.comparingInt(o -> -o.currentScore));
-        for (PlayerDodgeball player: playerDodgeballs) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+        for (PlayerDodgeball player : playerDodgeballs) {
+            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
@@ -424,17 +505,17 @@ public class ServerDodgeball extends ServerInterface {
         String topKillers = "";
         count = 0;
         playerDodgeballs.sort(Comparator.comparingInt(o -> -o.totalKills));
-        for (PlayerDodgeball player: playerDodgeballs) {
-            topKillers += ChatColor.RESET + "" + player.totalKills + " kills - " + player.myTeam.chatColor + "" + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+        for (PlayerDodgeball player : playerDodgeballs) {
+            topKillers += ChatColor.RESET + "" + player.totalKills + " kills - " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
         }
 
         String topTeams = "";
-        ArrayList<MCGTeam> teamDodgeballs = new ArrayList<>(teams.values());
+        ArrayList<MCGTeam> teamDodgeballs = getRealTeams();
         teamDodgeballs.sort(Comparator.comparingInt(o -> -o.getScore("dodgeball")));
-        for (MCGTeam team: teamDodgeballs) {
+        for (MCGTeam team : teamDodgeballs) {
             topTeams += ChatColor.RESET + "[" + team.getScore("dodgeball") + "] " + team.chatColor + "" + team.teamname + "\n";
         }
 
@@ -451,6 +532,95 @@ public class ServerDodgeball extends ServerInterface {
         });
 
     }
+
+    /* SUPPORTING LOGIC */
+
+    public void giveBow(PlayerDodgeball player) {
+        ItemStack bow = new ItemStack(Material.BOW, 1);
+        ItemMeta bowMeta = bow.getItemMeta();
+        bowMeta.addEnchant(Enchantment.ARROW_DAMAGE, 32767, true);
+        bowMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        bowMeta.setUnbreakable(true);
+        bow.setItemMeta(bowMeta);
+        player.bukkitPlayer.getInventory().addItem(bow);
+    }
+
+    public void givePracticeModeSelect(Player player) {
+        ItemStack levelSelect = new ItemStack(Material.TARGET, 1);
+        ItemMeta meta = levelSelect.getItemMeta();
+        meta.setDisplayName(ChatColor.GREEN + "Arena select");
+        levelSelect.setItemMeta(meta);
+        player.getInventory().setItem(7, levelSelect);
+    }
+
+    public int practiceArenaNum[]= new int[] {0,0,0,0,0};
+    public int practiceArrowTick = 0;
+    public void dodgeballPracticeMode() {
+        practiceModeTimer = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (state == GAME_WAITING) {
+                    // Spawn arrows
+                    practiceArrowTick--;
+                    if (practiceArrowTick <= 0) {
+                        practiceArrowTick = SPAWN_ARROWS_TICK;
+                        if (practiceArenaNum[1] > 0) {
+                            Location arrowSpawn0 = new Location(world, arenaArrowSpawns.get(0).getX(), arenaArrowSpawns.get(0).getY(), arenaArrowSpawns.get(0).getZ());
+                            Location arrowSpawn1 = new Location(world, arenaArrowSpawns.get(1).getX(), arenaArrowSpawns.get(1).getY(), arenaArrowSpawns.get(1).getZ());
+                            ItemStack arrow0 = new ItemStack(Material.ARROW, 1);
+                            ItemStack arrow1 = new ItemStack(Material.ARROW, 1);
+                            world.dropItem(arrowSpawn0, arrow0);
+                            world.dropItem(arrowSpawn1, arrow1);
+                            MCGMain.logger.info("Practice Mode: Spawned arrow in arena 1");
+                        }
+                        if (practiceArenaNum[2] > 0) {
+                            Location arrowSpawn2 = new Location(world, arenaArrowSpawns.get(2).getX(), arenaArrowSpawns.get(2).getY(), arenaArrowSpawns.get(2).getZ());
+                            Location arrowSpawn3 = new Location(world, arenaArrowSpawns.get(3).getX(), arenaArrowSpawns.get(3).getY(), arenaArrowSpawns.get(3).getZ());
+                            ItemStack arrow2 = new ItemStack(Material.ARROW, 1);
+                            ItemStack arrow3 = new ItemStack(Material.ARROW, 1);
+                            world.dropItem(arrowSpawn2, arrow2);
+                            world.dropItem(arrowSpawn3, arrow3);
+                            MCGMain.logger.info("Practice Mode: Spawned arrow in arena 2");
+                        }
+                        if (practiceArenaNum[3] > 0) {
+                            Location arrowSpawn4 = new Location(world, arenaArrowSpawns.get(4).getX(), arenaArrowSpawns.get(4).getY(), arenaArrowSpawns.get(4).getZ());
+                            Location arrowSpawn5 = new Location(world, arenaArrowSpawns.get(5).getX(), arenaArrowSpawns.get(5).getY(), arenaArrowSpawns.get(5).getZ());
+                            ItemStack arrow4 = new ItemStack(Material.ARROW, 1);
+                            ItemStack arrow5 = new ItemStack(Material.ARROW, 1);
+                            world.dropItem(arrowSpawn4, arrow4);
+                            world.dropItem(arrowSpawn5, arrow5);
+                            MCGMain.logger.info("Practice Mode: Spawned arrow in arena 3");
+                        }
+                        if (practiceArenaNum[4] > 0) {
+                            Location arrowSpawn6 = new Location(world, arenaArrowSpawns.get(6).getX(), arenaArrowSpawns.get(6).getY(), arenaArrowSpawns.get(6).getZ());
+                            Location arrowSpawn7 = new Location(world, arenaArrowSpawns.get(7).getX(), arenaArrowSpawns.get(7).getY(), arenaArrowSpawns.get(7).getZ());
+                            ItemStack arrow6 = new ItemStack(Material.ARROW, 1);
+                            ItemStack arrow7 = new ItemStack(Material.ARROW, 1);
+                            world.dropItem(arrowSpawn6, arrow6);
+                            world.dropItem(arrowSpawn7, arrow7);
+                            MCGMain.logger.info("Practice Mode: Spawned arrow in arena 4");
+                        }
+                    }
+
+                    // Change arena label
+                    Sign arena1Sign = (Sign) world.getBlockAt(3, 7, -1).getState();
+                    arena1Sign.setLine(2, practiceArenaNum[1] + " Players");
+                    arena1Sign.update();
+                    Sign arena2Sign = (Sign) world.getBlockAt(3, 7, 1).getState();
+                    arena2Sign.setLine(2, practiceArenaNum[2] + " Players");
+                    arena2Sign.update();
+                    Sign arena3Sign = (Sign) world.getBlockAt(-3, 7, 1).getState();
+                    arena3Sign.setLine(2, practiceArenaNum[3] + " Players");
+                    arena3Sign.update();
+                    Sign arena4Sign = (Sign) world.getBlockAt(-3, 7, -1).getState();
+                    arena4Sign.setLine(2, practiceArenaNum[4] + " Players");
+                    arena4Sign.update();
+                }
+            }
+        }.runTaskTimer(plugin, 0, 1);
+    }
+
+    /* MAP LOGIC */
 
     private void initArenaSpawns() {
         arenaSpawns.add(new Point3D(10014.5, 4, 1.5));

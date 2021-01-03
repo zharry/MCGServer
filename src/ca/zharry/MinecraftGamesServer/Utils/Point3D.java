@@ -2,6 +2,7 @@ package ca.zharry.MinecraftGamesServer.Utils;
 
 public class Point3D {
     public double x, y, z;
+
     public Point3D(double x, double y, double z) {
         this.x = x;
         this.y = y;
@@ -22,7 +23,7 @@ public class Point3D {
 
     public boolean equals(Object o) {
         Point3D p = (Point3D) o;
-        if(o == null) {
+        if (o == null) {
             return false;
         }
         return x == p.x && y == p.y && z == p.z;

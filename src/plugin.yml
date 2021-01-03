@@ -1,12 +1,16 @@
 name: MinecraftGamesServer
-version: 0.1
+version: 0.2
 author: Harry Zhang
 main: ca.zharry.MinecraftGamesServer.MCGMain
 api-version: 1.16
+depend: [ProtocolLib]
 commands:
   setteam:
     description: Adds a specific player to a team
-    usage: /setteam
+    usage: /setteam [player name] [team id]
+  reloadteams:
+    description: Reload teams, players, and scores
+    usage: /reloadteams
   setgame:
     description: Starts the specified minigame
     usage: /setgame [game]

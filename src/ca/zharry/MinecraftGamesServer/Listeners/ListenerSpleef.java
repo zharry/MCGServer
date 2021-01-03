@@ -2,14 +2,16 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSpleef;
+import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.Particle;
+import org.bukkit.*;
+import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -26,8 +28,7 @@ public class ListenerSpleef implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        PlayerSpleef playerSpleef = new PlayerSpleef(player, server);
-        server.addPlayer(playerSpleef);
+        PlayerSpleef playerSpleef = (PlayerSpleef) server.playerLookup.get(player.getUniqueId());
 
         if (server.state == ServerSpleef.GAME_WAITING ||
                 server.state == ServerSpleef.GAME_STARTING ||
@@ -43,24 +44,15 @@ public class ListenerSpleef implements Listener {
     }
 
     @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        for (int i = 0; i < server.players.size(); i++) {
-            PlayerSpleef curPlayer = (PlayerSpleef) server.players.get(i);
-            if (curPlayer.bukkitPlayer.getUniqueId() == player.getUniqueId()) {
-                curPlayer.commit();
-                server.players.remove(i);
-                break;
-            }
-        }
-    }
-
-    @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
             // Find the dead player
             Player deadPlayer = event.getEntity();
             PlayerSpleef player = (PlayerSpleef) server.playerLookup.get(deadPlayer.getUniqueId());
+
+            // Make sure that this player isn't giving duplicate scores
+            if (deadPlayer.getGameMode() != GameMode.SURVIVAL)
+                return;
 
             // Mark them as dead and upload their score
             player.dead = true;
@@ -98,8 +90,36 @@ public class ListenerSpleef implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if(event.getPlayer().getLocation().getY() < 36) {
-            event.getPlayer().setHealth(0);
+        Player player = event.getPlayer();
+        if(player.getLocation().getY() < ServerSpleef.COMPETITION_MIN_HEIGHT) {
+            player.setHealth(0);
+        }
+
+        if (server.state == ServerSpleef.GAME_BEGIN) {
+            if (event.getFrom().getX() != event.getTo().getX() ||
+                    event.getFrom().getY() != event.getTo().getY() ||
+                    event.getFrom().getZ() != event.getTo().getZ()) {
+                Location location = new Location(server.world,
+                        event.getFrom().getX(), event.getFrom().getY(), event.getFrom().getZ());
+                location.setPitch(player.getLocation().getPitch());
+                location.setYaw(player.getLocation().getYaw());
+                event.getPlayer().teleport(location);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDestroy(BlockBreakEvent event) {
+        if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
+            return;
+        }
+        // Disallow players to destroy spawn platform if they can reach it
+        if (event.getBlock().getLocation().getY() >= ServerSpleef.COMPETITION_MAX_HEIGHT) {
+            event.setCancelled(true);
+        }
+        // Disallow players to break the arena before the game starts
+        if (server.state == ServerSpleef.GAME_BEGIN) {
+            event.setCancelled(true);
         }
     }
 
@@ -123,5 +143,28 @@ public class ListenerSpleef implements Listener {
         }
     }
 
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player p = event.getPlayer();
+        PlayerSpleef playerSpleef = (PlayerSpleef) server.getPlayerFromUUID(p.getUniqueId());
+        Block block = event.getClickedBlock();
+
+        // Practice Mode Signs
+        if (server.state == ServerParkour.GAME_WAITING && block != null && block.getType() == Material.BIRCH_WALL_SIGN) {
+            String signLine1 = ChatColor.stripColor(((Sign) block.getState()).getLine(1));
+            String signLine2 = ChatColor.stripColor(((Sign) block.getState()).getLine(2));
+
+            // Send to Arena
+            if (signLine1.equals("Send to") && signLine2.equals("Arena")) {
+                server.sendToArena(playerSpleef);
+                event.setCancelled(true);
+            }
+            // Reset World
+            if (signLine1.equals("Reset") && signLine2.equals("World")) {
+                server.spleefRestore(server.world);
+                event.setCancelled(true);
+            }
+        }
+    }
 }
 

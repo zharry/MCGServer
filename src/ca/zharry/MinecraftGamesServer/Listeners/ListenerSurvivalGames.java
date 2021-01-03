@@ -1,6 +1,5 @@
 package ca.zharry.MinecraftGamesServer.Listeners;
 
-import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSurvivalGames;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
@@ -9,23 +8,31 @@ import ca.zharry.MinecraftGamesServer.Utils.Coord3D;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.*;
+import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.player.*;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
-import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -40,8 +47,7 @@ public class ListenerSurvivalGames implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        PlayerSurvivalGames playerSurvivalGames = new PlayerSurvivalGames(player, server);
-        server.addPlayer(playerSurvivalGames);
+        PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) server.playerLookup.get(player.getUniqueId());
 
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
             if (player.getGameMode() == GameMode.SPECTATOR) {
@@ -66,7 +72,6 @@ public class ListenerSurvivalGames implements Listener {
             // Mark them as dead and upload their score
             player.dead = true;
             player.commit();
-            MCGMain.logger.info(player.bukkitPlayer.getName() + " DEAD");
             player.bukkitPlayer.sendTitle(ChatColor.RED + "You died!", "", 10, 70, 20);
 
             // Award all non-dead players some score
@@ -112,20 +117,6 @@ public class ListenerSurvivalGames implements Listener {
         }.runTaskLater(server.plugin, 1);
     }
 
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        for (int i = 0; i < server.players.size(); i++) {
-            PlayerSurvivalGames curPlayer = (PlayerSurvivalGames) server.players.get(i);
-            if (curPlayer.bukkitPlayer.getUniqueId() == player.getUniqueId()) {
-                curPlayer.commit();
-                server.players.remove(i);
-                break;
-            }
-        }
-    }
-
     @EventHandler
     public void onPlayerPlace(BlockPlaceEvent event) {
         if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
@@ -154,7 +145,31 @@ public class ListenerSurvivalGames implements Listener {
         if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
             return;
         }
+        if(event.getAction() == Action.PHYSICAL) {
+            return;
+        }
+
         if (server.state == ServerSurvivalGames.GAME_INPROGRESS || server.state == ServerSurvivalGames.GAME_FINISHED) {
+        }
+        // Practice Mode
+        else if (server.state == ServerSurvivalGames.GAME_WAITING) {
+            Player p = event.getPlayer();
+            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) server.getPlayerFromUUID(p.getUniqueId());
+            Block block = event.getClickedBlock();
+
+            // Practice Mode Signs
+            if (block != null && block.getType() == Material.BIRCH_WALL_SIGN) {
+                String signLine1 = ChatColor.stripColor(((Sign) block.getState()).getLine(1));
+                String signLine2 = ChatColor.stripColor(((Sign) block.getState()).getLine(2));
+
+                // Send to Arena
+                if (signLine1.equals("Enter") && signLine2.equals("Arena")) {
+                    PlayerUtils.resetPlayer(playerSurvivalGames.bukkitPlayer, GameMode.ADVENTURE);
+                    playerSurvivalGames.bukkitPlayer.teleport(new Location(server.world, 0.5, 75.5, 0.5, -90, 0));
+                    playerSurvivalGames.bukkitPlayer.setBedSpawnLocation(new Location(server.world, 0.5, 75.5, 0.5, -90, 0), true);
+                }
+            }
+            event.setCancelled(true);
         } else {
             event.setCancelled(true);
         }
@@ -169,7 +184,13 @@ public class ListenerSurvivalGames implements Listener {
                 Player player = ((Player) event.getPlayer());
                 Coord3D coord = new Coord3D((int) location.getX(), (int) location.getY(), (int) location.getZ());
                 if (player.getGameMode() == GameMode.SURVIVAL) {
-                    server.openedChests.add(coord);
+                    if (!server.openedChests.contains(coord)) {
+                        server.openedChests.add(coord);
+                        ServerSurvivalGames.SpecialItem specialItem = server.specialChests.get(coord);
+                        if(specialItem != null) {
+                            server.sendMessageAll(server.playerLookup.get(player.getUniqueId()).bukkitPlayer.getDisplayName() + " has opened the chest " + specialItem.location + " containing " + specialItem.item.getItemMeta().getDisplayName());
+                        }
+                    }
                 } else if (player.getGameMode() == GameMode.SPECTATOR) {
                     if (!server.openedChests.contains(coord)) {
                         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("Chest has not yet been opened"));
@@ -177,6 +198,17 @@ public class ListenerSurvivalGames implements Listener {
                     }
                 }
             }
+        }
+
+        // Practice Mode
+        if (server.state == ServerSurvivalGames.GAME_WAITING) {
+            PlayerInterface player = server.playerLookup.get(event.getPlayer().getUniqueId());
+            // Override for tutorial cutscene
+            if(player.cutscene != null) {
+                return;
+            }
+
+            event.setCancelled(true);
         }
     }
 
@@ -214,6 +246,15 @@ public class ListenerSurvivalGames implements Listener {
         }
     }
 
+    @EventHandler
+    public void onFoodChange(FoodLevelChangeEvent e) {
+        if (server.state == ServerSurvivalGames.GAME_WAITING) {
+            if (e.getFoodLevel() < 20) {
+                e.setFoodLevel(20);
+            }
+        }
+    }
+
     // Prevent player from moving
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
@@ -238,16 +279,6 @@ public class ListenerSurvivalGames implements Listener {
         for (BlockState state : states) {
             if (state.getType() == Material.CHEST) {
                 server.addChest(new Coord3D(state.getX(), state.getY(), state.getZ()));
-            }
-        }
-    }
-
-    // Force load all chunks
-    @EventHandler
-    public void onWorldLoad(WorldLoadEvent event) {
-        for (int x = -16; x < 16; ++x) {
-            for (int z = -16; z < 16; ++z) {
-                server.world.setChunkForceLoaded(x, z, true);
             }
         }
     }

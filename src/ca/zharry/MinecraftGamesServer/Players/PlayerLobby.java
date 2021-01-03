@@ -3,19 +3,20 @@ package ca.zharry.MinecraftGamesServer.Players;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerLobby;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
+
+import java.util.UUID;
 
 public class PlayerLobby extends PlayerInterface {
 
     public ServerLobby server;
 
-    public PlayerLobby(Player bukkitPlayer, ServerLobby server) {
-        super(bukkitPlayer, server, "lobby");
+    public PlayerLobby(ServerLobby server, UUID uuid, String username) {
+        super(server, uuid, username, "lobby");
         this.server = server;
     }
 
     @Override
-    public void updateScoreboard() {
+    public void updateSidebar() {
         // This is a spacer
         sidebar.add("                          ");
 

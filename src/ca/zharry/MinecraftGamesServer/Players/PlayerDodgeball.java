@@ -7,11 +7,11 @@ import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 
 public class PlayerDodgeball extends PlayerInterface {
 
@@ -26,8 +26,8 @@ public class PlayerDodgeball extends PlayerInterface {
 
     public ServerDodgeball server;
 
-    public PlayerDodgeball(Player bukkitPlayer, ServerDodgeball server) {
-        super(bukkitPlayer, server, "dodgeball");
+    public PlayerDodgeball(ServerDodgeball server, UUID uuid, String username) {
+        super(server, uuid, username, "dodgeball");
         this.server = server;
 
         try {
@@ -39,7 +39,7 @@ public class PlayerDodgeball extends PlayerInterface {
     }
 
     @Override
-    public void updateScoreboard() {
+    public void updateSidebar() {
         // This is a spacer
         sidebar.add("                          ");
 
@@ -61,7 +61,7 @@ public class PlayerDodgeball extends PlayerInterface {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : ""));
         }
         sidebar.add("");
-        setGameScores("dodgeball", myTeam.id);
+        setTeamScoresForSidebar("dodgeball", myTeam.id);
         sidebar.add("");
         if (opponentTeam != null) {
             if (server.state == ServerParkour.GAME_STARTING) {
@@ -91,7 +91,7 @@ public class PlayerDodgeball extends PlayerInterface {
             int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-                    "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
+                    "`uuid` = '" + uuid + "' AND " +
                     "`season` = '" + MCGMain.SEASON + "' AND " +
                     "`minigame` = 'dodgeball';");
             while (resultSet.next()) {
@@ -101,7 +101,7 @@ public class PlayerDodgeball extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
@@ -110,14 +110,13 @@ public class PlayerDodgeball extends PlayerInterface {
     }
 
     @Override
-    public String getPlayerNameForTabMenu(Player player) {
+    public String getPlayerNameForTabMenu() {
         if(server.state == ServerDodgeball.GAME_INPROGRESS) {
-            PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
-            if (playerInterface instanceof PlayerDodgeball && ((PlayerDodgeball) playerInterface).lives <= 0) {
-                return ChatColor.GRAY + player.getName();
+            if (this.lives <= 0) {
+                return super.getPlayerNameForTabMenu(true);
             }
         }
-        return super.getPlayerNameForTabMenu(player);
+        return super.getPlayerNameForTabMenu();
     }
 
 }

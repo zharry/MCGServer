@@ -5,8 +5,8 @@ public class ChatStringUtils {
         boolean isColor = false;
         int numChars = 0;
         StringBuilder output = new StringBuilder();
-        for(char c : chatString.toCharArray()) {
-            if(isColor) {
+        for (char c : chatString.toCharArray()) {
+            if (isColor) {
                 isColor = false;
                 output.append(c);
             } else {
@@ -14,7 +14,7 @@ public class ChatStringUtils {
                     isColor = true;
                     output.append(c);
                 } else {
-                    if(numChars < length) {
+                    if (numChars < length) {
                         output.append(c);
                         ++numChars;
                     }

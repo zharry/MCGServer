@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer;
 
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import org.bukkit.ChatColor;
 
@@ -27,14 +28,21 @@ public class MCGTeam {
     }
 
     public void addPlayer(UUID uuid) {
-        players.add(uuid);
+        if (!players.contains(uuid))
+            players.add(uuid);
+    }
+
+    public void removePlayer(UUID uuid) {
+        players.remove(uuid);
     }
 
     public int getScore() {
         int val = 0;
         for (UUID uuid : players) {
-            if (server.playerLookup.containsKey(uuid))
-                val += server.playerLookup.get(uuid).getScore();
+            PlayerInterface player = server.getPlayerFromUUID(uuid);
+            if(player != null) {
+                val += player.getScore();
+            }
         }
         return val;
     }
@@ -42,8 +50,10 @@ public class MCGTeam {
     public int getScore(String minigame) {
         int val = 0;
         for (UUID uuid : players) {
-            if (server.playerLookup.containsKey(uuid))
-                val += server.playerLookup.get(uuid).getScore(minigame);
+            PlayerInterface player = server.getPlayerFromUUID(uuid);
+            if(player != null) {
+                val += player.getScore(minigame);
+            }
         }
         return val;
     }

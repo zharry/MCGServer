@@ -4,11 +4,11 @@ import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSurvivalGames;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 
 public class PlayerSurvivalGames extends PlayerInterface {
 
@@ -19,8 +19,8 @@ public class PlayerSurvivalGames extends PlayerInterface {
 
     public ServerSurvivalGames server;
 
-    public PlayerSurvivalGames(Player bukkitPlayer, ServerSurvivalGames server) {
-        super(bukkitPlayer, server, "survivalgames");
+    public PlayerSurvivalGames(ServerSurvivalGames server, UUID uuid, String username) {
+        super(server, uuid, username, "survivalgames");
         this.server = server;
 
         try {
@@ -30,7 +30,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
     }
 
     @Override
-    public void updateScoreboard() {
+    public void updateSidebar() {
         // This is a spacer
         sidebar.add("                          ");
 
@@ -50,7 +50,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : ""));
         }
         sidebar.add("");
-        setGameScores("survivalgames", myTeam.id);
+        setTeamScoresForSidebar("survivalgames", myTeam.id);
         sidebar.add("");
         sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive());
         sidebar.add(ChatColor.WHITE + "" + ChatColor.BOLD + "Kills: " + ChatColor.RESET + "" + kills);
@@ -66,7 +66,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
             int id = -1;
             Statement statement = MCGMain.conn.connection.createStatement();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-                    "`uuid` = '" + bukkitPlayer.getUniqueId() + "' AND " +
+                    "`uuid` = '" + uuid + "' AND " +
                     "`season` = '" + MCGMain.SEASON + "' AND " +
                     "`minigame` = 'survivalgames';");
             while (resultSet.next()) {
@@ -76,7 +76,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + bukkitPlayer.getUniqueId() + "', '" + MCGMain.SEASON + "', 'survivalgames', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'survivalgames', '" + currentScore + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
                     "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
@@ -85,11 +85,10 @@ public class PlayerSurvivalGames extends PlayerInterface {
     }
 
     @Override
-    public String getPlayerNameForTabMenu(Player player) {
-        PlayerInterface playerInterface = server.playerLookup.get(player.getUniqueId());
-        if(playerInterface instanceof PlayerSurvivalGames && ((PlayerSurvivalGames) playerInterface).dead) {
-            return "§7" + player.getName();
+    public String getPlayerNameForTabMenu() {
+        if(this.dead) {
+            return super.getPlayerNameForTabMenu(true);
         }
-        return super.getPlayerNameForTabMenu(player);
+        return super.getPlayerNameForTabMenu();
     }
 }
