@@ -326,10 +326,11 @@ public class ServerParkour extends ServerInterface {
                     if (levels[stage] != 0) {
                         player.stage = stage;
                         player.level = levels[stage];
-                        player.currentScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
+                        int newScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
+                        player.addScore(newScore - player.getCurrentScore(), "completed " + player.stage + "-" + player.level);
                         bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
                         sendMessageAll(player.bukkitPlayer.getDisplayName() +
-                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + player.currentScore + "] " +
+                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + player.getCurrentScore() + "] " +
                                 ChatColor.RESET + "has completed Stage " + stage + "-" + levels[stage]);
 
                         bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
@@ -380,9 +381,9 @@ public class ServerParkour extends ServerInterface {
 
         String topPlayers = "";
         int count = 0;
-        playerParkours.sort(Comparator.comparingInt(o -> -o.currentScore));
+        playerParkours.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
         for (PlayerParkour player : playerParkours) {
-            topPlayers += ChatColor.RESET + "Stage " + player.currentMetadata + " [" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "Stage " + player.currentMetadata + " [" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }

@@ -232,12 +232,12 @@ public class ServerSurvivalGames extends ServerInterface {
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(13.5, 90, 20, 145, 55)
-                .title("Kill all other players", "and gain 50 points per kill!", 60)
+                .title("Kill all other players", "and gain 200 points per kill!", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(90, 102, 72, 135, 25)
-                .title("You can also earn survival points", "25 points every time another player dies.", 60)
+                .title("You can also earn survival points", "100 points every time another player dies.", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
@@ -502,8 +502,9 @@ public class ServerSurvivalGames extends ServerInterface {
             PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
             playerSurvivalGamess.add(playerSurvivalGames);
             if (!playerSurvivalGames.dead) {
-                playerSurvivalGames.currentScore += 500;
-                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last one standing!", "You have received 500 additional points!", 10, 60, 10);
+                playerSurvivalGames.addScore(250, "last one standing");
+                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last one standing!", "You have received 250 additional points!", 10, 60, 10);
+                sendMessageAll(ChatColor.RESET + player.bukkitPlayer.getDisplayName() + " is the last one standing, and has received 250 additional points!");
             } else {
                 playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.RED + "Game Over!", "", 10, 60, 10);
             }
@@ -512,9 +513,9 @@ public class ServerSurvivalGames extends ServerInterface {
 
         String topPlayers = "";
         int count = 0;
-        playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.currentScore));
+        playerSurvivalGamess.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
         for (PlayerSurvivalGames player : playerSurvivalGamess) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "[" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }

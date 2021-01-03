@@ -20,10 +20,11 @@ import java.util.logging.Logger;
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
     public static MysqlConnection conn;
+    public static MysqlConnection asyncConn;
     public static ProtocolManager protocolManager;
 
     // Global configuration
-    public static final int SEASON = 0;
+    public static final int SEASON = 1;
     public static final int PLAYER_TARGET = 24;
 
     // Current server information
@@ -62,6 +63,7 @@ public class MCGMain extends JavaPlugin {
         });
 
         conn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
+        asyncConn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
         this.setupDatabase();
 
         this.getConfigurationFile();
@@ -97,6 +99,7 @@ public class MCGMain extends JavaPlugin {
 
         try {
             conn.connection.close();
+            asyncConn.connection.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -135,6 +138,16 @@ public class MCGMain extends JavaPlugin {
                     " `username` varchar(255) NOT NULL, " +
                     " PRIMARY KEY (`uuid`,`season`) USING BTREE" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            statement.execute("CREATE TABLE IF NOT EXISTS `logs` (" +
+                    " `id` int(11) NOT NULL AUTO_INCREMENT," +
+                    " `season` int(11) NOT NULL," +
+                    " `minigame` varchar(255) NOT NULL," +
+                    " `playeruuid` varchar(255) NOT NULL," +
+                    " `scoredelta` int(11) NOT NULL," +
+                    " `message` varchar(255) NOT NULL," +
+                    " `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+                    "PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
         } catch (Exception e) {
             e.printStackTrace();

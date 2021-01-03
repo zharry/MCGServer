@@ -45,7 +45,7 @@ public class ServerSpleef extends ServerInterface {
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
     public static final int TIMER_BEGIN = 10 * 20;
-    public static final int TIMER_INPROGRESS = 15 * 60 * 20;
+    public static final int TIMER_INPROGRESS = 8 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int COMPETITION_MAX_HEIGHT = 73;
     public static final int COMPETITION_MIN_HEIGHT = 15;
@@ -102,8 +102,8 @@ public class ServerSpleef extends ServerInterface {
                                     " \n",
                             ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                     "1. Destroy blocks to drop other players into the void\n" +
-                                    "2. Survive longer than all of the other players\n" +
-                                    "3. Each time a player is eliminated everyone will receive +100 points\n" +
+                                    "2. Survive longer as long as you can, winning the game is worth 250 points!\n" +
+                                    "3. Each time a player is eliminated everyone will receive +75 points\n" +
                                     "4. If you are the last team on the layer, TNT will start spawning at your feet!"
                     }, new int[]{
                             120,
@@ -221,19 +221,19 @@ public class ServerSpleef extends ServerInterface {
                 .pos(45, 65, 35, 125, 30)
                 .title("Welcome to Spleef", "Map made by MineMakers Team", 60)
                 .freeze(50));
-        steps.add(new CutsceneStep(time += 80)
+        steps.add(new CutsceneStep(time += 100)
                 .pos(14.5, 65, 15.5, 90, 0)
-                .comment("Looking at snowman")
-                .linear()
-                .freeze(25));
-        steps.add(new CutsceneStep(time += 50)
-                .pos(6, 38, 11, -64, -12)
                 .title("Survive as long as you can", "and try to eliminate other players", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
+                .pos(6, 38, 11, -64, -12)
+                .title("The last player standing wins", "earning 250 additional points!", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
                 .pos(-16, 50, -10, -45, 35)
-                .title("Each time a player is eliminated", "everyone will receive 100 survival points!", 60)
+                .title("Each time a player is eliminated", "everyone still alive will be awarded 75 survival points!", 60)
                 .linear());
 
         startGameTutorial = new Cutscene(plugin, this, steps) {
@@ -419,8 +419,9 @@ public class ServerSpleef extends ServerInterface {
                 }
             }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
             if (!((PlayerSpleef) player).dead) {
-                ((PlayerSpleef) player).currentScore += 500;
-                player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 500 additional points!", 0, 60, 10);
+                player.addScore(250, "last player alive");
+                player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 250 additional points!", 0, 60, 10);
+                sendMessageAll(ChatColor.RESET + player.bukkitPlayer.getDisplayName() + " is the last player alive, and has received 250 additional points!");
             } else {
                 player.bukkitPlayer.sendTitle(ChatColor.RED + "Round Over!", "", 0, 60, 10);
             }
@@ -441,9 +442,9 @@ public class ServerSpleef extends ServerInterface {
 
         String topPlayers = "";
         int count = 0;
-        playerSpleefs.sort(Comparator.comparingInt(o -> -o.currentScore));
+        playerSpleefs.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
         for (PlayerSpleef player : playerSpleefs) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "[" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }

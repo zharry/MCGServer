@@ -63,8 +63,8 @@ public class ListenerSpleef implements Listener {
             for (PlayerInterface p : server.players) {
                 PlayerSpleef playerSpleef = (PlayerSpleef) p;
                 if (!playerSpleef.dead) {
-                    playerSpleef.currentScore += 100;
-                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+100]" +
+                    playerSpleef.addScore(75, deadPlayer.getName() + " has died!");
+                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+75]" +
                             ChatColor.RESET + " survival points, " + deadPlayer.getDisplayName() + " has died!");
                 } else {
                     playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + deadPlayer.getDisplayName() + " has died!");

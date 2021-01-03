@@ -34,7 +34,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 1/6: " + ChatColor.RESET + "Survival Games");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Survival Games");
 
         if (server.state == ServerSurvivalGames.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
@@ -54,7 +54,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
         sidebar.add("");
         sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive());
         sidebar.add(ChatColor.WHITE + "" + ChatColor.BOLD + "Kills: " + ChatColor.RESET + "" + kills);
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
     }
 
@@ -76,9 +76,9 @@ public class PlayerSurvivalGames extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'survivalgames', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'survivalgames', '" + getCurrentScore() + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
+                    "`score` = " + getCurrentScore() + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -43,7 +43,7 @@ public class PlayerDodgeball extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 2/6: " + ChatColor.RESET + "Dodgeball");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Dodgeball");
 
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
@@ -79,7 +79,7 @@ public class PlayerDodgeball extends PlayerInterface {
             sidebar.add(ChatColor.WHITE + "Please wait...");
             sidebar.add("");
         }
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
     }
 
@@ -101,9 +101,9 @@ public class PlayerDodgeball extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + getCurrentScore() + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
+                    "`score` = " + getCurrentScore() + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
             e.printStackTrace();
         }

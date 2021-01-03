@@ -78,7 +78,7 @@ public class ListenerDodgeball implements Listener {
             // Award the killer
             killer.kills++;
             killer.totalKills++;
-            killer.currentScore += 50;
+            killer.addScore(75, "killed " + dead.name);
             MCGTeam killerTeam = killer.myTeam;
             MCGTeam deadTeam = dead.myTeam;
             boolean myTeamIsAllDead = true;
@@ -93,7 +93,7 @@ public class ListenerDodgeball implements Listener {
             for (UUID uuid : gamePlayers) {
                 PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(uuid);
                 if (playerDodgeball != null) {
-                    playerDodgeball.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+50] " +
+                    playerDodgeball.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+75] " +
                             killer.bukkitPlayer.getDisplayName() + "" + ChatColor.RESET + " killed " + dead.bukkitPlayer.getDisplayName());
                 }
             }
@@ -116,15 +116,21 @@ public class ListenerDodgeball implements Listener {
             if (myTeamIsAllDead) {
                 // Give all players a notice that a team has won
                 server.sendMessageAll(" \n" + killerTeam.chatColor + "" + killerTeam.teamname + "" + ChatColor.RESET + " " +
-                        "has defeated " + deadTeam.chatColor + "" + deadTeam.teamname + " \n ");
+                        "has defeated " + deadTeam.chatColor + "" + deadTeam.teamname + ChatColor.RESET + ", each team member still alive has received an additional 250 points!\n ");
 
                 // Award Enemy Team victory scores
                 for (UUID uuid : killerTeam.players) {
                     PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(uuid);
                     if (playerDodgeball != null) {
-                        playerDodgeball.currentScore += 250;
-                        playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-                        playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "You and your teammates have received 250 points each!", 10, 60, 10);
+                        if (playerDodgeball.lives > 0) {
+                            playerDodgeball.addScore(250, killerTeam.teamname + "defeated " + deadTeam.teamname);
+                            playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                            playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "You have received 250 additional points!", 10, 60, 10);
+                        } else {
+                            playerDodgeball.addScore(0, killerTeam.teamname + "defeated " + deadTeam.teamname + " (dead)");
+                            playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                            playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "Your team has won the round!", 10, 60, 10);
+                        }
                     }
                 }
 

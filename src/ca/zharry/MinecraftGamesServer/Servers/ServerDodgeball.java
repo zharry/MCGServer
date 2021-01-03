@@ -46,7 +46,7 @@ public class ServerDodgeball extends ServerInterface {
 
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
-    public static final int TIMER_INPROGRESS = 5 * 60 * 20;
+    public static final int TIMER_INPROGRESS = 6 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int SPAWN_ARROWS_TICK = 20 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
@@ -104,8 +104,8 @@ public class ServerDodgeball extends ServerInterface {
                             ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                     "1. You have three lives\n" +
                                     "2. Arrows will spawn on the beacon every 20 seconds\n" +
-                                    "3. Kill the other team, each kill is worth +50 points!\n" +
-                                    "4. Eliminating all 3 lives of every opposing team's players awards everyone on your team +250 points each!"
+                                    "3. Kill the other team, each kill is worth +75 points!\n" +
+                                    "4. Eliminating all 3 lives of every opposing team's players awards everyone still alive on your team +250 points each!"
                     }, new int[]{
                             120,
                             45,
@@ -205,7 +205,10 @@ public class ServerDodgeball extends ServerInterface {
                 .freeze(50));
         steps.add(new CutsceneStep(time += 75)
                 .pos(10014.5, 4.5, 4, 0, 0)
-                .title("Each kill is worth 50 points", "Winning the game will award each team member 250 bonus points!", 80)
+                .title("Each kill is worth 75 points", "Winning the game will award alive team members 250 bonus points each!", 80)
+                .linear());
+        steps.add(new CutsceneStep(time += 60)
+                .pos(10014.5, 4.5, 4, 0, 0)
                 .linear());
 
         startGameTutorial = new Cutscene(plugin, this, steps) {
@@ -284,7 +287,7 @@ public class ServerDodgeball extends ServerInterface {
             for (int z = -1; z <= 3; ++z)
                 world.setChunkForceLoaded(x, z, true);
         // Arena 4
-        for (int x = 2499; x <= 1875 + 2; ++x)
+        for (int x = 2499; x <= 2500 + 2; ++x)
             for (int z = -1; z <= 3; ++z)
                 world.setChunkForceLoaded(x, z, true);
     }
@@ -494,9 +497,9 @@ public class ServerDodgeball extends ServerInterface {
 
         String topPlayers = "";
         int count = 0;
-        playerDodgeballs.sort(Comparator.comparingInt(o -> -o.currentScore));
+        playerDodgeballs.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
         for (PlayerDodgeball player : playerDodgeballs) {
-            topPlayers += ChatColor.RESET + "[" + player.currentScore + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "[" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }

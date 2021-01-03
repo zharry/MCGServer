@@ -12,6 +12,7 @@ import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -26,7 +27,7 @@ public abstract class PlayerInterface {
 
     // Scores
     public String curMinigame = "lobby";
-    public int currentScore = 0;
+    private int currentScore = 0;
     public String currentMetadata = "";
     public ArrayList<MCGScore> previousScores = new ArrayList<>();
 
@@ -146,6 +147,26 @@ public abstract class PlayerInterface {
     public void doStatsRefresh() {
         updateTabList();
         updateSidebar();
+    }
+
+    public void addScore(int scoreDelta, String notes) {
+        this.currentScore += scoreDelta;
+        new BukkitRunnable(){
+            public void run() {
+                try {
+                    Statement statement = MCGMain.asyncConn.connection.createStatement();
+                    statement.execute("INSERT INTO `logs` " +
+                            "(`season`, `minigame`, `playeruuid`, `scoredelta`, `message`) VALUES " +
+                            "('" + MCGMain.SEASON + "', '" + curMinigame + "', '" + uuid + "', '" + scoreDelta + "', '" + notes + "');");
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }.runTaskAsynchronously(server.plugin);
+    }
+
+    public int getCurrentScore() {
+        return this.currentScore;
     }
 
     /* TAB MENU */

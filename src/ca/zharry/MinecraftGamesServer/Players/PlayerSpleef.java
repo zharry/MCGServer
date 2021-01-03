@@ -26,7 +26,7 @@ public class PlayerSpleef extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 2/6: " + ChatColor.RESET + "Spleef");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Spleef");
         if (server.state == ServerSpleef.GAME_STARTING || server.state == ServerSpleef.GAME_INPROGRESS) {
             sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Round: " + ChatColor.RESET + "" + server.currentGame + "/" + ServerSpleef.TOTAL_GAMES);
         }
@@ -48,7 +48,7 @@ public class PlayerSpleef extends PlayerInterface {
         sidebar.add("  ");
         sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive());
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("spleef"));
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
     }
 
@@ -68,9 +68,9 @@ public class PlayerSpleef extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'spleef', '" + currentScore + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'spleef', '" + getCurrentScore() + "')" +
                     "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + currentScore + ";");
+                    "`score` = " + getCurrentScore() + ";");
         } catch (SQLException e) {
             e.printStackTrace();
         }

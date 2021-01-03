@@ -78,8 +78,8 @@ public class ListenerSurvivalGames implements Listener {
             for (PlayerInterface p : server.players) {
                 PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) p;
                 if (!playerSurvivalGames.dead) {
-                    playerSurvivalGames.currentScore += 25;
-                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+25]" +
+                    playerSurvivalGames.addScore(100, deadPlayer.getName() + " has died!");
+                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+100]" +
                             ChatColor.RESET + " survival points, " + deadPlayer.getDisplayName() + " has died!");
                 }
             }
@@ -89,8 +89,8 @@ public class ListenerSurvivalGames implements Listener {
             if (k != null) {
                 PlayerSurvivalGames killer = (PlayerSurvivalGames) server.playerLookup.get(k.getUniqueId());
                 killer.kills += 1;
-                killer.currentScore += 50;
-                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+50]" +
+                killer.addScore(200, "killed " + deadPlayer.getName());
+                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+200]" +
                         ChatColor.RESET + " for killing " + deadPlayer.getDisplayName());
                 player.bukkitPlayer.sendTitle(ChatColor.RED + "You died!", "Killed by " + killer.bukkitPlayer.getDisplayName(), 10, 70, 20);
             }

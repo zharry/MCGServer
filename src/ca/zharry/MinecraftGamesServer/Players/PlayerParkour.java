@@ -36,7 +36,7 @@ public class PlayerParkour extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game 4/6: " + ChatColor.RESET + "Parkour");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Parkour");
 
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
@@ -57,7 +57,7 @@ public class PlayerParkour extends PlayerInterface {
         setTeamScoresForSidebar("parkour", myTeam.id);
         sidebar.add("");
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("parkour"));
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + currentScore);
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
     }
 
@@ -79,9 +79,9 @@ public class PlayerParkour extends PlayerInterface {
             statement.execute("INSERT INTO `scores` " +
                     "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
                     "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'parkour', '" + currentScore + "', '" + currentMetadata + "')" +
+                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'parkour', '" + getCurrentScore() + "', '" + currentMetadata + "')" +
                     "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + currentScore + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
+                    "`score` = " + getCurrentScore() + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
         } catch (SQLException e) {
             e.printStackTrace();
         }
