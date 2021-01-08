@@ -8,6 +8,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -86,8 +87,11 @@ public class ListenerParkour implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        PlayerParkour playerParkour = (PlayerParkour) server.getPlayerFromUUID(player.getUniqueId());
+
+        // Disable player movement in during countdown and pre-game
         if (server.state == ServerParkour.GAME_STARTING) {
-            Player player = event.getPlayer();
             if (event.getFrom().getX() != event.getTo().getX() ||
                     event.getFrom().getY() != event.getTo().getY() ||
                     event.getFrom().getZ() != event.getTo().getZ()) {
@@ -96,6 +100,86 @@ public class ListenerParkour implements Listener {
                 location.setPitch(player.getLocation().getPitch());
                 location.setYaw(player.getLocation().getYaw());
                 event.getPlayer().teleport(location);
+            }
+            return;
+        }
+
+        // Check if the player is on a checkpoint
+        if (server.state == ServerParkour.GAME_INPROGRESS) {
+            if (event.getTo().getBlock().getRelative(BlockFace.DOWN).getType() == Material.BEACON) {
+                Location blockLocation = player.getLocation().getBlock().getLocation();
+                Point3D blockPoint = new Point3D(blockLocation.getX(), blockLocation.getY() - 1, blockLocation.getZ());
+
+                // Find out which stage the beacon block is on
+                int stage1Index = server.stage1Checkpoints.indexOf(blockPoint);
+                int stage2Index = server.stage2Checkpoints.indexOf(blockPoint);
+                int stage3Index = server.stage3Checkpoints.indexOf(blockPoint);
+                int stage4Index = server.stage4Checkpoints.indexOf(blockPoint);
+                int stage5Index = server.stage5Checkpoints.indexOf(blockPoint);
+                int stage6Index = server.stage6Checkpoints.indexOf(blockPoint);
+                int stage = -1;
+                if (stage1Index != -1) stage = 1;
+                if (stage2Index != -1) stage = 2;
+                if (stage3Index != -1) stage = 3;
+                if (stage4Index != -1) stage = 4;
+                if (stage5Index != -1) stage = 5;
+                if (stage6Index != -1) stage = 6;
+                // This represents what level the block is on, for the stage determined above
+                int[] levels = {-1, stage1Index, stage2Index, stage3Index, stage4Index, stage5Index, stage6Index};
+                // This represents how many levels the player would have completed upon reaching the (i + 1)th stage
+                int[] stageCompletedLevels = {0,
+                        server.stage1Checkpoints.size() - 1,
+                        server.stage1Checkpoints.size() + server.stage2Checkpoints.size() - 2,
+                        server.stage1Checkpoints.size() + server.stage2Checkpoints.size() + server.stage3Checkpoints.size() - 3,
+                        server.stage1Checkpoints.size() + server.stage2Checkpoints.size() + server.stage3Checkpoints.size() + server.stage4Checkpoints.size() - 4,
+                        server.stage1Checkpoints.size() + server.stage2Checkpoints.size() + server.stage3Checkpoints.size() + server.stage4Checkpoints.size() + server.stage5Checkpoints.size() - 5,
+                        server.stage1Checkpoints.size() + server.stage2Checkpoints.size() + server.stage3Checkpoints.size() + server.stage4Checkpoints.size() + server.stage5Checkpoints.size() + server.stage6Checkpoints.size() - 6
+                };
+
+                // Award points if this is new
+                if (stage == playerParkour.stage && levels[stage] > playerParkour.level ||
+                        stage > playerParkour.stage) {
+                    if (levels[stage] != 0) {
+                        playerParkour.stage = stage;
+                        playerParkour.level = levels[stage];
+                        int newScore = stageCompletedLevels[stage - 1] * 200 + levels[stage] * 200;
+                        playerParkour.addScore(newScore - playerParkour.getCurrentScore(), "completed " + playerParkour.stage + "-" + playerParkour.level);
+                        playerParkour.bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
+                        server.sendMessageAll(playerParkour.bukkitPlayer.getDisplayName() +
+                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + playerParkour.getCurrentScore() + "] " +
+                                ChatColor.RESET + "has completed Stage " + stage + "-" + levels[stage]);
+
+                        playerParkour.bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
+                    }
+                }
+
+                // Check if we finished the stages
+                boolean finishedStage = false;
+                Point3D nextStart = server.stage1Checkpoints.get(0);
+                if (stage1Index == server.stage1Checkpoints.size() - 1) {
+                    finishedStage = true;
+                    nextStart = server.stage2Checkpoints.get(0);
+                } else if (stage2Index == server.stage2Checkpoints.size() - 1) {
+                    finishedStage = true;
+                    nextStart = server.stage3Checkpoints.get(0);
+                } else if (stage3Index == server.stage3Checkpoints.size() - 1) {
+                    finishedStage = true;
+                    nextStart = server.stage4Checkpoints.get(0);
+                } else if (stage4Index == server.stage4Checkpoints.size() - 1) {
+                    finishedStage = true;
+                    nextStart = server.stage5Checkpoints.get(0);
+                } else if (stage5Index == server.stage5Checkpoints.size() - 1) {
+                    finishedStage = true;
+                    nextStart = server.stage6Checkpoints.get(0);
+                } else if (stage6Index == server.stage6Checkpoints.size() - 1) {
+                    playerParkour.bukkitPlayer.teleport(server.mapEnd);
+                    return;
+                }
+                if (finishedStage) {
+                    Location nextStage = new Location(server.world, nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
+                    playerParkour.bukkitPlayer.teleport(nextStage);
+                    playerParkour.bukkitPlayer.setBedSpawnLocation(nextStage, true);
+                }
             }
         }
     }
@@ -136,7 +220,7 @@ public class ListenerParkour implements Listener {
         Player p = event.getPlayer();
         Block block = event.getClickedBlock();
 
-        // Test for right click on sign
+        // Practice Mode - Level Select
         if (server.state == ServerParkour.GAME_WAITING && block != null && block.getType() == Material.BIRCH_WALL_SIGN) {
             String level = ((Sign) block.getState()).getLine(1);
             try {
@@ -145,13 +229,12 @@ public class ListenerParkour implements Listener {
                 int checkpoint = Integer.parseInt(s[1]);
                 Point3D p3d = server.allCheckpoints.get(stage - 1).get(checkpoint - 1);
                 event.getPlayer().teleport(new Location(event.getClickedBlock().getWorld(), p3d.x + 0.5, p3d.y + 1, p3d.z + 0.5, 90, 0));
-            } catch(Exception e) {
+            } catch (Exception e) {
             }
             event.setCancelled(true);
             return;
         }
-
-        if(server.state == ServerParkour.GAME_WAITING && event.getMaterial() == Material.TARGET) {
+        if (server.state == ServerParkour.GAME_WAITING && block != null && event.getMaterial() == Material.TARGET) {
             p.teleport(new Location(p.getWorld(), -10000.5, 64, 0.5, 90, 0));
             event.setCancelled(true);
             return;

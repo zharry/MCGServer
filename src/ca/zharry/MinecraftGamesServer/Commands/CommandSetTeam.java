@@ -48,7 +48,7 @@ public class CommandSetTeam implements CommandExecutor {
 
         try {
             Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams` WHERE `players` LIKE '%" + player.uuid + "%';");
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams` WHERE `players` LIKE '%" + player.uuid + "%' AND `season` = " + MCGMain.SEASON + ";");
             if(resultSet.next()) {
                 int queryId = resultSet.getInt("id");
                 String players = resultSet.getString("players");

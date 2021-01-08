@@ -199,7 +199,6 @@ public abstract class ServerInterface {
     }
 
     public void reloadTeamsAndPlayers() {
-//        offlinePlayers.forEach(PlayerInterface::commit);
         offlinePlayers.clear();
         offlinePlayerLookup.clear();
 
@@ -289,9 +288,9 @@ public abstract class ServerInterface {
         }
     }
 
-    public void sendTitleAll(String title, String subtitle, int fadeIn, int stay, int fadOut) {
+    public void sendTitleAll(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         for (PlayerInterface player : players) {
-            player.bukkitPlayer.sendTitle(title, subtitle, fadeIn, stay, fadOut);
+            player.bukkitPlayer.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
         }
     }
 

@@ -161,9 +161,13 @@ public abstract class Cutscene {
             player2.bukkitPlayer.hidePlayer(plugin, player.bukkitPlayer);
         }
 
-        player.cutscene = this;
         ActivePlayer activePlayer = new ActivePlayer(player);
         player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+        new BukkitRunnable() {
+            public void run() {
+                player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+            }
+        }.runTaskLater(plugin, 1);
         player.cutscene = this;
         if(cameraMover != null) {
             teleportPlayerNMS(player.bukkitPlayer, new Location(player.bukkitPlayer.getWorld(), lastX, lastY, lastZ, (float) lastYaw, (float) lastPitch));
@@ -383,6 +387,7 @@ public abstract class Cutscene {
     public class PlayerJoinQuitListener implements Listener {
         @EventHandler(priority = EventPriority.HIGHEST)
         public void onPlayerJoin(PlayerJoinEvent event) {
+            System.out.println("PLAYER JOIN CUTSCENE");
             PlayerInterface player = server.playerLookup.get(event.getPlayer().getUniqueId());
             addPlayerToCutscene(player);
         }

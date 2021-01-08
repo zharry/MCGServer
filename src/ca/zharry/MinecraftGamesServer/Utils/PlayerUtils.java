@@ -24,7 +24,6 @@ public class PlayerUtils {
         player.getActivePotionEffects().clear();
         player.setFallDistance(0);
         player.setInvisible(false);
-        player.setAllowFlight(false);
     }
 
 }

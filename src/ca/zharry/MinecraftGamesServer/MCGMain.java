@@ -24,7 +24,7 @@ public class MCGMain extends JavaPlugin {
     public static ProtocolManager protocolManager;
 
     // Global configuration
-    public static final int SEASON = 1;
+    public static final int SEASON = 2;
     public static final int PLAYER_TARGET = 24;
 
     // Current server information

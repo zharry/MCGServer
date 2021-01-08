@@ -36,6 +36,7 @@ public class ServerDodgeball extends ServerInterface {
     // Ingame variables
     public ArrayList<ArrayList<Integer>> roundRobin; // 2D Array of when (i,j) should play each other
     public HashMap<Integer, Integer> rrIndexToTeamId;
+    public HashMap<UUID, Boolean> playerColor = new HashMap<>(); // false is blue; true is red
     public int currentGame = 0;
     public int totalGames = 0;
     public boolean displayedWelcomeMessage = false;
@@ -46,11 +47,12 @@ public class ServerDodgeball extends ServerInterface {
 
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
-    public static final int TIMER_INPROGRESS = 6 * 60 * 20;
+    public static final int TIMER_INPROGRESS = 4 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
-    public static final int SPAWN_ARROWS_TICK = 20 * 20;
+    public static final int SPAWN_ARROWS_TICK = 10 * 20;
     public static final ArrayList<Point3D> arenaSpawns = new ArrayList<Point3D>(); // RED Team spawns (BLUE Team is y + 45)
     public static final ArrayList<Point3D> arenaArrowSpawns = new ArrayList<Point3D>();
+    public static final int SPAWN_TIMER = 20 * 20;
 
     // Server state
     public static final int ERROR = -1;
@@ -95,7 +97,7 @@ public class ServerDodgeball extends ServerInterface {
 
                 if (!displayedWelcomeMessage) {
                     displayedWelcomeMessage = true;
-                    sendTitleAll("Good luck, have fun!", "Game begins in 60 seconds!");
+                    sendTitleAll("Good luck, have fun!", "Game begins in 30 seconds!");
                     sendMultipleMessageAll(new String[]{
                             ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
                                     "This map is " + ChatColor.BOLD + "SG Dodgeball" + ChatColor.RESET + ", by SkyGames Team\n" +
@@ -103,13 +105,14 @@ public class ServerDodgeball extends ServerInterface {
                                     " \n",
                             ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                     "1. You have three lives\n" +
-                                    "2. Arrows will spawn on the beacon every 20 seconds\n" +
-                                    "3. Kill the other team, each kill is worth +75 points!\n" +
+                                    "2. Arrows will spawn on the beacon every 10 seconds\n" +
+                                    "3. Kill the other team, each kill is worth +125 points!\n" +
                                     "4. Eliminating all 3 lives of every opposing team's players awards everyone still alive on your team +250 points each!"
                     }, new int[]{
                             120,
                             45,
                     });
+                    this.set(30 * 20);
                 }
             }
 
@@ -200,12 +203,12 @@ public class ServerDodgeball extends ServerInterface {
                 .freeze(50));
         steps.add(new CutsceneStep(time += 65)
                 .pos(10017, 4, 17.3, 126, 29.5f)
-                .title("Arrows will spawn here", "every 20 seconds", 60)
+                .title("Arrows will spawn here", "every 10 seconds", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 75)
                 .pos(10014.5, 4.5, 4, 0, 0)
-                .title("Each kill is worth 75 points", "Winning the game will award alive team members 250 bonus points each!", 80)
+                .title("Each kill is worth 125 points", "Winning the game will award alive team members 250 bonus points each!", 80)
                 .linear());
         steps.add(new CutsceneStep(time += 60)
                 .pos(10014.5, 4.5, 4, 0, 0)
@@ -414,8 +417,9 @@ public class ServerDodgeball extends ServerInterface {
                                     redSpawnLocation.getX(), redSpawnLocation.getY(), redSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(redSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(redSpawn, true);
+                            playerColor.put(player.bukkitPlayer.getUniqueId(), true);
                         }
-                        // Send team 2 to RED spawn
+                        // Send team 2 to BLUE spawn
                         if (player.myTeam.id == team2.id) {
                             playerDodgeball.opponentTeam = team1;
                             playerDodgeball.arena = arenaNo;
@@ -423,6 +427,7 @@ public class ServerDodgeball extends ServerInterface {
                                     blueSpawnLocation.getX(), blueSpawnLocation.getY(), blueSpawnLocation.getZ());
                             player.bukkitPlayer.teleport(blueSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(blueSpawn, true);
+                            playerColor.put(player.bukkitPlayer.getUniqueId(), false);
                         }
                     }
                 }
@@ -435,6 +440,8 @@ public class ServerDodgeball extends ServerInterface {
             playerDodgeball.kills = 0;
             playerDodgeball.lives = 3;
             playerDodgeball.invulnerable = true;
+            playerDodgeball.inSpawn = true;
+            playerDodgeball.spawnTimer = SPAWN_TIMER;
 
             PlayerUtils.resetPlayer(playerDodgeball.bukkitPlayer, GameMode.ADVENTURE);
             playerDodgeball.bukkitPlayer.setInvisible(true);
@@ -443,6 +450,32 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     private void dodgeballTick() {
+        // Logic for spawn timers
+        for (PlayerInterface player : players) {
+            PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
+            // Logic only applies if the game isn't already about to end, only to those who are in spawn, and are still playing the game
+            if (timerInProgress.get() >= 12 * 20 && playerDodgeball.inSpawn && playerDodgeball.bukkitPlayer.getGameMode() == GameMode.ADVENTURE && playerDodgeball.arena != -1) {
+
+                // Decrement timer
+                playerDodgeball.spawnTimer = Math.max(playerDodgeball.spawnTimer - 1, 0);
+
+                // Start killing the player if they are in spawn for too long
+                if (playerDodgeball.spawnTimer <= 0) {
+                    playerDodgeball.bukkitPlayer.damage(1);
+                }
+
+                // Send the player messages
+                int secondsLeft = (int) (playerDodgeball.spawnTimer / 20 + 0.5);
+                if (secondsLeft >= 11 && secondsLeft <= 14) {
+                    playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GOLD + "You must leave spawn!", ChatColor.GOLD + "Or else you will start to take damage!", 0, 20, 10);
+                } else if (secondsLeft > 0 && secondsLeft <= 10) {
+                    playerDodgeball.bukkitPlayer.sendTitle("" + secondsLeft + " seconds left", "Until you start to take damage!", 0, 20, 10);
+                } else if (secondsLeft <= 0) {
+                    playerDodgeball.bukkitPlayer.sendTitle(ChatColor.RED + "You must leave spawn!", ChatColor.RED + "You will now take damage until you die!", 0, 20, 10);
+                }
+            }
+        }
+
         // Logic for spawning arrows
         spawnArrowsTick--;
         if (spawnArrowsTick <= 0) {
@@ -453,12 +486,13 @@ public class ServerDodgeball extends ServerInterface {
                 world.dropItem(arrowSpawn, arrow);
             }
             sendActionBarAll("An arrow has spawned!");
-        } else if (spawnArrowsTick <= SPAWN_ARROWS_TICK - 5 * 20) {
+        } else if (spawnArrowsTick <= SPAWN_ARROWS_TICK - 3 * 20) {
             int seconds = (int) (spawnArrowsTick / 20 + 0.5);
             sendActionBarAll("Next arrow spawns in: " + seconds + " seconds");
         }
 
-        if (timerInProgress.get() > 12 * 20) {
+        // Check if all arena's competitions have completed
+        if (timerInProgress.get() > 17 * 20) {
             boolean terminate = true;
             for (PlayerInterface player : players) {
                 PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
@@ -469,7 +503,7 @@ public class ServerDodgeball extends ServerInterface {
             }
 
             if (terminate) {
-                timerInProgress.set(12 * 20);
+                timerInProgress.set(17 * 20);
             }
         }
     }
@@ -484,6 +518,7 @@ public class ServerDodgeball extends ServerInterface {
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
         }
 
+        // If we still have more rounds, restart the game counter
         if (currentGame < totalGames) {
             timerStartGame.set(TIMER_STARTING);
             timerInProgress.set(TIMER_INPROGRESS);
@@ -556,8 +591,9 @@ public class ServerDodgeball extends ServerInterface {
         player.getInventory().setItem(7, levelSelect);
     }
 
-    public int practiceArenaNum[]= new int[] {0,0,0,0,0};
+    public int practiceArenaNum[] = new int[]{0, 0, 0, 0, 0};
     public int practiceArrowTick = 0;
+
     public void dodgeballPracticeMode() {
         practiceModeTimer = new BukkitRunnable() {
             @Override

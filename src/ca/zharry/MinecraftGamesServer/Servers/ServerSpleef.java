@@ -4,8 +4,6 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
-import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
-import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSpleef;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
@@ -31,7 +29,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,15 +42,15 @@ public class ServerSpleef extends ServerInterface {
     // Game config
     public static final int TIMER_STARTING = 60 * 20;
     public static final int TIMER_BEGIN = 10 * 20;
-    public static final int TIMER_INPROGRESS = 8 * 60 * 20;
+    public static final int TIMER_INPROGRESS = 6 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
     public static final int COMPETITION_MAX_HEIGHT = 73;
-    public static final int COMPETITION_MIN_HEIGHT = 15;
+    public static final int COMPETITION_MIN_HEIGHT = -16;
     public static final int TOTAL_GAMES = 3;
-    public static final int TNT_WARNING_TIME = 6 * 20;
-    public static final int TNT_PRIME_TIME = 1 * 20;
     public static final int TELEPORT_MAX_Y = 64;
     public static final int TELEPORT_MIN_Y = 61;
+    public static final int TELEPORT_SUDDENDEATH_MAX_Y = 25;
+    public static final int TELEPORT_SUDDENDEATH_MIN_Y = 22;
     public static final int TELEPORT_SPREAD_RADIUS = 30;
 
     // Server state
@@ -63,10 +60,18 @@ public class ServerSpleef extends ServerInterface {
     public static final int GAME_BEGIN = 4;
     public static final int GAME_INPROGRESS = 2;
     public static final int GAME_FINISHED = 3;
+
+    // Sudden death states
+    public static final int SUDDENDEATH_PENDING = 0;
+    public static final int SUDDENDEATH_COUNTDOWN = 1;
+    public static final int SUDDENDEATH_COMPLETED = 2;
+
     public int state = ERROR;
     public int currentGame = 1;
     public boolean firstRun = true;
     public int tntCooldown = 0;
+    public int suddenDeathState = SUDDENDEATH_PENDING;
+    public int suddenDeathCounter;
 
     // Server tasks
     public Timer timerStartGame;
@@ -89,12 +94,10 @@ public class ServerSpleef extends ServerInterface {
         timerStartGame = new Timer(plugin) {
             @Override
             public void onStart() {
-                state = GAME_STARTING;
-
                 if (firstRun) {
                     state = GAME_BEGIN;
                     spleefBegin();
-                    sendTitleAll("Last one standing wins!", "Good luck! Game begins in 60 seconds!");
+                    sendTitleAll("Last one standing wins!", "Good luck! Game begins in 30 seconds!");
                     sendMultipleMessageAll(new String[]{
                             ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
                                     "This map is " + ChatColor.BOLD + "Makers Spleef 2" + ChatColor.RESET + ", by MineMakers Team\n" +
@@ -109,7 +112,9 @@ public class ServerSpleef extends ServerInterface {
                             120,
                             45,
                     });
+                    this.set(30 * 20);
                 } else {
+                    state = GAME_STARTING;
                     new BukkitRunnable() {
                         @Override
                         public void run() {
@@ -227,12 +232,12 @@ public class ServerSpleef extends ServerInterface {
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
-                .pos(6, 38, 11, -64, -12)
+                .pos(0.5, 42, 9.5, -60, 12)
                 .title("The last player standing wins", "earning 250 additional points!", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
-                .pos(-16, 50, -10, -45, 35)
+                .pos(-11, 28.5, 2, -64, 33)
                 .title("Each time a player is eliminated", "everyone still alive will be awarded 75 survival points!", 60)
                 .linear());
 
@@ -281,8 +286,8 @@ public class ServerSpleef extends ServerInterface {
     @Override
     public void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(new ListenerSpleef(this), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
+        //plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
+        //plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
     }
 
     @Override
@@ -318,92 +323,68 @@ public class ServerSpleef extends ServerInterface {
         players.forEach((player) -> ((PlayerSpleef) player).dead = false);
 
         for (PlayerInterface player : players) {
-            sendToArena((PlayerSpleef) player);
+            sendToArena((PlayerSpleef) player, TELEPORT_MIN_Y, TELEPORT_MAX_Y);
         }
     }
 
     private void spleefTick() {
         int counter = 0;
-        PlayerInterface lastOneAlive = players.get(0);
         for (PlayerInterface player : players) {
             PlayerSpleef playerSpleef = (PlayerSpleef) player;
             if (!playerSpleef.dead) {
-                lastOneAlive = player;
                 counter++;
             }
         }
-
-        if (counter == 1) {
+        if (counter <= 1) {
             timerInProgress.set(0);
-            return;
         }
 
-        ArrayList<PlayerInterface>[] playerLayers = (ArrayList<PlayerInterface>[]) new ArrayList[2];
-        for (int i = 0; i < playerLayers.length; ++i) {
-            playerLayers[i] = new ArrayList<>();
-        }
+        // Every second, lose half a hunger
+        if (timerInProgress.get() % 20 == 0) {
+            for (PlayerInterface player : players) {
+                // Decrement hunger bar
+                int hunger = player.bukkitPlayer.getFoodLevel();
+                hunger = Math.max(hunger - 1, 0);
+                player.bukkitPlayer.setFoodLevel(hunger);
 
-        // Finds players on with layer of the map they are on
-        for (PlayerInterface player : players) {
-            if (player.bukkitPlayer.getGameMode() != GameMode.SURVIVAL) {
-                continue;
-            }
-            double ypos = player.bukkitPlayer.getLocation().getY();
-            if (ypos < COMPETITION_MAX_HEIGHT && ypos >= 56) {
-                // upper layer
-                playerLayers[0].add(player);
-            } else if (ypos < 56 && ypos >= 36) {
-                // lower layer
-                playerLayers[1].add(player);
-            }
-        }
-
-        // Find all the players that need to blow up
-        ArrayList<PlayerInterface> playersToBlowUp = new ArrayList<>();
-        outer:
-        for (int i = 0; i < playerLayers.length; ++i) {
-            int teamId = -1;
-            for (PlayerInterface player : playerLayers[i]) {
-                if (teamId == -1) {
-                    teamId = player.myTeam.id;
-                } else if (teamId != player.myTeam.id) {
-                    break outer;
+                // Decrement health bar
+                int health = (int) player.bukkitPlayer.getHealth();
+                if (hunger <= 0) {
+                    player.bukkitPlayer.damage(1);
                 }
-            }
-
-            if (teamId != -1) {
-                for (PlayerInterface player : playerLayers[i]) {
-                    playersToBlowUp.add(player);
+                if (hunger >= 18) {
+                    health = Math.min(health + 1, 20);
+                    player.bukkitPlayer.setHealth(health);
                 }
-                break;
             }
         }
 
-        // Blow em' up
-        if (playersToBlowUp.size() > 0) {
-            // Send the warning message
-            if (tntCooldown == TNT_WARNING_TIME) {
-                for (PlayerInterface player : playersToBlowUp) {
-                    player.bukkitPlayer.sendTitle(ChatColor.GOLD + "Warning: TNT spawning!", "You are the last team alive on this layer.", 0, 60, 20);
+        // Sudden death
+        if (timerInProgress.get() < 2400 && timerInProgress.get() > 0) {
+            if(suddenDeathState == SUDDENDEATH_PENDING) {
+                spleefRestore(world);
+                for (PlayerInterface player : players) {
+                    PlayerSpleef playerSpleef = (PlayerSpleef) player;
+                    if (!playerSpleef.dead) {
+                        sendToArena((PlayerSpleef) player, TELEPORT_SUDDENDEATH_MIN_Y, TELEPORT_SUDDENDEATH_MAX_Y);
+                    }
                 }
-            }
-
-            tntCooldown--;
-            if (tntCooldown <= 0) {
-                for (PlayerInterface player : playersToBlowUp) {
-                    TNTPrimed tnt = world.spawn(player.bukkitPlayer.getLocation(), TNTPrimed.class);
-                    tnt.setYield(8);
-                    tnt.setGravity(false);
-                    tnt.setVelocity(new Vector(0, 0, 0));
+                suddenDeathState = SUDDENDEATH_COUNTDOWN;
+                suddenDeathCounter = 4 * 20;
+                sendTitleAll("Sudden death!", "", 0, 20, 20);
+            } else if(suddenDeathState == SUDDENDEATH_COUNTDOWN) {
+                suddenDeathCounter--;
+                if(suddenDeathCounter <= 3 * 20) {
+                    int suddenDeathTime = (int) Math.ceil(suddenDeathCounter / 20.0);
+                    sendTitleAll("Sudden death!", "" + (suddenDeathTime == 0 ? "Fight!" : suddenDeathTime), 0, 20, 20);
                 }
-                tntCooldown = TNT_PRIME_TIME;
+                if(suddenDeathCounter <= 0) {
+                    suddenDeathState = SUDDENDEATH_COMPLETED;
+                }
             }
         } else {
-            tntCooldown = TNT_WARNING_TIME;
+            suddenDeathState = SUDDENDEATH_PENDING;
         }
-
-        // Try to stop TNT from moving
-        world.getEntitiesByClass(TNTPrimed.class).forEach(tnt -> tnt.setVelocity(new Vector(0, 0, 0)));
     }
 
     private void spleefEnd() {
@@ -418,6 +399,8 @@ public class ServerSpleef extends ServerInterface {
                     player.bukkitPlayer.teleport(serverSpawn);
                 }
             }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
+
+            //
             if (!((PlayerSpleef) player).dead) {
                 player.addScore(250, "last player alive");
                 player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 250 additional points!", 0, 60, 10);
@@ -428,6 +411,7 @@ public class ServerSpleef extends ServerInterface {
             player.commit();
         }
 
+        // Check if we played enough rounds
         if (currentGame++ < TOTAL_GAMES) {
             timerStartGame.set(TIMER_STARTING);
             timerBegin.set(TIMER_BEGIN);
@@ -480,17 +464,17 @@ public class ServerSpleef extends ServerInterface {
         return counter;
     }
 
-    public void sendToArena(PlayerSpleef player) {
+    public void sendToArena(PlayerSpleef player, int minY, int maxY) {
         Random random = new Random();
 
         Location spreadStart = serverSpawn;
         while (true) {
             int x = random.nextInt(TELEPORT_SPREAD_RADIUS * 2 + 1) - TELEPORT_SPREAD_RADIUS + (int) spreadStart.getX();
             int z = random.nextInt(TELEPORT_SPREAD_RADIUS * 2 + 1) - TELEPORT_SPREAD_RADIUS + (int) spreadStart.getZ();
-            int y = TELEPORT_MIN_Y;
+            int y = minY;
 
             boolean found = false;
-            for (; y <= TELEPORT_MAX_Y; y++) {
+            for (; y <= maxY; y++) {
                 if (world.getBlockAt(x, y, z).getType() != Material.AIR &&
                         world.getBlockAt(x, y + 1, z).getType() == Material.AIR) {
                     spreadStart = new Location(world, x + 0.5, y + 1, z + 0.5);
@@ -518,9 +502,9 @@ public class ServerSpleef extends ServerInterface {
     /* MAP LOGIC */
 
     public void spleefRestore(World world) {
-        for (int x = -24; x < 53; ++x) {
-            for (int y = 38; y < 74; ++y) {
-                for (int z = -19; z < 54; ++z) {
+        for (int x = -24; x <= 52; ++x) {
+            for (int y = 19; y <= 73; ++y) {
+                for (int z = -19; z <= 53; ++z) {
                     Material mat = world.getBlockAt(x + 10000, y, z + 10000).getType();
                     if (mat != Material.AIR) {
                         Block block = world.getBlockAt(x, y, z);

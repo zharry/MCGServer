@@ -16,9 +16,7 @@ import ca.zharry.MinecraftGamesServer.Utils.EntityHider;
 import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
-import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
@@ -92,7 +90,7 @@ public class ServerParkour extends ServerInterface {
                                 " \n",
                         ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                 "1. Step on beacons to receive a checkpoint\n" +
-                                "2. Each checkpoint is worth 150 points!\n" +
+                                "2. Each checkpoint is worth 200 points!\n" +
                                 "3. You will be teleported to next stage upon reaching it's last checkpoint\n" +
                                 "4. Go as far as you can!",
                 }, new int[]{
@@ -168,7 +166,7 @@ public class ServerParkour extends ServerInterface {
                 .title("Welcome to Parkour", "Map made by Tommycreeper", 60));
         steps.add(new CutsceneStep(time += 100)
                 .pos(9922.5, 64, 1.5, 90, 40)
-                .title("Beacons are checkpoints", "Each checkpoint is worth 150 points!", 60));
+                .title("Beacons are checkpoints", "Each checkpoint is worth 200 points!", 60));
         steps.add(new CutsceneStep(time += 100)
                 .pos(20000, 74, -18, 50, 22)
                 .title("Upon completing each stage", "you will be teleported to the next stage", 60));
@@ -285,87 +283,7 @@ public class ServerParkour extends ServerInterface {
     }
 
     private void parkourTick() {
-        for (int i = 0; i < players.size(); i++) {
-            PlayerParkour player = (PlayerParkour) players.get(i);
-            Player bukkitPlayer = player.bukkitPlayer;
 
-            // Check if the player is on a Beacon
-            if (bukkitPlayer.getLocation().getBlock().getRelative(BlockFace.DOWN).getType() == Material.BEACON) {
-                Location blockLocation = bukkitPlayer.getLocation().getBlock().getLocation();
-                Point3D blockPoint = new Point3D(blockLocation.getX(), blockLocation.getY() - 1, blockLocation.getZ());
-
-                // Find out which stage the beacon block is on
-                int stage1Index = stage1Checkpoints.indexOf(blockPoint);
-                int stage2Index = stage2Checkpoints.indexOf(blockPoint);
-                int stage3Index = stage3Checkpoints.indexOf(blockPoint);
-                int stage4Index = stage4Checkpoints.indexOf(blockPoint);
-                int stage5Index = stage5Checkpoints.indexOf(blockPoint);
-                int stage6Index = stage6Checkpoints.indexOf(blockPoint);
-                int stage = -1;
-                if (stage1Index != -1) stage = 1;
-                if (stage2Index != -1) stage = 2;
-                if (stage3Index != -1) stage = 3;
-                if (stage4Index != -1) stage = 4;
-                if (stage5Index != -1) stage = 5;
-                if (stage6Index != -1) stage = 6;
-                // This represents what level the block is on, for the stage determined above
-                int[] levels = {-1, stage1Index, stage2Index, stage3Index, stage4Index, stage5Index, stage6Index};
-                // This represents how many levels the player would have completed upon reaching the (i + 1)th stage
-                int[] stageCompletedLevels = {0,
-                        stage1Checkpoints.size() - 1,
-                        stage1Checkpoints.size() + stage2Checkpoints.size() - 2,
-                        stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() - 3,
-                        stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() + stage4Checkpoints.size() - 4,
-                        stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() + stage4Checkpoints.size() + stage5Checkpoints.size() - 5,
-                        stage1Checkpoints.size() + stage2Checkpoints.size() + stage3Checkpoints.size() + stage4Checkpoints.size() + stage5Checkpoints.size() + stage6Checkpoints.size() - 6
-                };
-
-                // Award points if this is new
-                if (stage == player.stage && levels[stage] > player.level ||
-                        stage > player.stage) {
-                    if (levels[stage] != 0) {
-                        player.stage = stage;
-                        player.level = levels[stage];
-                        int newScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
-                        player.addScore(newScore - player.getCurrentScore(), "completed " + player.stage + "-" + player.level);
-                        bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
-                        sendMessageAll(player.bukkitPlayer.getDisplayName() +
-                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + player.getCurrentScore() + "] " +
-                                ChatColor.RESET + "has completed Stage " + stage + "-" + levels[stage]);
-
-                        bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
-                    }
-                }
-
-                // Check if we finished the stages
-                boolean finishedStage = false;
-                Point3D nextStart = stage1Checkpoints.get(0);
-                if (stage1Index == stage1Checkpoints.size() - 1) {
-                    finishedStage = true;
-                    nextStart = stage2Checkpoints.get(0);
-                } else if (stage2Index == stage2Checkpoints.size() - 1) {
-                    finishedStage = true;
-                    nextStart = stage3Checkpoints.get(0);
-                } else if (stage3Index == stage3Checkpoints.size() - 1) {
-                    finishedStage = true;
-                    nextStart = stage4Checkpoints.get(0);
-                } else if (stage4Index == stage4Checkpoints.size() - 1) {
-                    finishedStage = true;
-                    nextStart = stage5Checkpoints.get(0);
-                } else if (stage5Index == stage5Checkpoints.size() - 1) {
-                    finishedStage = true;
-                    nextStart = stage6Checkpoints.get(0);
-                } else if (stage6Index == stage6Checkpoints.size() - 1) {
-                    bukkitPlayer.teleport(mapEnd);
-                    continue;
-                }
-                if (finishedStage) {
-                    Location nextStage = new Location(world, nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
-                    bukkitPlayer.teleport(nextStage);
-                    bukkitPlayer.setBedSpawnLocation(nextStage, true);
-                }
-            }
-        }
     }
 
     private void parkourEnd() {
@@ -487,6 +405,7 @@ public class ServerParkour extends ServerInterface {
         stage6Checkpoints.add(new Point3D(-27 - 7 + 60000, 80 - 77 + 63, 52 - 51));
         stage6Checkpoints.add(new Point3D(-35 - 7 + 60000, 84 - 77 + 63, 48 - 51));
         stage6Checkpoints.add(new Point3D(-45 - 7 + 60000, 92 - 77 + 63, 55 - 51));
+        stage6Checkpoints.add(new Point3D(-61 - 7 + 60000, 94 - 77 + 63, 54 - 51));
         stage6Checkpoints.add(new Point3D(-67 - 7 + 60000, 98 - 77 + 63, 49 - 51));
         stage6Checkpoints.add(new Point3D(-74 - 7 + 60000, 106 - 77 + 63, 54 - 51));
         stage6Checkpoints.add(new Point3D(-74 - 7 + 60000, 111 - 77 + 63, 51 - 51));

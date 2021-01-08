@@ -78,8 +78,8 @@ public class ListenerSurvivalGames implements Listener {
             for (PlayerInterface p : server.players) {
                 PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) p;
                 if (!playerSurvivalGames.dead) {
-                    playerSurvivalGames.addScore(100, deadPlayer.getName() + " has died!");
-                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+100]" +
+                    playerSurvivalGames.addScore(125, deadPlayer.getName() + " has died!");
+                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+125]" +
                             ChatColor.RESET + " survival points, " + deadPlayer.getDisplayName() + " has died!");
                 }
             }
@@ -89,8 +89,8 @@ public class ListenerSurvivalGames implements Listener {
             if (k != null) {
                 PlayerSurvivalGames killer = (PlayerSurvivalGames) server.playerLookup.get(k.getUniqueId());
                 killer.kills += 1;
-                killer.addScore(200, "killed " + deadPlayer.getName());
-                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+200]" +
+                killer.addScore(350, "killed " + deadPlayer.getName());
+                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+350]" +
                         ChatColor.RESET + " for killing " + deadPlayer.getDisplayName());
                 player.bukkitPlayer.sendTitle(ChatColor.RED + "You died!", "Killed by " + killer.bukkitPlayer.getDisplayName(), 10, 70, 20);
             }
@@ -188,7 +188,7 @@ public class ListenerSurvivalGames implements Listener {
                         server.openedChests.add(coord);
                         ServerSurvivalGames.SpecialItem specialItem = server.specialChests.get(coord);
                         if(specialItem != null) {
-                            server.sendMessageAll(server.playerLookup.get(player.getUniqueId()).bukkitPlayer.getDisplayName() + " has opened the chest " + specialItem.location + " containing " + specialItem.item.getItemMeta().getDisplayName());
+                            //server.sendMessageAll(server.playerLookup.get(player.getUniqueId()).bukkitPlayer.getDisplayName() + " has opened the chest " + specialItem.location + " containing " + specialItem.item.getItemMeta().getDisplayName());
                         }
                     }
                 } else if (player.getGameMode() == GameMode.SPECTATOR) {

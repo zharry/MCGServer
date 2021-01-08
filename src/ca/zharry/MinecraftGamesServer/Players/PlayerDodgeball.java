@@ -21,6 +21,8 @@ public class PlayerDodgeball extends PlayerInterface {
     public int lives = 0;
     public int arena = -1;
     public boolean invulnerable = true;
+    public boolean inSpawn = true;
+    public int spawnTimer = ServerDodgeball.SPAWN_TIMER;
     public MCGTeam opponentTeam;
     public Location lastDeathLocation;
 

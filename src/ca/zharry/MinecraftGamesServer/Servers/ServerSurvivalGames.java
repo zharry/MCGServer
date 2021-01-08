@@ -131,8 +131,8 @@ public class ServerSurvivalGames extends ServerInterface {
                                 " \n",
                         ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                 "1. Collect loot from chests around the map\n" +
-                                "2. Kill other players (+50pts)\n" +
-                                "3. Survive longer than the other players (+25pts)\n" +
+                                "2. Kill other players (+350pts)\n" +
+                                "3. Survive longer than the other players (+125pts)\n" +
                                 "4. Watch out for server events (border shrink, chest refills, and etc...)",
                 }, new int[]{
                         10,
@@ -225,6 +225,9 @@ public class ServerSurvivalGames extends ServerInterface {
                 .pos(-20, 71, 12, -120, 25)
                 .title("Welcome to Survival Games", "Map made by xBayani", 60)
                 .freeze(50));
+
+
+        //Intro
         steps.add(new CutsceneStep(time += 100)
                 .pos(-6.5, 69.5, 0.5, -90, 10)
                 .title("Collect loot from chests", "There is an additional chest refill at 13 mins!", 60)
@@ -232,19 +235,31 @@ public class ServerSurvivalGames extends ServerInterface {
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(13.5, 90, 20, 145, 55)
-                .title("Kill all other players", "and gain 200 points per kill!", 60)
+                .title("Kill all other players", "and gain 350 points per kill!", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(90, 102, 72, 135, 25)
-                .title("You can also earn survival points", "100 points every time another player dies.", 60)
+                .title("You can also earn survival points", "125 points every time another player dies.", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
-                .pos(90, 102, 72, -102, 0)
+                .pos(60, 105, 212, 135, 12)
                 .title("The map is 400 blocks wide", "and shrinks to 200 at 11 mins, and 50 at 20 mins!", 60)
                 .linear()
+                .freeze(75));
+        steps.add(new CutsceneStep(time+=120)
+                .pos(0.5, 125, 0, 0, 90)
+                .title("", "", 60)
+                .linear());
+        steps.add(new CutsceneStep(time += 50)
+                .pos(0.5, 176, 0.5, 0, 0)
+                .title("Let the games begin", "and may the odds be ever in your favour", 60)
+                .linear()
                 .freeze(50));
+
+        //Old Cinematics for Rare Items
+        /*
         steps.add(new CutsceneStep(time += 100)
                 .pos(0, 78, -100, -155, 10)
                 .title("There are 4 special items", "which are guaranteed to generate in 4 special chests!", 60)
@@ -320,6 +335,7 @@ public class ServerSurvivalGames extends ServerInterface {
                 }));
         steps.add(new CutsceneStep(time += 100).comment("Close chest")
                 .action((entry) -> players.forEach(player -> player.bukkitPlayer.closeInventory())));
+         */
 
 
         startGameTutorial = new Cutscene(plugin, this, steps) {
@@ -457,7 +473,6 @@ public class ServerSurvivalGames extends ServerInterface {
 
     private void survivalGamesTick() {
         int counter = 0;
-        int lastTeamAlive = teamIDs.get(0);
 
         // Go through all the teams
         for (int teamID : teamIDs) {
@@ -471,14 +486,12 @@ public class ServerSurvivalGames extends ServerInterface {
                         alive = true;
                     }
             }
-            // If they do, this is a candidate to be the last team standing
             if (alive) {
                 counter++;
-                lastTeamAlive = teamID;
             }
         }
 
-        if (counter == 1) {
+        if (counter <= 1) {
             survivalGamesEnd();
         }
     }
@@ -565,7 +578,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
     public void resetWorldBorder() {
         WorldBorder border = world.getWorldBorder();
-        border.setSize(500 + 1);
+        border.setSize(400 + 1);
         border.setCenter(0.5, 0.5);
         border.setDamageBuffer(0);
     }
@@ -574,8 +587,8 @@ public class ServerSurvivalGames extends ServerInterface {
         WorldBorder border = world.getWorldBorder();
         int size = (int) border.getSize();
         // Ask Jacky about this one...
-        if (size == 501)
-            size = 500;
+        if (size == 401)
+            size = 400;
         if (size == 201)
             size = 200;
         if (size == 51)
@@ -689,16 +702,18 @@ public class ServerSurvivalGames extends ServerInterface {
         lootTable.put(0.500037, new ItemChoice(Material.FLINT_AND_STEEL, 1));
         lootTable.put(3.000040, new ItemChoice(fireResistance, 1, 0));
         lootTable.put(3.000041, new ItemChoice(instantDamage, 1, 0));
-        lootTable.put(3.000050, new ItemChoice(Material.APPLE, 5, 1));
-        lootTable.put(3.000051, new ItemChoice(Material.COOKIE, 4, 1.5));
-        lootTable.put(3.000052, new ItemChoice(Material.COOKED_CHICKEN, 1));
+        lootTable.put(3.000050, new ItemChoice(Material.CARROT, 4, 1.5));
+        lootTable.put(3.000051, new ItemChoice(Material.APPLE, 5, 1));
+        lootTable.put(3.000052, new ItemChoice(Material.COOKIE, 4, 1.5));
+        lootTable.put(3.000053, new ItemChoice(Material.BREAD, 4, 1.5));
+        lootTable.put(3.000054, new ItemChoice(Material.COOKED_CHICKEN, 1));
         lootTable.put(1.500060, new ItemChoice(Material.ENCHANTED_BOOK, 1));
-        lootTable.put(1.000061, new ItemChoice(Material.EXPERIENCE_BOTTLE, 3, 1));
+        lootTable.put(1.500061, new ItemChoice(Material.EXPERIENCE_BOTTLE, 3, 1));
         lootTable.put(1.000062, new ItemChoice(Material.ENDER_PEARL, 1.5, 0.5));
-        lootTable.put(2.000060, new ItemChoice(Material.STICK, 1.5, 0.5));
-        lootTable.put(1.000060, new ItemChoice(Material.OAK_PLANKS, 2, 0.5));
-        lootTable.put(1.250060, new ItemChoice(Material.GOLD_INGOT, 1));
-        lootTable.put(0.500060, new ItemChoice(Material.IRON_INGOT, 1));
+        //lootTable.put(2.000060, new ItemChoice(Material.STICK, 1.5, 0.5));
+        lootTable.put(0.500060, new ItemChoice(Material.OAK_PLANKS, 6));
+        lootTable.put(0.500061, new ItemChoice(Material.IRON_INGOT, 1));
+        //lootTable.put(1.250060, new ItemChoice(Material.GOLD_INGOT, 1));
 
         enchantTable.put(1.001, new EnchantChoice(EnchantmentWrapper.FIRE_ASPECT, 1));
         enchantTable.put(1.002, new EnchantChoice(EnchantmentWrapper.ARROW_FIRE, 1));
@@ -728,23 +743,27 @@ public class ServerSurvivalGames extends ServerInterface {
         lootTableTier2.put(3.000021, new ItemChoice(Material.GOLDEN_AXE, 1));
         lootTableTier2.put(2.000021, new ItemChoice(Material.IRON_AXE, 1));
         lootTableTier2.put(1.000021, new ItemChoice(Material.DIAMOND_AXE, 1));
-        lootTableTier2.put(1.000030, new ItemChoice(Material.ARROW, 8, 2));
+        lootTableTier2.put(3.000030, new ItemChoice(Material.ARROW, 8, 2));
         lootTableTier2.put(1.000031, new ItemChoice(Material.FISHING_ROD, 1));
         lootTableTier2.put(1.250032, new ItemChoice(Material.LAVA_BUCKET, 1));
         lootTableTier2.put(1.000033, new ItemChoice(Material.TNT, 1));
-        lootTableTier2.put(3.000034, new ItemChoice(Material.CROSSBOW, 1));
-        lootTableTier2.put(1.000035, new ItemChoice(Material.BOW, 1));
+        lootTableTier2.put(2.000034, new ItemChoice(Material.CROSSBOW, 1));
+        lootTableTier2.put(2.000035, new ItemChoice(Material.BOW, 1));
         lootTableTier2.put(2.500036, new ItemChoice(Material.COBWEB, 3, 0.5));
         lootTableTier2.put(1.500037, new ItemChoice(Material.FLINT_AND_STEEL, 1));
         lootTableTier2.put(3.000040, new ItemChoice(fireResistance, 1, 0));
         lootTableTier2.put(3.000041, new ItemChoice(instantDamage, 1, 0));
-        lootTableTier2.put(3.000052, new ItemChoice(Material.COOKED_CHICKEN, 3, 0.5));
+        lootTableTier2.put(3.000050, new ItemChoice(Material.APPLE, 6, 1));
+        lootTableTier2.put(3.000052, new ItemChoice(Material.COOKIE, 5, 1.5));
+        lootTableTier2.put(3.000053, new ItemChoice(Material.BREAD, 5, 1.5));
+        lootTableTier2.put(3.000054, new ItemChoice(Material.COOKED_CHICKEN, 3, 0.5));
+        lootTableTier2.put(2.000053, new ItemChoice(Material.COOKED_BEEF, 1));
         lootTableTier2.put(1.500060, new ItemChoice(Material.ENCHANTED_BOOK, 1));
         lootTableTier2.put(3.000061, new ItemChoice(Material.EXPERIENCE_BOTTLE, 3, 1));
-        lootTableTier2.put(2.000060, new ItemChoice(Material.STICK, 1.5, 0.5));
-        lootTableTier2.put(1.000060, new ItemChoice(Material.OAK_PLANKS, 2, 0.5));
-        lootTableTier2.put(1.250060, new ItemChoice(Material.IRON_INGOT, 1));
-        lootTableTier2.put(0.500060, new ItemChoice(Material.DIAMOND, 1));
+        //lootTableTier2.put(2.000060, new ItemChoice(Material.STICK, 1.5, 0.5));
+        lootTableTier2.put(1.000060, new ItemChoice(Material.OAK_PLANKS, 6));
+        lootTableTier2.put(1.000061, new ItemChoice(Material.IRON_INGOT, 1));
+        //lootTableTier2.put(0.500060, new ItemChoice(Material.DIAMOND, 1));
 
         double sum = 0;
         for (Map.Entry<Double, ItemChoice> entry : lootTable.entrySet()) {
@@ -882,6 +901,7 @@ public class ServerSurvivalGames extends ServerInterface {
         assassinsWindbreakerMeta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(UUID.randomUUID(), "generic.movement_speed", 0.2, AttributeModifier.Operation.ADD_SCALAR, EquipmentSlot.HAND));
         assassinsWindbreaker.setItemMeta(assassinsWindbreakerMeta);
 
+        /*
         placeItemInChest(world, new Coord3D(37, 37, -158), rebornGod); // Legendary Chest, under the volcano, north of spawn
         specialChests.put(new Coord3D(37, 37, -158), new SpecialItem("under the volcano", rebornGod));
 
@@ -893,6 +913,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
         placeItemInChest(world, new Coord3D(-3, 84, -34), guardiansScaledVest); // Special Chest, at spawn, waterfall, north of spawn
         specialChests.put(new Coord3D(-3, 84, -34), new SpecialItem("inside the spawn waterfall", guardiansScaledVest));
+         */
     }
 
     private void fillChestsStage2() {

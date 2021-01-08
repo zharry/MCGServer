@@ -7,10 +7,16 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
 import org.bukkit.Location;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.UUID;
@@ -60,10 +66,34 @@ public class ServerLobby extends ServerInterface {
         }.set(TIMER_START);
     }
 
+    public enum VanillaClickType {
+        PICKUP,
+        QUICK_MOVE,
+        SWAP,
+        CLONE,
+        THROW,
+        QUICK_CRAFT,
+        PICKUP_ALL
+    }
+
     @Override
     public void onEnableCall() {
         super.onEnableCall();
         this.state = LOBBY_WAITING;
+        MCGMain.protocolManager.addPacketListener(new PacketAdapter(this.plugin, PacketType.Play.Client.WINDOW_CLICK) {
+            @Override
+            public void onPacketReceiving(PacketEvent event) {
+                PacketContainer packet = event.getPacket();
+//                System.out.println(packet);
+                int containerId = packet.getIntegers().read(0);
+                int slotNum = packet.getIntegers().read(1);
+                int buttonNum = packet.getIntegers().read(2);
+                short uid = packet.getShorts().read(0);
+                ItemStack itemStack = packet.getItemModifier().read(0);
+                VanillaClickType clickType = packet.getEnumModifier(VanillaClickType.class, 5).read(0);
+                System.out.println(String.format("ContainerId=%d, slotId=%d, buttonNum=%d, uid=%d, itemstack=%s, clickType=%s", containerId, slotNum, buttonNum, uid, itemStack.toString(), clickType.toString()));
+            }
+        });
     }
 
     @Override
