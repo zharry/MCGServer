@@ -68,6 +68,8 @@ public class ListenerSurvivalGames implements Listener {
             // Find the dead player
             Player deadPlayer = event.getEntity();
             PlayerSurvivalGames player = (PlayerSurvivalGames) server.playerLookup.get(deadPlayer.getUniqueId());
+            if (player.dead)
+                return;
 
             // Mark them as dead and upload their score
             player.dead = true;
@@ -107,12 +109,12 @@ public class ListenerSurvivalGames implements Listener {
             event.setRespawnLocation(survivalGamesPlayer.deathLocation);
         }
 
-        player.setInvisible(true);
+        //player.setInvisible(true);
 
         new BukkitRunnable() {
             public void run() {
                 player.setGameMode(GameMode.SPECTATOR);
-                player.setInvisible(false);
+                //player.setInvisible(false);
             }
         }.runTaskLater(server.plugin, 1);
     }

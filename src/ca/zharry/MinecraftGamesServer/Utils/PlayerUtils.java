@@ -23,7 +23,7 @@ public class PlayerUtils {
         player.setTotalExperience(0);
         player.getActivePotionEffects().clear();
         player.setFallDistance(0);
-        player.setInvisible(false);
+//        player.setInvisible(false);
     }
 
 }

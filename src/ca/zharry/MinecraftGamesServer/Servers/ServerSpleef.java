@@ -69,7 +69,6 @@ public class ServerSpleef extends ServerInterface {
     public int state = ERROR;
     public int currentGame = 1;
     public boolean firstRun = true;
-    public int tntCooldown = 0;
     public int suddenDeathState = SUDDENDEATH_PENDING;
     public int suddenDeathCounter;
 
@@ -107,7 +106,7 @@ public class ServerSpleef extends ServerInterface {
                                     "1. Destroy blocks to drop other players into the void\n" +
                                     "2. Survive longer as long as you can, winning the game is worth 250 points!\n" +
                                     "3. Each time a player is eliminated everyone will receive +75 points\n" +
-                                    "4. If you are the last team on the layer, TNT will start spawning at your feet!"
+                                    "4. Sudden death (all players are TP'ed to the bottom layer) begins at 2 min!"
                     }, new int[]{
                             120,
                             45,
@@ -239,15 +238,17 @@ public class ServerSpleef extends ServerInterface {
         steps.add(new CutsceneStep(time += 100)
                 .pos(-11, 28.5, 2, -64, 33)
                 .title("Each time a player is eliminated", "everyone still alive will be awarded 75 survival points!", 60)
+                .linear()
+                .freeze(50));
+        steps.add(new CutsceneStep(time += 100)
+                .pos(31, 34, 40, 150, 47)
+                .title("Sudden death starts in the final 2 mins!", "All players still alive will be teleported to the last layer!", 60)
                 .linear());
 
         startGameTutorial = new Cutscene(plugin, this, steps) {
             @Override
             public void onStart() {
                 spleefRestore(world);
-                for (PlayerInterface p : players) {
-                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-                }
             }
 
             @Override
@@ -400,7 +401,7 @@ public class ServerSpleef extends ServerInterface {
                 }
             }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
 
-            //
+
             if (!((PlayerSpleef) player).dead) {
                 player.addScore(250, "last player alive");
                 player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 250 additional points!", 0, 60, 10);
@@ -503,13 +504,16 @@ public class ServerSpleef extends ServerInterface {
 
     public void spleefRestore(World world) {
         for (int x = -24; x <= 52; ++x) {
-            for (int y = 19; y <= 73; ++y) {
+            for (int y = 0; y <= 73; ++y) {
                 for (int z = -19; z <= 53; ++z) {
                     Material mat = world.getBlockAt(x + 10000, y, z + 10000).getType();
-                    if (mat != Material.AIR) {
+                    if(y < 19) {
+                        mat = Material.AIR;
+                    }
+//                    if (mat != Material.AIR) {
                         Block block = world.getBlockAt(x, y, z);
                         block.setType(mat);
-                    }
+//                    }
                 }
             }
         }

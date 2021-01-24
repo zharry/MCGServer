@@ -25,7 +25,7 @@ public class MCGMain extends JavaPlugin {
 
     // Global configuration
     public static final int SEASON = 2;
-    public static final int PLAYER_TARGET = 24;
+    public static final int PLAYER_TARGET = 32;
 
     // Current server information
     public String serverMinigame;

@@ -90,7 +90,7 @@ public class ServerParkour extends ServerInterface {
                                 " \n",
                         ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                 "1. Step on beacons to receive a checkpoint\n" +
-                                "2. Each checkpoint is worth 200 points!\n" +
+                                "2. Each checkpoint is worth 150 points!\n" +
                                 "3. You will be teleported to next stage upon reaching it's last checkpoint\n" +
                                 "4. Go as far as you can!",
                 }, new int[]{
@@ -166,7 +166,7 @@ public class ServerParkour extends ServerInterface {
                 .title("Welcome to Parkour", "Map made by Tommycreeper", 60));
         steps.add(new CutsceneStep(time += 100)
                 .pos(9922.5, 64, 1.5, 90, 40)
-                .title("Beacons are checkpoints", "Each checkpoint is worth 200 points!", 60));
+                .title("Beacons are checkpoints", "Each checkpoint is worth 150 points!", 60));
         steps.add(new CutsceneStep(time += 100)
                 .pos(20000, 74, -18, 50, 22)
                 .title("Upon completing each stage", "you will be teleported to the next stage", 60));

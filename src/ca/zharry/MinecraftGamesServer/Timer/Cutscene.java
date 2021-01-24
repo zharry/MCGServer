@@ -156,13 +156,13 @@ public abstract class Cutscene {
             player.cutscene.removePlayerFromCutscene(player);
         }
         // Hide player from all existing cutscene viewers
-        for(PlayerInterface player2 : activePlayers.keySet()) {
+        for(PlayerInterface player2 : server.players) {
             player.bukkitPlayer.hidePlayer(plugin, player2.bukkitPlayer);
             player2.bukkitPlayer.hidePlayer(plugin, player.bukkitPlayer);
         }
 
         ActivePlayer activePlayer = new ActivePlayer(player);
-        player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+//        player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
         new BukkitRunnable() {
             public void run() {
                 player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
@@ -180,7 +180,7 @@ public abstract class Cutscene {
     public void removePlayerFromCutscene(PlayerInterface player) {
         if(activePlayers.containsKey(player)) {
             // Show players to all existing cutscene viewers
-            for(PlayerInterface player2 : activePlayers.keySet()) {
+            for(PlayerInterface player2 : server.players) {
                 player.bukkitPlayer.showPlayer(plugin, player2.bukkitPlayer);
                 player2.bukkitPlayer.showPlayer(plugin, player.bukkitPlayer);
             }

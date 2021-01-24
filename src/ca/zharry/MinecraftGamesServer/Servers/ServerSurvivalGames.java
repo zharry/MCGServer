@@ -40,7 +40,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
     // Game config
     public static final int COMPETITION_MAX_HEIGHT = 170;
-    public static final int TIMER_STARTING = 60 * 20;
+    public static final int TIMER_STARTING = 30 * 20;
     public static final int TIMER_BEGIN = 10 * 20;
     public static final int TIMER_INPROGRESS = 25 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
@@ -123,7 +123,7 @@ public class ServerSurvivalGames extends ServerInterface {
                 state = GAME_STARTING;
                 survivalGamesPreStart();
 
-                sendTitleAll("Good luck, have fun!", "Game will begin in 60 seconds!");
+                sendTitleAll("Good luck, have fun!", "Game will begin in 30 seconds!");
                 sendMultipleMessageAll(new String[]{
                         ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
                                 "This map is " + ChatColor.BOLD + "Breeze Island 2" + ChatColor.RESET + ", by xBayani\n" +

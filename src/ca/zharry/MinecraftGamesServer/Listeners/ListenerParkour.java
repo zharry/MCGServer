@@ -142,7 +142,7 @@ public class ListenerParkour implements Listener {
                     if (levels[stage] != 0) {
                         playerParkour.stage = stage;
                         playerParkour.level = levels[stage];
-                        int newScore = stageCompletedLevels[stage - 1] * 200 + levels[stage] * 200;
+                        int newScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
                         playerParkour.addScore(newScore - playerParkour.getCurrentScore(), "completed " + playerParkour.stage + "-" + playerParkour.level);
                         playerParkour.bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
                         server.sendMessageAll(playerParkour.bukkitPlayer.getDisplayName() +

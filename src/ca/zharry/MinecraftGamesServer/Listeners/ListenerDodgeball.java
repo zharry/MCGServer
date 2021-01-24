@@ -230,10 +230,10 @@ public class ListenerDodgeball implements Listener {
             if (player.lives <= 0) {
                 if (player.lastDeathLocation != null) {
                     event.setRespawnLocation(player.lastDeathLocation);
-                    player.bukkitPlayer.setInvisible(true);
+                    //player.bukkitPlayer.setInvisible(true);
                     new BukkitRunnable() {
                         public void run() {
-                            player.bukkitPlayer.setInvisible(false);
+                            //player.bukkitPlayer.setInvisible(false);
                             player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
                         }
                     }.runTaskLater(server.plugin, 1);
