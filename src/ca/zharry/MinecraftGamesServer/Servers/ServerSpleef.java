@@ -1,9 +1,7 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
 import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
+import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSpleef;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
@@ -79,8 +77,8 @@ public class ServerSpleef extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerSpleef(JavaPlugin plugin) {
-        super(plugin);
+    public ServerSpleef(JavaPlugin plugin, World world) {
+        super(plugin, world);
         serverSpawn = new Location(world, 14.5, 75, 17.5);
 
         // Add existing players (for hot-reloading)
@@ -90,7 +88,7 @@ public class ServerSpleef extends ServerInterface {
             player.teleport(serverSpawn);
         }
 
-        timerStartGame = new Timer(plugin) {
+        timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
             public void onStart() {
                 if (firstRun) {
@@ -149,9 +147,9 @@ public class ServerSpleef extends ServerInterface {
                     timerBegin.start();
                 }
             }
-        }.set(TIMER_STARTING);
+        };
 
-        timerBegin = new Timer(plugin) {
+        timerBegin = new Timer(plugin, "begin", TIMER_BEGIN) {
             @Override
             public void onStart() {
                 state = GAME_BEGIN;
@@ -171,9 +169,9 @@ public class ServerSpleef extends ServerInterface {
             public void onEnd() {
                 timerInProgress.start();
             }
-        }.set(TIMER_BEGIN);
+        };
 
-        timerInProgress = new Timer(plugin) {
+        timerInProgress = new Timer(plugin, "game", TIMER_INPROGRESS) {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
@@ -193,12 +191,13 @@ public class ServerSpleef extends ServerInterface {
             public void onEnd() {
                 spleefEnd();
             }
-        }.set(TIMER_INPROGRESS);
+        };
 
-        timerFinished = new Timer(plugin) {
+        timerFinished = new Timer(plugin, "finished", TIMER_FINISHED) {
             @Override
             public void onStart() {
                 state = GAME_FINISHED;
+                commitAllPlayers();
             }
 
             @Override
@@ -217,7 +216,7 @@ public class ServerSpleef extends ServerInterface {
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
             }
-        }.set(TIMER_FINISHED);
+        };
 
         ArrayList<CutsceneStep> steps = new ArrayList<>();
         int time = 0;
@@ -273,15 +272,7 @@ public class ServerSpleef extends ServerInterface {
     @Override
     public void registerCommands() {
         plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerBegin, timerInProgress, timerFinished));
     }
 
     @Override

@@ -4,15 +4,25 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public abstract class Timer {
 
-    private int ticks = -1;
+    private long ticks = -1;
     private boolean started = false;
     private boolean paused = true;
 
     public BukkitTask timerTask;
+    public final String name;
+    public final long defaultTicks;
 
-    public Timer(Plugin plugin) {
+    public Timer(Plugin plugin, String name, long defaultTicks) {
+        this.name = name;
+        this.defaultTicks = defaultTicks;
+        this.ticks = defaultTicks;
         timerTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -21,10 +31,7 @@ public abstract class Timer {
                     onTick();
                 }
                 if (!paused && ticks <= 0) {
-                    ticks = -1;
-                    started = false;
-                    paused = true;
-                    onEnd();
+                    end();
                 }
             }
         }.runTaskTimer(plugin, 0, 1);
@@ -36,13 +43,24 @@ public abstract class Timer {
 
     public abstract void onEnd();
 
-    public Timer set(int ticks) {
+    public Timer set(long ticks) {
         this.ticks = ticks;
         return this;
     }
 
-    public int get() {
+    public long get() {
         return ticks;
+    }
+
+    public void cancel() {
+        ticks = -1;
+        started = false;
+        paused = true;
+    }
+
+    public void end() {
+        cancel();
+        onEnd();
     }
 
     public void start() {
@@ -64,26 +82,56 @@ public abstract class Timer {
         return this.paused;
     }
 
-    public String getString() {
-        return ticksToTime(this.ticks);
+    public String toString() {
+        return ticksToTime(this.ticks) + (isPaused() ? " (Paused)" : "");
     }
 
-    public static String ticksToTime(int ticks) {
-        int minutes = (ticks / (20 * 60));
-        int seconds = (ticks % (20 * 60) / 20);
-        if (seconds < 10) {
-            return minutes + ":0" + seconds;
+    public static String ticksToTime(long ticks) {
+        boolean neg = ticks < 0;
+        if(neg) {
+            ticks = -ticks;
         }
-        return minutes + ":" + seconds;
-    }
 
-    public static String secondsToTime(int sec) {
-        int minutes = (sec / 60);
-        int seconds = (sec % 60);
-        if (seconds < 10) {
-            return minutes + ":0" + seconds;
+//        long seconds = (ticks + 19) / 20;
+        long seconds = ticks / 20;
+        if(seconds < 3600) {
+            return String.format("%d:%02d", seconds / 60, seconds % 60);
+        } else {
+            return String.format("%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
         }
-        return minutes + ":" + seconds;
     }
 
+    public static String secondsToTime(long sec) {
+        return ticksToTime(sec * 20);
+    }
+
+    public static final Pattern timePattern = Pattern.compile("^(?:(?:(\\d*):)?(\\d*):)?(\\d*)(?:(?:\\.(\\d*))|(?:,(\\d*)))?$");
+
+    public static long parseDefaultLong(String fragment) {
+        if(fragment == null || fragment.length() == 0) {
+            return 0;
+        }
+        return Long.parseLong(fragment);
+    }
+
+    public static double parseDefaultDecimal(String fragment) {
+        if(fragment == null || fragment.length() == 0) {
+            return 0;
+        }
+        return Double.parseDouble("." + fragment);
+    }
+
+    public static long parseTimeTicks(String time) {
+        Matcher matcher = timePattern.matcher(time);
+        if(matcher.find()) {
+            long h = parseDefaultLong(matcher.group(1));
+            long m = parseDefaultLong(matcher.group(2));
+            long s = parseDefaultLong(matcher.group(3));
+            double ms = parseDefaultDecimal(matcher.group(4));
+            long ticks = parseDefaultLong(matcher.group(5));
+            return h * 3600 * 20 + m * 60 * 20 + s * 20 + (long) (ms * 20) + ticks;
+        } else {
+            throw new NumberFormatException("Invalid time format");
+        }
+    }
 }

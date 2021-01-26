@@ -16,6 +16,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
+import javax.sql.rowset.CachedRowSet;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,9 +27,8 @@ import java.util.UUID;
 public abstract class PlayerInterface {
 
     // Scores
-    public String curMinigame = "lobby";
+    public String curMinigame;
     private int currentScore = 0;
-    public String currentMetadata = "";
     public ArrayList<MCGScore> previousScores = new ArrayList<>();
 
     public Player bukkitPlayer; // null if the player is offline
@@ -72,9 +72,9 @@ public abstract class PlayerInterface {
     }
 
     private void addPlayerTeamToScoreboard(Scoreboard scoreboard, MCGTeam team, PlayerInterface player) {
-        Team minecraftTeam = scoreboard.getTeam(team.teamname);
+        Team minecraftTeam = scoreboard.getTeam("Team" + team.id);
         if (minecraftTeam == null) {
-            minecraftTeam = scoreboard.registerNewTeam(team.teamname);
+            minecraftTeam = scoreboard.registerNewTeam("Team" + team.id);
         }
         minecraftTeam.addEntry(player.name);
         minecraftTeam.setColor(team.chatColor);
@@ -151,18 +151,9 @@ public abstract class PlayerInterface {
 
     public void addScore(int scoreDelta, String notes) {
         this.currentScore += scoreDelta;
-        new BukkitRunnable(){
-            public void run() {
-                try {
-                    Statement statement = MCGMain.asyncConn.connection.createStatement();
-                    statement.execute("INSERT INTO `logs` " +
-                            "(`season`, `minigame`, `playeruuid`, `scoredelta`, `message`) VALUES " +
-                            "('" + MCGMain.SEASON + "', '" + curMinigame + "', '" + uuid + "', '" + scoreDelta + "', '" + notes + "');");
-                } catch(Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }.runTaskAsynchronously(server.plugin);
+        MCGMain.sqlManager.executeQueryAsync(
+                "INSERT INTO `logs` (`season`, `minigame`, `playeruuid`, `scoredelta`, `message`) " +
+                        " VALUES (?, ?, ?, ?, ?)", MCGMain.SEASON, curMinigame, uuid.toString(), scoreDelta, notes);
     }
 
     public int getCurrentScore() {
@@ -259,6 +250,10 @@ public abstract class PlayerInterface {
 
     public void setTeamScoresForSidebar(String curMinigameStr, int curTeamID) {
         ArrayList<MCGTeam> sortedTeams = server.getTeamsOrderedByScore(curMinigameStr);
+        if(sortedTeams.size() < 4) {
+            sidebar.add(ChatColor.RED + "Not enough teams");
+            return;
+        }
         int curTeamPlace = -1;
         for (int i = 0; i < sortedTeams.size(); i++) {
             int curId = sortedTeams.get(i).id;
@@ -311,14 +306,22 @@ public abstract class PlayerInterface {
         }
     }
 
+    public void loadMetadata(String metadata) {
+    }
+
+    public String saveMetadata() {
+        return "";
+    }
+
     /* SQL LOGIC */
 
-    public void fetchData() {
+    public final void fetchData() {
         this.previousScores.clear();
 
+        String newMetadata = null;
+
         try {
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE `uuid` = '" + uuid + "';");
+            ResultSet resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `scores` WHERE `uuid` = ?", uuid.toString());
             while (resultSet.next()) {
                 int id = resultSet.getInt("id");
                 String uuid = resultSet.getString("uuid").trim();
@@ -329,7 +332,7 @@ public abstract class PlayerInterface {
 
                 if (season == MCGMain.SEASON && minigame.equals(curMinigame)) {
                     currentScore = score;
-                    currentMetadata = metadata;
+                    newMetadata = metadata;
                 } else {
                     MCGScore newScore = new MCGScore(id, uuid, season, minigame, score, metadata);
                     this.previousScores.add(newScore);
@@ -339,18 +342,27 @@ public abstract class PlayerInterface {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        loadMetadata(newMetadata);
     }
 
-    public abstract void commit();
-
-    public void commitName() {
+    public final void commit() {
         try {
-            PreparedStatement stmt = MCGMain.conn.connection.prepareStatement("INSERT INTO `usernames`(`uuid`, `season`, `username`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `username` = ?;");
-            stmt.setString(1, uuid.toString());
-            stmt.setInt(2, MCGMain.SEASON);
-            stmt.setString(3, name);
-            stmt.setString(4, name);
-            stmt.executeUpdate();
+            MCGMain.sqlManager.executeQuery(
+                    "INSERT INTO `scores` (`uuid`, `season`, `minigame`, `score`, `metadata`) " +
+                            "VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE " +
+                            "`score` = VALUES(`score`), " +
+                            "`metadata` = VALUES(`metadata`), " +
+                            "`time` = current_timestamp()",
+                    uuid.toString(), MCGMain.SEASON, curMinigame, getCurrentScore(), saveMetadata());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public final void commitName() {
+        try {
+            MCGMain.sqlManager.executeQuery("REPLACE INTO `players`(`uuid`, `season`, `username`, `teamid`) VALUES (?, ?, ?, ?)", uuid.toString(), MCGMain.SEASON, name, myTeam.id == 0 ? null : myTeam.id);
         } catch (SQLException e) {
             e.printStackTrace();
         }

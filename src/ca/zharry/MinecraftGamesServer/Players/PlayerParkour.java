@@ -1,12 +1,8 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
-import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import org.bukkit.ChatColor;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.UUID;
 
 public class PlayerParkour extends PlayerInterface {
@@ -22,13 +18,6 @@ public class PlayerParkour extends PlayerInterface {
     public PlayerParkour(ServerParkour server, UUID uuid, String username) {
         super(server, uuid, username, "parkour");
         this.server = server;
-
-        try {
-            String[] metadata = currentMetadata.split("-");
-            stage = Integer.parseInt(metadata[0]);
-            level = Integer.parseInt(metadata[1]);
-        } catch (Exception ignore) {
-        }
     }
 
     @Override
@@ -41,11 +30,11 @@ public class PlayerParkour extends PlayerInterface {
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
         } else if (server.state == ServerParkour.GAME_STARTING) {
-            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
-            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress);
         } else if (server.state == ServerParkour.GAME_FINISHED) {
-            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished);
         }
 
         if (server.state == ServerParkour.GAME_INPROGRESS || server.state == ServerParkour.GAME_FINISHED) {
@@ -62,28 +51,19 @@ public class PlayerParkour extends PlayerInterface {
     }
 
     @Override
-    public void commit() {
-        currentMetadata = stage + "-" + level;
-
-        try {
-            int id = -1;
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-                    "`uuid` = '" + uuid + "' AND " +
-                    "`season` = '" + MCGMain.SEASON + "' AND " +
-                    "`minigame` = 'parkour';");
-            while (resultSet.next()) {
-                id = resultSet.getInt("id");
+    public void loadMetadata(String metadata) {
+        if(metadata != null) {
+            try {
+                String[] data = metadata.split("-");
+                stage = Integer.parseInt(data[0]);
+                level = Integer.parseInt(data[1]);
+            } catch (Exception ignore) {
             }
-
-            statement.execute("INSERT INTO `scores` " +
-                    "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
-                    "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'parkour', '" + getCurrentScore() + "', '" + currentMetadata + "')" +
-                    "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + getCurrentScore() + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+    }
+
+    @Override
+    public String saveMetadata() {
+        return stage + "-" + level;
     }
 }

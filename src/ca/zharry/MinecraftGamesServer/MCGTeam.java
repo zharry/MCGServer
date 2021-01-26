@@ -13,7 +13,7 @@ public class MCGTeam {
     public String teamname;
     public String color;
     public ChatColor chatColor;
-    public ArrayList<UUID> players;
+    public ArrayList<UUID> players = new ArrayList<>();
 
     private ServerInterface server;
 
@@ -22,7 +22,6 @@ public class MCGTeam {
         this.teamname = teamname;
         this.color = color;
         this.chatColor = ChatColor.valueOf(color);
-        players = new ArrayList<UUID>();
 
         this.server = server;
     }
@@ -31,10 +30,10 @@ public class MCGTeam {
         if (!players.contains(uuid))
             players.add(uuid);
     }
-
-    public void removePlayer(UUID uuid) {
-        players.remove(uuid);
-    }
+//
+//    public void removePlayer(UUID uuid) {
+//        players.remove(uuid);
+//    }
 
     public int getScore() {
         int val = 0;
@@ -56,6 +55,10 @@ public class MCGTeam {
             }
         }
         return val;
+    }
+
+    public String toString() {
+        return chatColor + teamname + ChatColor.RESET;
     }
 
 }

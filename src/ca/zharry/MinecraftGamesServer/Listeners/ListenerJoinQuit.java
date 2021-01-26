@@ -18,13 +18,11 @@ public class ListenerJoinQuit implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        MCGMain.logger.warning("Joined!");
         server.playerJoin(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerQuit(PlayerQuitEvent event) {
-        MCGMain.logger.warning("Quitted!");
         server.playerQuit(event.getPlayer());
     }
 }

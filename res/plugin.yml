@@ -1,0 +1,76 @@
+name: MinecraftGamesServer
+version: 0.4.1
+author: Harry Zhang
+main: ca.zharry.MinecraftGamesServer.MCGMain
+api-version: 1.16
+depend: [ProtocolLib]
+permissions:
+  mcg.*:
+    description: MCG permissions
+    children:
+      mcg.admin: true
+      mcg.join: true
+  mcg.admin:
+    description: Manages MCG
+    default: op
+  mcg.jointeam:
+    description: Joining teams
+    default: true
+commands:
+  join:
+    description: Join a team as a non-privileged user
+    usage: §c/join <team name>
+    permission: mcg.jointeam
+  teams:
+    description: Manipulate teams in game
+    usage:
+      §c/teams add <color> <team display name>
+
+      §c/teams allowjoin <true|false>
+
+      §c/teams join <player> <team id/name>
+
+      §c/teams reload
+
+      §c/teams remove <team id/name>
+
+      §c/teams rename <team id/name> <team display name>
+
+      §c/teams color <team id/name> <color>
+
+      §c/teams query
+    permission: mcg.admin
+  setgame:
+    description: Starts the specified minigame
+    usage: §c/setgame <game>
+    permission: mcg.admin
+  cutscene:
+    description: Manages the current playing cutscene
+    usage:
+      §c/cutscene skip
+
+      §c/cutscene seek <[[[hour]:][minutes]:][seconds][.ms|,ticks]>
+
+      §c/cutscene speed <multiplier>
+    permission: mcg.admin
+  start:
+    description: Starts the current game
+    usage: §c/start [skipCutscenes]
+    permission: mcg.admin
+  timer:
+    description: Controls the current in-game timer
+    usage:
+      §c/timer start [timer]
+
+      §c/timer end [timer]
+
+      §c/timer cancel [timer]
+
+      §c/timer pause [timer]
+
+      §c/timer resume [timer]
+
+      §c/timer set <[[[hour]:][minutes]:][seconds][.ms|,ticks]> [timer]
+
+      §c/timer set default [timer]
+    permission: mcg.admin

@@ -25,9 +25,9 @@ public class PlayerLobby extends PlayerInterface {
             sidebar.add(ChatColor.WHITE + "Waiting for players...");
         } else if (server.state == ServerLobby.LOBBY_STARTED) {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Next event: ");
-            sidebar.add(ChatColor.WHITE + "" + server.minigames.get(server.nextMinigame));
+            sidebar.add(ChatColor.WHITE + "" + MCGMain.serverNames.get(server.nextMinigame));
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Begins in: ");
-            sidebar.add(ChatColor.WHITE + "" + server.timerNextGame.getString() + (server.timerNextGame.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.WHITE + "" + server.timerNextGame);
         }
         sidebar.add("");
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Players: " + ChatColor.RESET + "" + server.players.size() + "/" + MCGMain.PLAYER_TARGET);
@@ -49,10 +49,4 @@ public class PlayerLobby extends PlayerInterface {
 //        }
 //        sidebar.end();
     }
-
-    @Override
-    public void commit() {
-
-    }
-
 }

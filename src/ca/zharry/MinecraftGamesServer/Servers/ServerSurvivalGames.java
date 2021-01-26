@@ -100,8 +100,8 @@ public class ServerSurvivalGames extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerSurvivalGames(JavaPlugin plugin) {
-        super(plugin);
+    public ServerSurvivalGames(JavaPlugin plugin, World world) {
+        super(plugin, world);
         serverSpawn = new Location(world, 0.5, 176, 0.5);
 
         initCornucopiaSpawns();
@@ -117,7 +117,7 @@ public class ServerSurvivalGames extends ServerInterface {
             player.teleport(serverSpawn);
         }
 
-        timerStartGame = new Timer(plugin) {
+        timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
@@ -153,9 +153,9 @@ public class ServerSurvivalGames extends ServerInterface {
             public void onEnd() {
                 timerBegin.start();
             }
-        }.set(TIMER_STARTING);
+        };
 
-        timerBegin = new Timer(plugin) {
+        timerBegin = new Timer(plugin, "begin", TIMER_BEGIN) {
             @Override
             public void onStart() {
                 state = GAME_BEGIN;
@@ -175,9 +175,9 @@ public class ServerSurvivalGames extends ServerInterface {
             public void onEnd() {
                 timerInProgress.start();
             }
-        }.set(TIMER_BEGIN);
+        };
 
-        timerInProgress = new Timer(plugin) {
+        timerInProgress = new Timer(plugin, "game", TIMER_INPROGRESS) {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
@@ -193,12 +193,13 @@ public class ServerSurvivalGames extends ServerInterface {
             public void onEnd() {
                 survivalGamesStageEnd();
             }
-        }.set(TIMER_INPROGRESS);
+        };
 
-        timerFinished = new Timer(plugin) {
+        timerFinished = new Timer(plugin, "finished", TIMER_FINISHED) {
             @Override
             public void onStart() {
                 state = GAME_FINISHED;
+                commitAllPlayers();
             }
 
             @Override
@@ -217,7 +218,7 @@ public class ServerSurvivalGames extends ServerInterface {
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
             }
-        }.set(TIMER_FINISHED);
+        };
 
         ArrayList<CutsceneStep> steps = new ArrayList<>();
         int time = 0;
@@ -373,15 +374,7 @@ public class ServerSurvivalGames extends ServerInterface {
     @Override
     public void registerCommands() {
         plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerBegin, timerInProgress, timerFinished));
     }
 
     @Override
@@ -506,7 +499,7 @@ public class ServerSurvivalGames extends ServerInterface {
 
     private void survivalGamesEnd() {
         resetWorldBorder();
-        timerInProgress.pause();
+        timerInProgress.cancel();
         timerFinished.start();
 
         ArrayList<PlayerSurvivalGames> playerSurvivalGamess = new ArrayList<>();

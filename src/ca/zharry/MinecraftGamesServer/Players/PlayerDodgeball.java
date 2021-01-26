@@ -1,6 +1,5 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
-import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
@@ -8,9 +7,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.UUID;
 
 public class PlayerDodgeball extends PlayerInterface {
@@ -31,13 +27,6 @@ public class PlayerDodgeball extends PlayerInterface {
     public PlayerDodgeball(ServerDodgeball server, UUID uuid, String username) {
         super(server, uuid, username, "dodgeball");
         this.server = server;
-
-        try {
-            String[] metadataSplit = currentMetadata.split("\\|");
-            totalKills = Integer.parseInt(metadataSplit[0]);
-            invulnerable = Boolean.parseBoolean(metadataSplit[1]);
-        } catch (Exception ignore) {
-        }
     }
 
     @Override
@@ -50,17 +39,17 @@ public class PlayerDodgeball extends PlayerInterface {
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
         } else if (server.state == ServerParkour.GAME_STARTING) {
-            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame.getString() + (server.timerStartGame.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
 
             if (bukkitPlayer.getGameMode() == GameMode.ADVENTURE)
-                sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : ""));
+                sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress);
             else
-                sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Waiting for others: " + ChatColor.RESET + server.timerInProgress.getString() + (server.timerInProgress.isPaused() ? " (Paused)" : ""));
+                sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Waiting for others: " + ChatColor.RESET + server.timerInProgress);
 
             sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Round: " + ChatColor.RESET + server.currentGame + "/" + server.totalGames);
         } else if (server.state == ServerParkour.GAME_FINISHED) {
-            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished.getString() + (server.timerFinished.isPaused() ? " (Paused)" : ""));
+            sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished);
         }
         sidebar.add("");
         setTeamScoresForSidebar("dodgeball", myTeam.id);
@@ -86,29 +75,20 @@ public class PlayerDodgeball extends PlayerInterface {
     }
 
     @Override
-    public void commit() {
-        currentMetadata = totalKills + "|" + invulnerable;
-
-        try {
-            int id = -1;
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `scores` WHERE " +
-                    "`uuid` = '" + uuid + "' AND " +
-                    "`season` = '" + MCGMain.SEASON + "' AND " +
-                    "`minigame` = 'dodgeball';");
-            while (resultSet.next()) {
-                id = resultSet.getInt("id");
+    public void loadMetadata(String metadata) {
+        if(metadata != null) {
+            try {
+                String[] metadataSplit = metadata.split("\\|");
+                totalKills = Integer.parseInt(metadataSplit[0]);
+                invulnerable = Boolean.parseBoolean(metadataSplit[1]);
+            } catch (Exception ignore) {
             }
-
-            statement.execute("INSERT INTO `scores` " +
-                    "(`id`, `uuid`, `season`, `minigame`, `score`, `metadata`) " +
-                    "VALUES " +
-                    "(" + (id == -1 ? "NULL" : id) + ", '" + uuid + "', '" + MCGMain.SEASON + "', 'dodgeball', '" + getCurrentScore() + "', '" + currentMetadata + "')" +
-                    "ON DUPLICATE KEY UPDATE" +
-                    "`score` = " + getCurrentScore() + ", `metadata` = '" + currentMetadata + "', `time` = current_timestamp();");
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+    }
+
+    @Override
+    public String saveMetadata() {
+        return totalKills + "|" + invulnerable;
     }
 
     @Override

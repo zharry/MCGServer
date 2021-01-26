@@ -9,17 +9,17 @@ public class CutsceneStep {
         QUADRATIC
     }
 
-    public int timestamp;
+    public long timestamp;
     public String title;
     public String subtitle;
     public int titleDelay;
     public boolean hasPosition;
     public double x, y, z, yaw, pitch;
-    public int freeTick = 0;
+    public long freezeTick = 0;
     public Transition transition = Transition.CUT;
     public EventExecutor executor;
 
-    public CutsceneStep(int timestamp) {
+    public CutsceneStep(long timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -65,7 +65,7 @@ public class CutsceneStep {
     }
 
     public CutsceneStep freeze(int ticks) {
-        freeTick = ticks;
+        freezeTick = ticks;
         return this;
     }
 

@@ -31,7 +31,6 @@ public class ListenerSpleef implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        System.out.println("PLAYER JOIN SPLEEF");
         Player player = event.getPlayer();
         player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 1000000, 0, false, false));
         PlayerSpleef playerSpleef = (PlayerSpleef) server.playerLookup.get(player.getUniqueId());
@@ -41,7 +40,6 @@ public class ListenerSpleef implements Listener {
                 server.state == ServerSpleef.GAME_FINISHED) {
             player.teleport(server.serverSpawn);
             player.setGameMode(GameMode.ADVENTURE);
-            System.out.println("PLAYER FINISHED JOIN SPLEEF");
         }
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
             if (player.getLocation().getY() >= ServerSpleef.COMPETITION_MAX_HEIGHT) {
@@ -193,12 +191,10 @@ public class ListenerSpleef implements Listener {
 
     @EventHandler
     public void onPlayerDamage(EntityDamageEvent e) {
-        System.out.println(e.getCause());
         if (e.getCause() == EntityDamageEvent.DamageCause.VOID ||
                 e.getCause() == EntityDamageEvent.DamageCause.CUSTOM) {
             return;
         }
-        System.out.println("Test3");
         e.setCancelled(true);
     }
 

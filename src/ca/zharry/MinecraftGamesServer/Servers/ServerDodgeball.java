@@ -1,9 +1,7 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
 import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
+import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerDodgeball;
 import ca.zharry.MinecraftGamesServer.MCGMain;
@@ -69,8 +67,8 @@ public class ServerDodgeball extends ServerInterface {
     public Cutscene startGameTutorial;
     public BukkitTask practiceModeTimer;
 
-    public ServerDodgeball(JavaPlugin plugin) {
-        super(plugin);
+    public ServerDodgeball(JavaPlugin plugin, World world) {
+        super(plugin, world);
         serverSpawn = new Location(world, -15.5, 4, 1.5);
         practiceArenaSelect = new Location(world, 0.5, 5, 0.5, 180, 0);
         initArenaSpawns();
@@ -89,7 +87,7 @@ public class ServerDodgeball extends ServerInterface {
         dodgeballPracticeMode();
         dodgeballRoundRobinSetup();
 
-        timerStartGame = new Timer(plugin) {
+        timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
@@ -129,9 +127,9 @@ public class ServerDodgeball extends ServerInterface {
             public void onEnd() {
                 timerInProgress.start();
             }
-        }.set(TIMER_STARTING);
+        };
 
-        timerInProgress = new Timer(plugin) {
+        timerInProgress = new Timer(plugin, "game", TIMER_INPROGRESS) {
             @Override
             public void onStart() {
                 dodgeballStart();
@@ -152,12 +150,13 @@ public class ServerDodgeball extends ServerInterface {
             public void onEnd() {
                 dodgeballEnd();
             }
-        }.set(TIMER_INPROGRESS);
+        };
 
-        timerFinished = new Timer(plugin) {
+        timerFinished = new Timer(plugin, "finished", TIMER_FINISHED) {
             @Override
             public void onStart() {
                 state = GAME_FINISHED;
+                commitAllPlayers();
             }
 
             @Override
@@ -175,7 +174,7 @@ public class ServerDodgeball extends ServerInterface {
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
             }
-        }.set(TIMER_FINISHED);
+        };
 
         ArrayList<CutsceneStep> steps = new ArrayList<>();
         int time = 0;
@@ -249,15 +248,7 @@ public class ServerDodgeball extends ServerInterface {
     @Override
     public void registerCommands() {
         plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerInProgress, timerFinished));
     }
 
     @Override

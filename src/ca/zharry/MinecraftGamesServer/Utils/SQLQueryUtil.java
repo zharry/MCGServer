@@ -3,7 +3,6 @@ package ca.zharry.MinecraftGamesServer.Utils;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -12,8 +11,7 @@ public class SQLQueryUtil {
         HashMap<UUID, String> users = null;
         try {
             users = new HashMap<>();
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `usernames` WHERE `season` = " + season + ";");
+            ResultSet resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `players` WHERE `season` = ?", season);
             while (resultSet.next()) {
                 UUID uuid = UUID.fromString(resultSet.getString("uuid"));
                 String username = resultSet.getString("username");

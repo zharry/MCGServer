@@ -5,31 +5,29 @@ import ca.zharry.MinecraftGamesServer.Listeners.ListenerJoinQuit;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.SQLQueryUtil;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import javax.sql.rowset.CachedRowSet;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public abstract class ServerInterface {
-
-    public HashMap<String, String> minigames = new HashMap<String, String>();
 
     public JavaPlugin plugin;
     public BukkitTask taskScoreboard;
@@ -46,16 +44,11 @@ public abstract class ServerInterface {
     private HashMap<Integer, MCGTeam> teams = new HashMap<>(); // Team ID to MCGTeam Mapping
     private HashMap<UUID, Integer> teamLookup = new HashMap<>(); // Player UUID to Team ID Mapping
     public MCGTeam defaultTeam;
+    public Cutscene currentCutscene;
 
-    public ServerInterface(JavaPlugin plugin) {
+    public ServerInterface(JavaPlugin plugin, World world) {
         this.plugin = plugin;
-
-        world = plugin.getServer().getWorld("world");
-
-        minigames.put("parkour", "Parkour");
-        minigames.put("spleef", "Spleef");
-        minigames.put("dodgeball", "Dodgeball");
-        minigames.put("survivalgames", "Survival Games");
+        this.world = world;
 
         defaultTeam = new MCGTeam(0, "No Team", "WHITE", this);
 
@@ -113,7 +106,6 @@ public abstract class ServerInterface {
     public void playerJoin(Player player) {
         UUID uuid = player.getUniqueId();
         PlayerInterface playerInterface = offlinePlayerLookup.get(uuid);
-        System.out.println(playerInterface);
         if(playerInterface != null) {
             players.add(playerInterface);
             playerLookup.put(uuid, playerInterface);
@@ -167,61 +159,65 @@ public abstract class ServerInterface {
         teams.put(defaultTeam.id, defaultTeam);
 
         try {
-            Statement statement = MCGMain.conn.connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM `teams` WHERE `season` = " + MCGMain.SEASON + ";");
-            while (resultSet.next()) {
+            ResultSet resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `teams` WHERE `season` = ?", MCGMain.SEASON);
+            while(resultSet.next()) {
                 int id = resultSet.getInt("id");
-                String teamname = resultSet.getString("teamname").trim();
-                String playerList = resultSet.getString("players").trim();
-                String[] players = playerList.split(",");
-                if(playerList.trim().length() == 0) {
-                    players = new String[0];
-                }
-                String color = resultSet.getString("color").trim();
-
-                MCGMain.logger.info("Found team: " + teamname);
-                MCGMain.logger.info("Color: " + color);
-                MCGMain.logger.info("Playerlist: " + playerList);
-
-                MCGTeam team = new MCGTeam(id, teamname, color, this);
-                for (String uuid : players) {
-                    team.addPlayer(UUID.fromString(uuid));
-                    this.teamLookup.put(UUID.fromString(uuid), id);
-                }
-
-                this.teams.put(id, team);
                 this.teamIDs.add(id);
+                this.teams.put(id, new MCGTeam(id, resultSet.getString("teamname").trim(), resultSet.getString("color").trim(), this));
             }
 
+            resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `players` WHERE `season` = ?", MCGMain.SEASON);
+            while(resultSet.next()) {
+                int teamId = resultSet.getInt("teamid");
+                UUID uuid = UUID.fromString(resultSet.getString("uuid"));
+                teamLookup.put(uuid, teamId);
+                teams.get(teamId).addPlayer(uuid);
+            }
+
+            for(int id : teamIDs) {
+                MCGTeam team = teams.get(id);
+                MCGMain.logger.info("Team '" + team + "': " + team.players.stream().map(UUID::toString).collect(Collectors.joining(", ")));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public void reloadTeamsAndPlayers() {
-        offlinePlayers.clear();
-        offlinePlayerLookup.clear();
-
+    public void commitAllPlayers() {
         players.forEach(PlayerInterface::commit);
-        players.clear();
-        playerLookup.clear();
+    }
 
-        defaultTeam.players.clear();
+    public void reloadTeamsAndPlayers() {
+        try {
+            offlinePlayers.clear();
+            offlinePlayerLookup.clear();
 
-        this.fetchTeams();
+            players.forEach(PlayerInterface::commit);
+            players.clear();
+            playerLookup.clear();
 
-        HashMap<UUID, String> users = SQLQueryUtil.queryAllPlayers(MCGMain.SEASON);
-        for(Map.Entry<UUID, String> user : users.entrySet()) {
-            PlayerInterface playerInterface = createNewPlayerInterface(user.getKey(), user.getValue());
-            offlinePlayers.add(playerInterface);
-            offlinePlayerLookup.put(user.getKey(), playerInterface);
-            if(playerInterface.myTeam == defaultTeam) {
-                defaultTeam.addPlayer(playerInterface.uuid);
+            defaultTeam.players.clear();
+
+            this.fetchTeams();
+
+            HashMap<UUID, String> users = SQLQueryUtil.queryAllPlayers(MCGMain.SEASON);
+            for (Map.Entry<UUID, String> user : users.entrySet()) {
+                PlayerInterface playerInterface = createNewPlayerInterface(user.getKey(), user.getValue());
+                offlinePlayers.add(playerInterface);
+                offlinePlayerLookup.put(user.getKey(), playerInterface);
+                if (playerInterface.myTeam == defaultTeam) {
+                    defaultTeam.addPlayer(playerInterface.uuid);
+                }
             }
-        }
 
-        for(Player onlinePlayer : Bukkit.getServer().getOnlinePlayers()) {
-            playerJoin(onlinePlayer);
+            for (Player onlinePlayer : Bukkit.getServer().getOnlinePlayers()) {
+                playerJoin(onlinePlayer);
+            }
+
+            Bukkit.broadcast(ChatColor.GRAY + "[MCG] Teams and scores reload successful", Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+        } catch(Exception e) {
+            Bukkit.broadcast(ChatColor.RED + "[MCG] Teams reload failed: " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            e.printStackTrace();
         }
     }
 
@@ -239,10 +235,13 @@ public abstract class ServerInterface {
         return res;
     }
 
+    public ArrayList<MCGTeam> getAllTeams() {
+        return new ArrayList<>(this.teams.values());
+    }
+
     public ArrayList<MCGTeam> getRealTeams() {
         ArrayList<MCGTeam> list = new ArrayList<>(this.teams.values());
         list.removeIf(team -> team == defaultTeam);
-        System.out.println(list);
         return list;
     }
 

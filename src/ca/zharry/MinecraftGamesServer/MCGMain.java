@@ -1,27 +1,35 @@
 package ca.zharry.MinecraftGamesServer;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandReloadTeamScores;
-import ca.zharry.MinecraftGamesServer.Commands.CommandSetTeam;
-import ca.zharry.MinecraftGamesServer.MysqlConnection.MysqlConnection;
+import ca.zharry.MinecraftGamesServer.Commands.*;
+import ca.zharry.MinecraftGamesServer.SQL.SQLManager;
 import ca.zharry.MinecraftGamesServer.Servers.*;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Server;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.IOException;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
-    public static MysqlConnection conn;
-    public static MysqlConnection asyncConn;
+    public static SQLManager sqlManager;
     public static ProtocolManager protocolManager;
+    public static boolean allowUserJoinTeam;
 
     // Global configuration
     public static final int SEASON = 2;
@@ -31,63 +39,90 @@ public class MCGMain extends JavaPlugin {
     public String serverMinigame;
     public ServerInterface server;
 
+    // Minigame information
+    public static String lobbyId = "lobby";
+    public static HashMap<String, String> serverNames = new HashMap<>();
+    public static HashMap<String, Class<? extends ServerInterface>> serverClasses = new HashMap<>();
+    public static void addServer(String id, Class<? extends ServerInterface> serverClass, String name) {
+        serverNames.put(id, name);
+        serverClasses.put(id, serverClass);
+    }
+
+    public static List<String> getMinigames() {
+        return serverNames.keySet().stream().filter(n -> !n.equals(lobbyId)).collect(Collectors.toList());
+    }
+
+    static {
+        addServer("lobby", ServerLobby.class, "Lobby");
+        addServer("parkour", ServerParkour.class, "Parkour");
+        addServer("spleef", ServerSpleef.class, "Spleef");
+        addServer("dodgeball", ServerDodgeball.class, "Dodgeball");
+        addServer("survivalgames", ServerSurvivalGames.class, "Survival Games");
+    }
+
     public static String serverToSendAll;
 
     @Override
     public void onEnable() {
         protocolManager = ProtocolLibrary.getProtocolManager();
 
-        logger.info("MCG Plugin Enabled! Test");
-        getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
-        getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new PluginMessageListener() {
-            @Override
-            public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-                ByteArrayDataInput input = ByteStreams.newDataInput(message);
-                String subchannel = input.readUTF();
-                if(subchannel.equals("PlayerList")) {
-                    if(serverToSendAll == null) {
-                        return;
-                    }
-                    input.readUTF();
-                    String[] players = input.readUTF().split(", ");
-                    for(String otherPlayerName : players) {
-                        ByteArrayDataOutput output = ByteStreams.newDataOutput();
-                        output.writeUTF("ConnectOther");
-                        output.writeUTF(otherPlayerName);
-                        output.writeUTF(serverToSendAll);
-                        player.sendPluginMessage(MCGMain.this, "BungeeCord", output.toByteArray());
-                    }
-                    serverToSendAll = null;
+        try {
+            Properties sqlProperties = new Properties();
+            sqlProperties.setProperty("user", "root");
+            sqlProperties.setProperty("password", "password");
+
+            sqlManager = new SQLManager("jdbc:mysql://mysql:3306/mcg", sqlProperties, 5);
+            this.setupDatabase();
+
+            // Start up ticking to allow executeQueryAsyncTick
+            new BukkitRunnable() {
+                public void run() {
+                    sqlManager.tick();
                 }
+            }.runTaskTimer(this, 0, 0);
+
+            getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+            getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new PluginMessageListener() {
+                @Override
+                public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+                    ByteArrayDataInput input = ByteStreams.newDataInput(message);
+                    String subchannel = input.readUTF();
+                    if(subchannel.equals("PlayerList")) {
+                        if(serverToSendAll == null) {
+                            return;
+                        }
+                        input.readUTF();
+                        String[] players = input.readUTF().split(", ");
+                        for(String otherPlayerName : players) {
+                            ByteArrayDataOutput output = ByteStreams.newDataOutput();
+                            output.writeUTF("ConnectOther");
+                            output.writeUTF(otherPlayerName);
+                            output.writeUTF(serverToSendAll);
+                            player.sendPluginMessage(MCGMain.this, "BungeeCord", output.toByteArray());
+                        }
+                        serverToSendAll = null;
+                    }
+                }
+            });
+
+            // Instantiate the correct ServerInterface
+            this.getConfigurationFile();
+            Class<? extends ServerInterface> serverClass = serverClasses.get(serverMinigame);
+            if(serverClass == null) {
+                throw new RuntimeException("Server " + serverMinigame + " does not exist");
             }
-        });
+            server = serverClass.getConstructor(JavaPlugin.class, World.class).newInstance(this, getServer().getWorld("world"));
 
-        conn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
-        asyncConn = new MysqlConnection("mysql", "3306", "mcg", "root", "password");
-        this.setupDatabase();
+            server.onEnableCall();
+            this.getCommand("cutscene").setExecutor(new CommandCutscene(server));
+            this.getCommand("join").setExecutor(new CommandJoinTeam(server));
+            this.getCommand("teams").setExecutor(new CommandTeams(server));
 
-        this.getConfigurationFile();
-        switch (serverMinigame) {
-            case "lobby":
-                server = new ServerLobby(this);
-                break;
-            case "parkour":
-                server = new ServerParkour(this);
-                break;
-            case "spleef":
-                server = new ServerSpleef(this);
-                break;
-            case "dodgeball":
-                server = new ServerDodgeball(this);
-                break;
-            case "survivalgames":
-                server = new ServerSurvivalGames(this);
-                break;
+            logger.info("MCG Plugin Enabled!");
+        } catch(Exception e) {
+            Bukkit.broadcast("MinecraftGamesServer onEnable failed: " + ChatColor.RED + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            throw new RuntimeException(e);
         }
-
-        server.onEnableCall();
-        this.getCommand("setteam").setExecutor(new CommandSetTeam(server));
-        this.getCommand("reloadteams").setExecutor(new CommandReloadTeamScores(server));
     }
 
     @Override
@@ -97,12 +132,7 @@ public class MCGMain extends JavaPlugin {
             server.onDisableCall();
         }
 
-        try {
-            conn.connection.close();
-            asyncConn.connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        sqlManager.stop();
     }
 
     public void getConfigurationFile() {
@@ -111,46 +141,7 @@ public class MCGMain extends JavaPlugin {
         logger.info("Current server running for: " + serverMinigame);
     }
 
-    public void setupDatabase() {
-        try {
-            Statement statement = conn.connection.createStatement();
-            statement.execute("CREATE TABLE IF NOT EXISTS `scores` ( " +
-                    "`id` INT NOT NULL AUTO_INCREMENT , " +
-                    "`uuid` VARCHAR(255) NOT NULL , " +
-                    "`season` INT NOT NULL , " +
-                    "`minigame` VARCHAR(255) NOT NULL , " +
-                    "`score` INT NOT NULL , " +
-                    "`metadata` VARCHAR(255) NOT NULL DEFAULT '' , " +
-                    "`time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-                    "PRIMARY KEY (`id`)) ENGINE = InnoDB;");
-
-            statement.execute("CREATE TABLE IF NOT EXISTS `teams` ( " +
-                    "`id` INT NOT NULL AUTO_INCREMENT , " +
-                    "`season` INT NOT NULL , " +
-                    "`teamname` VARCHAR(255) NOT NULL , " +
-                    "`players` VARCHAR(255) NOT NULL , " + // MAX TEAM SIZE IS 6
-                    "`color` VARCHAR(255) NOT NULL , " +
-                    "PRIMARY KEY (`id`)) ENGINE = InnoDB;");
-
-            statement.execute("CREATE TABLE IF NOT EXISTS `usernames` ( " +
-                    " `uuid` varchar(255) NOT NULL, " +
-                    " `season` int(11) NOT NULL, " +
-                    " `username` varchar(255) NOT NULL, " +
-                    " PRIMARY KEY (`uuid`,`season`) USING BTREE" +
-                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            statement.execute("CREATE TABLE IF NOT EXISTS `logs` (" +
-                    " `id` int(11) NOT NULL AUTO_INCREMENT," +
-                    " `season` int(11) NOT NULL," +
-                    " `minigame` varchar(255) NOT NULL," +
-                    " `playeruuid` varchar(255) NOT NULL," +
-                    " `scoredelta` int(11) NOT NULL," +
-                    " `message` varchar(255) NOT NULL," +
-                    " `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-                    "PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public void setupDatabase() throws SQLException, IOException {
+        sqlManager.executeQuery(new String(getClass().getResourceAsStream("/setup.sql").readAllBytes()));
     }
 }

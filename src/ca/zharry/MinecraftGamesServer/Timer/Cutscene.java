@@ -22,8 +22,8 @@ import java.util.*;
 
 public abstract class Cutscene {
 
-    private TreeMap<Integer, CutsceneStep> positions = new TreeMap<>();
-    private TreeMap<Integer, CutsceneStep> events = new TreeMap<>();
+    private TreeMap<Long, CutsceneStep> positions = new TreeMap<>();
+    private TreeMap<Long, CutsceneStep> events = new TreeMap<>();
 
     private Plugin plugin;
     private ServerInterface server;
@@ -31,14 +31,17 @@ public abstract class Cutscene {
     private HashMap<PlayerInterface, ActivePlayer> activePlayers = new HashMap<>();
     public int entityId;
 
-    public int cutsceneLength;
-    public int currentTick = Integer.MAX_VALUE;
+    public long cutsceneLength;
+    public long currentTick = Long.MAX_VALUE;
 
     public MoveCameraTimer cameraMover;
     public PlayerJoinQuitListener joinQuitListener;
 
     public double lastX, lastY, lastZ, lastYaw, lastPitch;
-    public int playbackSpeed = 1;
+
+    public double realTickCounter = 0;
+    public double speed = 1;
+    public boolean forceCut = false;
 
     public Cutscene(Plugin plugin, ServerInterface server, ArrayList<CutsceneStep> steps) {
         this.plugin = plugin;
@@ -50,8 +53,8 @@ public abstract class Cutscene {
                 step.y = step.y + 1.8 * 0.85 - 0.5625;
                 this.positions.put(step.timestamp, step);
                 currentTick = Math.min(currentTick, step.timestamp);
-                if(step.freeTick != 0) {
-                    int newTimestamp = step.timestamp + step.freeTick;
+                if(step.freezeTick != 0) {
+                    long newTimestamp = step.timestamp + step.freezeTick;
                     this.positions.put(newTimestamp, new CutsceneStep(newTimestamp).pos(step.x, step.y, step.z, step.yaw, step.pitch).jumplerp());
                 }
             }
@@ -67,6 +70,11 @@ public abstract class Cutscene {
     public abstract void onEnd();
 
     public void start() {
+        if(server.currentCutscene != null) {
+            plugin.getLogger().warning("Cutscene already running, not starting another one");
+            return;
+        }
+        server.currentCutscene = this;
         onStart();
 
         // Cache players
@@ -147,6 +155,7 @@ public abstract class Cutscene {
             HandlerList.unregisterAll(joinQuitListener);
             joinQuitListener = null;
             cameraMover = null;
+            server.currentCutscene = null;
             onEnd();
         }
     }
@@ -258,7 +267,6 @@ public abstract class Cutscene {
         teleportEntity.getBytes().write(0, (byte) Math.round(yaw * 256.0 / 360.0)).write(1, (byte) Math.round(pitch * 256.0 / 360.0));
 
         if(isCut) {
-            System.out.println("Cut to " + x + ", " + y + ", " + z);
             for(PlayerInterface player : activePlayers.keySet()) {
                 spectateEntity(false);
                 spawnFakeEntity(x, y, z, yaw, pitch);
@@ -305,12 +313,23 @@ public abstract class Cutscene {
         }
     }
 
+    public void setSpeed(double newSpeed) {
+        realTickCounter = currentTick / newSpeed;
+        speed = newSpeed;
+    }
+
+    public void seek(long tickCount) {
+        forceCut = true;
+        currentTick = tickCount;
+        setSpeed(speed);
+    }
+
     private class MoveCameraTimer extends BukkitRunnable {
         public void run() {
-            for(int tickcnt = 0; tickcnt < playbackSpeed; ++tickcnt) {
+            while(currentTick < realTickCounter * speed) {
                 try {
-                    Map.Entry<Integer, CutsceneStep> curr = positions.floorEntry(currentTick); // last entry with timestamp <= currentTick
-                    Map.Entry<Integer, CutsceneStep> next = positions.ceilingEntry(currentTick + 1); // first entry with timestamp > currentTick
+                    Map.Entry<Long, CutsceneStep> curr = positions.floorEntry(currentTick); // last entry with timestamp <= currentTick
+                    Map.Entry<Long, CutsceneStep> next = positions.ceilingEntry(currentTick + 1); // first entry with timestamp > currentTick
                     if (next == null) {
                         if (currentTick > cutsceneLength) {
                             end();
@@ -318,16 +337,16 @@ public abstract class Cutscene {
                         }
                         next = curr;
                     }
-                    int timeDelta = next.getKey() - curr.getKey();
+                    long timeDelta = next.getKey() - curr.getKey();
                     double interpFactor = timeDelta == 0 ? 0 : (double) (currentTick - curr.getKey()) / timeDelta;
 
                     if (next.getValue().transition == CutsceneStep.Transition.CUT || next.getValue().transition == CutsceneStep.Transition.JUMP_LERP) {
                         interpFactor = 0;
                     }
 
-                    boolean isCut = false;
+                    boolean isCut = forceCut;
+                    forceCut = false;
                     if (curr.getKey() == currentTick && curr.getValue().transition == CutsceneStep.Transition.CUT) {
-                        System.out.println("Cut");
                         isCut = true;
                     }
 
@@ -381,13 +400,13 @@ public abstract class Cutscene {
                 }
                 currentTick += 1;
             }
+            realTickCounter++;
         }
     }
 
     public class PlayerJoinQuitListener implements Listener {
         @EventHandler(priority = EventPriority.HIGHEST)
         public void onPlayerJoin(PlayerJoinEvent event) {
-            System.out.println("PLAYER JOIN CUTSCENE");
             PlayerInterface player = server.playerLookup.get(event.getPlayer().getUniqueId());
             addPlayerToCutscene(player);
         }

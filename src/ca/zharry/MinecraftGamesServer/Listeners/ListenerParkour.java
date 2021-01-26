@@ -31,7 +31,6 @@ public class ListenerParkour implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerParkour playerParkour = (PlayerParkour) server.playerLookup.get(player.getUniqueId());
-        System.out.println(server.playerLookup);
         player.setGameMode(GameMode.ADVENTURE);
         player.setInvisible(false);
         server.setPlayerInventoryContents(playerParkour);

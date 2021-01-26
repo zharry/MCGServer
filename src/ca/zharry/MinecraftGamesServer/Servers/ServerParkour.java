@@ -1,9 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerPause;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerResume;
-import ca.zharry.MinecraftGamesServer.Commands.CommandTimerSet;
+import ca.zharry.MinecraftGamesServer.Commands.*;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerParkour;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
@@ -64,8 +61,8 @@ public class ServerParkour extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerParkour(JavaPlugin plugin) {
-        super(plugin);
+    public ServerParkour(JavaPlugin plugin, World world) {
+        super(plugin, world);
         entityHider = new EntityHider(plugin, EntityHider.Policy.BLACKLIST);
         serverSpawn = new Location(world, 253.5, 134, -161.5);
         mapStart = new Location(world, 10000.5, 64, 0.5, 90, 0);
@@ -76,7 +73,7 @@ public class ServerParkour extends ServerInterface {
         initCheckpoints();
         setPlayerInventories();
 
-        timerStartGame = new Timer(plugin) {
+        timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
@@ -112,9 +109,9 @@ public class ServerParkour extends ServerInterface {
             public void onEnd() {
                 timerInProgress.start();
             }
-        }.set(TIMER_STARTING);
+        };
 
-        timerInProgress = new Timer(plugin) {
+        timerInProgress = new Timer(plugin, "game", TIMER_INPROGRESS) {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
@@ -135,12 +132,13 @@ public class ServerParkour extends ServerInterface {
                 parkourEnd();
                 timerFinished.start();
             }
-        }.set(TIMER_INPROGRESS);
+        };
 
-        timerFinished = new Timer(plugin) {
+        timerFinished = new Timer(plugin, "finished", TIMER_FINISHED) {
             @Override
             public void onStart() {
                 state = GAME_FINISHED;
+                commitAllPlayers();
             }
 
             @Override
@@ -157,7 +155,7 @@ public class ServerParkour extends ServerInterface {
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
             }
-        }.set(TIMER_FINISHED);
+        };
 
         ArrayList<CutsceneStep> steps = new ArrayList<>();
         int time = 0;
@@ -207,15 +205,7 @@ public class ServerParkour extends ServerInterface {
     @Override
     public void registerCommands() {
         plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timerstartset").setExecutor(new CommandTimerSet(timerStartGame));
-        plugin.getCommand("timerstartpause").setExecutor(new CommandTimerPause(timerStartGame));
-        plugin.getCommand("timerstartresume").setExecutor(new CommandTimerResume(timerStartGame));
-        plugin.getCommand("timergameset").setExecutor(new CommandTimerSet(timerInProgress));
-        plugin.getCommand("timergamepause").setExecutor(new CommandTimerPause(timerInProgress));
-        plugin.getCommand("timergameresume").setExecutor(new CommandTimerResume(timerInProgress));
-        plugin.getCommand("timerfinishedset").setExecutor(new CommandTimerSet(timerFinished));
-        plugin.getCommand("timerfinishedpause").setExecutor(new CommandTimerPause(timerFinished));
-        plugin.getCommand("timerfinishedresume").setExecutor(new CommandTimerResume(timerFinished));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerInProgress, timerFinished));
     }
 
     @Override
@@ -301,7 +291,7 @@ public class ServerParkour extends ServerInterface {
         int count = 0;
         playerParkours.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
         for (PlayerParkour player : playerParkours) {
-            topPlayers += ChatColor.RESET + "Stage " + player.currentMetadata + " [" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
+            topPlayers += ChatColor.RESET + "Stage " + player.stage + "-" + player.level + " [" + player.getCurrentScore() + "] " + player.bukkitPlayer.getDisplayName() + ChatColor.RESET + "\n";
             if (++count > 5) {
                 break;
             }
