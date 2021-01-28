@@ -4,7 +4,7 @@ import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSpleef;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
+import ca.zharry.MinecraftGamesServer.Utils.LocationUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
@@ -22,18 +22,14 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
-public class ListenerSpleef implements Listener {
-    ServerSpleef server;
-
+public class ListenerSpleef extends PlayerListenerAdapter<ServerSpleef, PlayerSpleef> {
     public ListenerSpleef(ServerSpleef server) {
-        this.server = server;
+        super(server, PlayerSpleef.class);
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 1000000, 0, false, false));
-        PlayerSpleef playerSpleef = (PlayerSpleef) server.playerLookup.get(player.getUniqueId());
+    @Override
+    public void onJoin(PlayerSpleef player, PlayerJoinEvent event) {
+        player.bukkitPlayer.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 1000000, 0, false, false));
 
         if (server.state == ServerSpleef.GAME_WAITING ||
                 server.state == ServerSpleef.GAME_STARTING ||
@@ -43,21 +39,17 @@ public class ListenerSpleef implements Listener {
         }
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
             if (player.getLocation().getY() >= ServerSpleef.COMPETITION_MAX_HEIGHT) {
-                playerSpleef.dead = true;
-                playerSpleef.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                player.dead = true;
+                player.setGameMode(GameMode.SPECTATOR);
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
+    @Override
+    public void onDeath(PlayerSpleef player, PlayerDeathEvent event) {
         if (server.state == ServerSpleef.GAME_INPROGRESS) {
-            // Find the dead player
-            Player deadPlayer = event.getEntity();
-            PlayerSpleef player = (PlayerSpleef) server.playerLookup.get(deadPlayer.getUniqueId());
-
             // Make sure that this player isn't giving duplicate scores
-            if (deadPlayer.getGameMode() != GameMode.SURVIVAL || player.dead)
+            if (player.getGameMode() != GameMode.SURVIVAL || player.dead)
                 return;
 
             // Mark them as dead and upload their score
@@ -65,14 +57,13 @@ public class ListenerSpleef implements Listener {
 
             // Award all non-dead players some score
             player.bukkitPlayer.sendTitle("You died!", "", 0, 30, 20);
-            for (PlayerInterface p : server.players) {
-                PlayerSpleef playerSpleef = (PlayerSpleef) p;
+            for (PlayerSpleef playerSpleef : server.players) {
                 if (!playerSpleef.dead) {
-                    playerSpleef.addScore(75, deadPlayer.getName() + " has died!");
+                    playerSpleef.addScore(75, player.getDisplayName() + " has died!");
                     playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+75]" +
-                            ChatColor.RESET + " survival points, " + deadPlayer.getDisplayName() + " has died!");
+                            ChatColor.RESET + " survival points, " + player.getDisplayName() + " has died!");
                 } else {
-                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + deadPlayer.getDisplayName() + " has died!");
+                    playerSpleef.bukkitPlayer.sendMessage(ChatColor.RESET + "" + player.getDisplayName() + " has died!");
                 }
             }
 
@@ -81,93 +72,61 @@ public class ListenerSpleef implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
-        new BukkitRunnable() {
-            public void run() {
-                Player player = event.getPlayer();
-                player.teleport(server.serverSpawn);
-                if (server.state == ServerSpleef.GAME_INPROGRESS) {
-                    PlayerUtils.resetPlayer(player, GameMode.SPECTATOR);
-                } else {
-                    PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
-                }
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 1000000, 0, false, false));
-            }
-        }.runTaskLater(server.plugin, 1);
+    @Override
+    public void onRespawn(PlayerSpleef player, PlayerRespawnEvent event) {
+        event.setRespawnLocation(server.serverSpawn);
+        if (server.state == ServerSpleef.GAME_INPROGRESS) {
+            player.reset(GameMode.SPECTATOR);
+        } else {
+            player.reset(GameMode.ADVENTURE);
+        }
+        player.bukkitPlayer.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 1000000, 0, false, false));
     }
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
+    @Override
+    public void onMove(PlayerSpleef player, PlayerMoveEvent event) {
         if (player.getLocation().getY() < ServerSpleef.COMPETITION_MIN_HEIGHT) {
             player.setHealth(0);
         }
 
-        PlayerSpleef playerSpleef = (PlayerSpleef) server.playerLookup.get(player.getUniqueId());
-
-        if (server.state == ServerSpleef.GAME_BEGIN || (server.suddenDeathState == ServerSpleef.SUDDENDEATH_COUNTDOWN && !playerSpleef.dead)) {
-            if (event.getFrom().getX() != event.getTo().getX() ||
-                    event.getFrom().getY() != event.getTo().getY() ||
-                    event.getFrom().getZ() != event.getTo().getZ()) {
-                Location location = new Location(server.world,
-                        event.getFrom().getX(), event.getFrom().getY(), event.getFrom().getZ());
-                location.setPitch(player.getLocation().getPitch());
-                location.setYaw(player.getLocation().getYaw());
-                event.getPlayer().teleport(location);
+        if (server.state == ServerSpleef.GAME_BEGIN || (server.suddenDeathState == ServerSpleef.SUDDENDEATH_COUNTDOWN && !player.dead)) {
+            if(!LocationUtils.positionEquals(event.getFrom(), event.getTo())) {
+                player.teleportPositionOnly(event.getFrom());
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerDestroy(BlockBreakEvent event) {
-        if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
-            return;
-        }
+    @Override
+    public void onBlockBreak(PlayerSpleef player, BlockBreakEvent event) {
         // Disallow players to destroy spawn platform if they can reach it
         if (event.getBlock().getLocation().getY() >= ServerSpleef.COMPETITION_MAX_HEIGHT) {
             event.setCancelled(true);
             return;
         }
 
-        PlayerSpleef playerSpleef = (PlayerSpleef) server.playerLookup.get(event.getPlayer().getUniqueId());
-
         // Disallow players to break the arena before the game starts
-        if (server.state == ServerSpleef.GAME_BEGIN || (server.suddenDeathState == ServerSpleef.SUDDENDEATH_COUNTDOWN && !playerSpleef.dead)) {
+        if (server.state == ServerSpleef.GAME_BEGIN || (server.suddenDeathState == ServerSpleef.SUDDENDEATH_COUNTDOWN && !player.dead)) {
             event.setCancelled(true);
             return;
         }
 
-        Player p = event.getPlayer();
-        int hunger = p.getFoodLevel();
+        int hunger = player.bukkitPlayer.getFoodLevel();
         hunger = hunger >= 19 ? 20 : hunger + 1;
-        p.setFoodLevel(hunger);
+        player.bukkitPlayer.setFoodLevel(hunger);
     }
 
-    @EventHandler
-    public void onEntityExplode(EntityExplodeEvent event) {
-        event.blockList().removeIf(block -> block.getLocation().getY() > ServerSpleef.COMPETITION_MAX_HEIGHT);
-        server.world.spawnParticle(Particle.EXPLOSION_LARGE, event.getLocation(), 0);
+    @Override
+    public void onDropItem(PlayerSpleef player, PlayerDropItemEvent event) {
+        event.setCancelled(true);
     }
 
-    @EventHandler
-    public void onPlayerDropItem(PlayerDropItemEvent event) {
-        if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
-            event.setCancelled(true);
-        }
+    @Override
+    public void onInventoryClick(PlayerSpleef player, InventoryClickEvent event) {
+        event.setCancelled(true);
     }
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getWhoClicked().getGameMode() != GameMode.CREATIVE) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        Player p = event.getPlayer();
-        PlayerSpleef playerSpleef = (PlayerSpleef) server.getPlayerFromUUID(p.getUniqueId());
+    @Override
+    public void onInteract(PlayerSpleef player, PlayerInteractEvent event) {
         Block block = event.getClickedBlock();
 
         // Practice Mode Signs
@@ -177,7 +136,7 @@ public class ListenerSpleef implements Listener {
 
             // Send to Arena
             if (signLine1.equals("Send to") && signLine2.equals("Arena")) {
-                server.sendToArena(playerSpleef, ServerSpleef.TELEPORT_MIN_Y, ServerSpleef.TELEPORT_MAX_Y);
+                server.sendToArena(player, ServerSpleef.TELEPORT_MIN_Y, ServerSpleef.TELEPORT_MAX_Y);
                 event.setCancelled(true);
             }
             // Reset World
@@ -189,8 +148,8 @@ public class ListenerSpleef implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerDamage(EntityDamageEvent e) {
+    @Override
+    public void onDamage(PlayerSpleef player, EntityDamageEvent e) {
         if (e.getCause() == EntityDamageEvent.DamageCause.VOID ||
                 e.getCause() == EntityDamageEvent.DamageCause.CUSTOM) {
             return;
@@ -198,13 +157,19 @@ public class ListenerSpleef implements Listener {
         e.setCancelled(true);
     }
 
-    @EventHandler
-    public void onFoodChange(FoodLevelChangeEvent e) {
+    @Override
+    public void onFoodLevelChange(PlayerSpleef player, FoodLevelChangeEvent e) {
         if (server.state != ServerSpleef.GAME_INPROGRESS) {
             if (e.getFoodLevel() < 20) {
                 e.setFoodLevel(20);
             }
         }
+    }
+
+    @EventHandler
+    public void onEntityExplode(EntityExplodeEvent event) {
+        event.blockList().removeIf(block -> block.getLocation().getY() > ServerSpleef.COMPETITION_MAX_HEIGHT);
+        server.world.spawnParticle(Particle.EXPLOSION_LARGE, event.getLocation(), 0);
     }
 }
 

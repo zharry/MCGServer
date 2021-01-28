@@ -3,6 +3,7 @@ package ca.zharry.MinecraftGamesServer.Servers;
 import ca.zharry.MinecraftGamesServer.Commands.*;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerParkour;
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
@@ -10,7 +11,6 @@ import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.EntityHider;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
 import org.bukkit.entity.ArmorStand;
@@ -26,7 +26,7 @@ import java.util.UUID;
 // /kill @e[type=minecraft:armor_stand,distance=..2]
 // /summon armor_stand ~ ~1 ~ {Invlunerable:1,NoGravity:1,Invisible:1,CustomNameVisible:1,Marker:1,CustomName:'{"color":"yellow","text":"Text"}'}
 
-public class ServerParkour extends ServerInterface {
+public class ServerParkour extends ServerInterface<PlayerParkour> {
 
     private final EntityHider entityHider;
 
@@ -61,8 +61,8 @@ public class ServerParkour extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerParkour(JavaPlugin plugin, World world) {
-        super(plugin, world);
+    public ServerParkour(JavaPlugin plugin, World world, String minigame) {
+        super(plugin, world, minigame);
         entityHider = new EntityHider(plugin, EntityHider.Policy.BLACKLIST);
         serverSpawn = new Location(world, 253.5, 134, -161.5);
         mapStart = new Location(world, 10000.5, 64, 0.5, 90, 0);
@@ -148,7 +148,7 @@ public class ServerParkour extends ServerInterface {
             @Override
             public void onEnd() {
                 sendTitleAll("Joining Lobby...", "", 5, 20, 30);
-                sendPlayersToLobby();
+                MCGMain.bungeeManager.sendAllPlayers(MCGMain.lobbyId, false, true);
 
                 state = GAME_WAITING;
                 timerStartGame.set(TIMER_STARTING);
@@ -175,16 +175,16 @@ public class ServerParkour extends ServerInterface {
         startGameTutorial = new Cutscene(plugin, this, steps) {
             @Override
             public void onStart() {
-                for (PlayerInterface p : players) {
-                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-                    disableWaypoints((PlayerParkour) p);
+                for (PlayerParkour p : players) {
+                    p.setGameMode(GameMode.SPECTATOR);
+                    disableWaypoints(p);
                 }
             }
 
             @Override
             public void onEnd() {
-                for (PlayerInterface p : players) {
-                    enableWaypoints((PlayerParkour) p);
+                for (PlayerParkour p : players) {
+                    enableWaypoints(p);
                 }
                 timerStartGame.start();
             }
@@ -254,20 +254,19 @@ public class ServerParkour extends ServerInterface {
     }
 
     @Override
-    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+    public PlayerParkour createNewPlayerInterface(UUID uuid, String name) {
         return new PlayerParkour(this, uuid, name);
     }
 
     /* GAME LOGIC */
 
     private void parkourStart() {
-        for (PlayerInterface player : players) {
-            PlayerParkour parkourPlayer = (PlayerParkour) player;
-            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
-            player.bukkitPlayer.teleport(mapStart);
+        for (PlayerParkour player : players) {
+            player.reset(GameMode.ADVENTURE);
+            player.teleport(mapStart);
             player.bukkitPlayer.setInvisible(true);
-            parkourPlayer.stage = 1;
-            parkourPlayer.level = 0;
+            player.stage = 1;
+            player.level = 0;
         }
         setPlayerInventories();
     }
@@ -278,10 +277,10 @@ public class ServerParkour extends ServerInterface {
 
     private void parkourEnd() {
         ArrayList<PlayerParkour> playerParkours = new ArrayList<>();
-        for (PlayerInterface player : players) {
-            playerParkours.add((PlayerParkour) player);
-            if (player.bukkitPlayer.getLocation().getY() < 130) {
-                player.bukkitPlayer.teleport(mapEnd);
+        for (PlayerParkour player : players) {
+            playerParkours.add(player);
+            if (player.getLocation().getY() < 130) {
+                player.teleport(mapEnd);
                 player.bukkitPlayer.setInvisible(false);
             }
             player.commit();
@@ -317,10 +316,7 @@ public class ServerParkour extends ServerInterface {
     /* SUPPORTING LOGIC */
 
     public void setPlayerInventories() {
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            PlayerParkour playerParkour = (PlayerParkour) playerLookup.get(player.getUniqueId());
-            setPlayerInventoryContents(playerParkour);
-        });
+        players.forEach(this::setPlayerInventoryContents);
     }
 
     public void setPlayerInventoryContents(PlayerParkour player) {

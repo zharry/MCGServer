@@ -89,6 +89,8 @@ public class CommandTimer implements TabExecutor {
 			case "set":
 				timer.set(setTime == -1 ? timer.defaultTicks : setTime);
 				break;
+			default:
+				return false;
 		}
 
 		sender.sendMessage("Timer '" + timer.name + "' set to " + timer);

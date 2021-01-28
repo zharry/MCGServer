@@ -13,7 +13,7 @@ public class PlayerSpleef extends PlayerInterface {
     public ServerSpleef server;
 
     public PlayerSpleef(ServerSpleef server, UUID uuid, String username) {
-        super(server, uuid, username, "spleef");
+        super(server, uuid, username);
         this.server = server;
     }
 

@@ -4,7 +4,6 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -19,36 +18,28 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class ListenerDodgeball implements Listener {
-
-    ServerDodgeball server;
-
+public class ListenerDodgeball extends PlayerListenerAdapter<ServerDodgeball, PlayerDodgeball> {
     public ListenerDodgeball(ServerDodgeball server) {
-        this.server = server;
+        super(server, PlayerDodgeball.class);
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
+    @Override
+    public void onJoin(PlayerDodgeball player, PlayerJoinEvent event) {
+        player.reset(GameMode.ADVENTURE);
         player.teleport(server.serverSpawn);
-        player.setBedSpawnLocation(server.serverSpawn, true);
+        player.bukkitPlayer.setBedSpawnLocation(server.serverSpawn, true);
 
-        PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.getPlayerFromUUID(player.getUniqueId());
-        playerDodgeball.inSpawn = false;
-        playerDodgeball.lives = 0;
+        player.inSpawn = false;
+        player.lives = 0;
 
         // Practice Mode
         if (server.state == ServerDodgeball.GAME_WAITING) {
-            server.givePracticeModeSelect(player);
+            server.givePracticeModeSelect(player.bukkitPlayer);
         }
     }
 
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player p = event.getPlayer();
-        PlayerDodgeball player = (PlayerDodgeball) server.getPlayerFromUUID(p.getUniqueId());
-
+    @Override
+    public void onQuit(PlayerDodgeball player, PlayerQuitEvent event) {
         // Practice Mode
         if (server.state == ServerParkour.GAME_WAITING) {
             if (player.arena != -1) {
@@ -58,15 +49,13 @@ public class ListenerDodgeball implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
+    @Override
+    public void onDeath(PlayerDodgeball dead, PlayerDeathEvent event) {
         if (server.state == ServerDodgeball.GAME_INPROGRESS) {
             event.getDrops().removeIf(drop -> drop.getType() != Material.ARROW);
             String deathMessage = "";
 
             // Find the person who died and their team
-            Player d = event.getEntity().getPlayer();
-            PlayerDodgeball dead = (PlayerDodgeball) server.playerLookup.get(d.getUniqueId());
             MCGTeam myTeam = dead.myTeam;
             MCGTeam opponentTeam = dead.opponentTeam;
 
@@ -74,12 +63,10 @@ public class ListenerDodgeball implements Listener {
             if (dead.lives <= 0)
                 return;
 
-            Player k = event.getEntity().getPlayer().getKiller();
+            PlayerDodgeball killer = getPlayerInterface(dead.bukkitPlayer);
             try {
-                if (k.getUniqueId() == d.getUniqueId())
+                if (dead.equals(killer))
                     return;
-                // Killer is a player
-                PlayerDodgeball killer = (PlayerDodgeball) server.playerLookup.get(k.getUniqueId());
 
                 // If the killer is dead
                 if (killer.lives <= 0)
@@ -101,14 +88,14 @@ public class ListenerDodgeball implements Listener {
 
             // Take a life away from the dead
             dead.lives--;
-            dead.lastDeathLocation = dead.bukkitPlayer.getLocation();
+            dead.lastDeathLocation = dead.getLocation();
 
             // Give everyone who in this arena user feedback
             ArrayList<UUID> gamePlayers = new ArrayList<>();
             gamePlayers.addAll(myTeam.players);
             gamePlayers.addAll(opponentTeam.players);
             for (UUID uuid : gamePlayers) {
-                PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(uuid);
+                PlayerDodgeball playerDodgeball = server.playerLookup.get(uuid);
                 if (playerDodgeball != null) {
                     playerDodgeball.bukkitPlayer.sendMessage(deathMessage);
                 }
@@ -118,7 +105,7 @@ public class ListenerDodgeball implements Listener {
             boolean myTeamIsAllDead = true;
             if (dead.lives <= 0) {
                 for (UUID uuid : myTeam.players) {
-                    PlayerDodgeball teammate = (PlayerDodgeball) server.playerLookup.get(uuid);
+                    PlayerDodgeball teammate = server.playerLookup.get(uuid);
                     if (teammate != null && teammate.lives > 0) {
                         myTeamIsAllDead = false;
                     }
@@ -140,15 +127,15 @@ public class ListenerDodgeball implements Listener {
 
                 // Award Enemy Team victory scores and tell them that they won
                 for (UUID uuid : opponentTeam.players) {
-                    PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(uuid);
+                    PlayerDodgeball playerDodgeball = server.playerLookup.get(uuid);
                     if (playerDodgeball != null) {
                         if (playerDodgeball.lives > 0) {
                             playerDodgeball.addScore(250, opponentTeam.teamname + "defeated " + myTeam.teamname);
-                            playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                            playerDodgeball.setGameMode(GameMode.SPECTATOR);
                             playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "You have received 250 additional points!", 10, 60, 10);
                         } else {
                             playerDodgeball.addScore(0, opponentTeam.teamname + "defeated " + myTeam.teamname + " (dead)");
-                            playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                            playerDodgeball.setGameMode(GameMode.SPECTATOR);
                             playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GREEN + "Victory!", "Your team has won the round!", 10, 60, 10);
                         }
                     }
@@ -156,9 +143,9 @@ public class ListenerDodgeball implements Listener {
 
                 // Tell the losing team that they lost
                 for (UUID uuid : myTeam.players) {
-                    PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(uuid);
+                    PlayerDodgeball playerDodgeball = server.playerLookup.get(uuid);
                     if (playerDodgeball != null) {
-                        playerDodgeball.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                        playerDodgeball.setGameMode(GameMode.SPECTATOR);
                         new BukkitRunnable() {
                             @Override
                             public void run() {
@@ -176,38 +163,35 @@ public class ListenerDodgeball implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
+    @Override
+    public void onMove(PlayerDodgeball player, PlayerMoveEvent event) {
         if (server.state == ServerDodgeball.GAME_INPROGRESS) {
-            PlayerDodgeball playerDodgeball = ((PlayerDodgeball) server.playerLookup.get(event.getPlayer().getUniqueId()));
-
             // Once a player enters the play area, they will no longer be invincible
-            if (7 < event.getTo().getZ() && event.getTo().getZ() < 41 && playerDodgeball.bukkitPlayer.getGameMode() == GameMode.ADVENTURE) {
-                playerDodgeball.invulnerable = false;
-                playerDodgeball.inSpawn = false;
-                playerDodgeball.spawnTimer = ServerDodgeball.SPAWN_TIMER;
-                playerDodgeball.bukkitPlayer.setInvisible(false);
+            if (7 < event.getTo().getZ() && event.getTo().getZ() < 41 && player.getGameMode() == GameMode.ADVENTURE) {
+                player.invulnerable = false;
+                player.inSpawn = false;
+                player.spawnTimer = ServerDodgeball.SPAWN_TIMER;
+                player.bukkitPlayer.setInvisible(false);
             }
 
             // If a player re-enters spawn,
-            if ((7 > event.getTo().getZ() || event.getTo().getZ() > 41) && playerDodgeball.bukkitPlayer.getGameMode() == GameMode.ADVENTURE) {
-                playerDodgeball.inSpawn = true;
+            if ((7 > event.getTo().getZ() || event.getTo().getZ() > 41) && player.getGameMode() == GameMode.ADVENTURE) {
+                player.inSpawn = true;
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerDamage(EntityDamageEvent event) {
-        PlayerDodgeball playerDodgeball = (PlayerDodgeball) server.playerLookup.get(((Player) event.getEntity()).getUniqueId());
+    @Override
+    public void onDamage(PlayerDodgeball player, EntityDamageEvent event) {
         if (server.state == ServerDodgeball.GAME_INPROGRESS) {
-            if (event.getEntityType() == EntityType.PLAYER && playerDodgeball.invulnerable && event.getCause() != EntityDamageEvent.DamageCause.CUSTOM) {
+            if (player.invulnerable && event.getCause() != EntityDamageEvent.DamageCause.CUSTOM) {
                 event.setCancelled(true);
             }
         }
 
         // Practice Mode
         else if (server.state == ServerDodgeball.GAME_WAITING) {
-            if (playerDodgeball.arena == -1) {
+            if (player.arena == -1) {
                 event.setCancelled(true);
             }
         } else {
@@ -215,28 +199,21 @@ public class ListenerDodgeball implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerDrop(PlayerDropItemEvent event) {
+    @Override
+    public void onDropItem(PlayerDodgeball player, PlayerDropItemEvent event) {
         if (event.getItemDrop().getItemStack().getType() == Material.BOW ||
                 event.getItemDrop().getItemStack().getType() == Material.TARGET) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
-        PlayerDodgeball player = (PlayerDodgeball) server.playerLookup.get(event.getPlayer().getUniqueId());
+    @Override
+    public void onRespawn(PlayerDodgeball player, PlayerRespawnEvent event) {
         if (server.state == ServerDodgeball.GAME_INPROGRESS) {
             if (player.lives <= 0) {
                 if (player.lastDeathLocation != null) {
                     event.setRespawnLocation(player.lastDeathLocation);
-                    //player.bukkitPlayer.setInvisible(true);
-                    new BukkitRunnable() {
-                        public void run() {
-                            //player.bukkitPlayer.setInvisible(false);
-                            player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-                        }
-                    }.runTaskLater(server.plugin, 1);
+                    player.setGameMode(GameMode.SPECTATOR);
                 }
             } else {
                 server.giveBow(player);
@@ -254,10 +231,8 @@ public class ListenerDodgeball implements Listener {
         }
     }
 
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        Player p = event.getPlayer();
-        PlayerDodgeball player = (PlayerDodgeball) server.getPlayerFromUUID(p.getUniqueId());
+    @Override
+    public void onInteract(PlayerDodgeball player, PlayerInteractEvent event) {
         Block block = event.getClickedBlock();
 
         // Practice Mode - Arena Select Signs
@@ -295,17 +270,17 @@ public class ListenerDodgeball implements Listener {
 
                 player.arena = arenaNo;
                 if (signLine.startsWith("Join ") && signLine.endsWith(" Red")) {
-                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+                    player.reset(GameMode.ADVENTURE);
                     server.giveBow(player);
                     server.givePracticeModeSelect(player.bukkitPlayer);
-                    player.bukkitPlayer.teleport(redSpawn);
+                    player.teleport(redSpawn);
                     player.bukkitPlayer.setBedSpawnLocation(redSpawn, true);
 
                 } else if (signLine.startsWith("Join ") && signLine.endsWith(" Blue")) {
-                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+                    player.reset(GameMode.ADVENTURE);
                     server.giveBow(player);
                     server.givePracticeModeSelect(player.bukkitPlayer);
-                    player.bukkitPlayer.teleport(blueSpawn);
+                    player.teleport(blueSpawn);
                     player.bukkitPlayer.setBedSpawnLocation(blueSpawn, true);
                 }
             }
@@ -329,10 +304,10 @@ public class ListenerDodgeball implements Listener {
                 }
             }
 
-            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
+            player.reset(GameMode.ADVENTURE);
             server.givePracticeModeSelect(player.bukkitPlayer);
-            p.teleport(server.practiceArenaSelect);
-            p.setBedSpawnLocation(server.practiceArenaSelect, true);
+            player.teleport(server.practiceArenaSelect);
+            player.bukkitPlayer.setBedSpawnLocation(server.practiceArenaSelect, true);
             event.setCancelled(true);
             return;
         }
@@ -341,11 +316,8 @@ public class ListenerDodgeball implements Listener {
     private Map<Projectile, BukkitTask> tasks = new HashMap<>();
     private Random random = new Random();
 
-    @EventHandler
-    public void onShoot(EntityShootBowEvent e){
-        if(!(e.getEntity() instanceof Player)){
-            return;
-        }
+    @Override
+    public void onShootBow(PlayerDodgeball player, EntityShootBowEvent e){
         Arrow a = (Arrow) e.getProjectile();
         a.setCritical(false);
     }

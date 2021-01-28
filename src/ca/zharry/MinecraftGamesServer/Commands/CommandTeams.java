@@ -24,9 +24,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class CommandTeams implements TabExecutor {
-	public ServerInterface server;
+	public ServerInterface<? extends PlayerInterface> server;
 
-	public CommandTeams(ServerInterface server) {
+	public CommandTeams(ServerInterface<? extends PlayerInterface> server) {
 		this.server = server;
 	}
 
@@ -80,10 +80,10 @@ public class CommandTeams implements TabExecutor {
 		} catch(CommandException e) {
 			return true;
 		} catch(SQLException e) {
-			sender.sendMessage("SQL operation failed: " + e.toString());
+			sender.sendMessage(ChatColor.RED + "SQL operation failed: " + e.toString());
 			e.printStackTrace();
+			return true;
 		}
-		return false;
 	}
 
 	public boolean add(CommandSender sender, String[] args) throws SQLException {

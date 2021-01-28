@@ -11,7 +11,7 @@ public class PlayerLobby extends PlayerInterface {
     public ServerLobby server;
 
     public PlayerLobby(ServerLobby server, UUID uuid, String username) {
-        super(server, uuid, username, "lobby");
+        super(server, uuid, username);
         this.server = server;
     }
 

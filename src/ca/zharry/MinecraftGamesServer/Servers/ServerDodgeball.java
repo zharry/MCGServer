@@ -11,7 +11,6 @@ import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
 import org.bukkit.block.Sign;
@@ -29,11 +28,11 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
-public class ServerDodgeball extends ServerInterface {
+public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
 
     // Ingame variables
-    public ArrayList<ArrayList<Integer>> roundRobin; // 2D Array of when (i,j) should play each other
-    public HashMap<Integer, Integer> rrIndexToTeamId;
+    public ArrayList<ArrayList<Integer>> roundRobin = new ArrayList<>(); // 2D Array of when (i,j) should play each other
+    public HashMap<Integer, Integer> rrIndexToTeamId = new HashMap<>();
     public HashMap<UUID, Boolean> playerColor = new HashMap<>(); // false is blue; true is red
     public int currentGame = 0;
     public int totalGames = 0;
@@ -67,21 +66,17 @@ public class ServerDodgeball extends ServerInterface {
     public Cutscene startGameTutorial;
     public BukkitTask practiceModeTimer;
 
-    public ServerDodgeball(JavaPlugin plugin, World world) {
-        super(plugin, world);
+    public ServerDodgeball(JavaPlugin plugin, World world, String minigame) {
+        super(plugin, world, minigame);
         serverSpawn = new Location(world, -15.5, 4, 1.5);
         practiceArenaSelect = new Location(world, 0.5, 5, 0.5, 180, 0);
         initArenaSpawns();
 
-        roundRobin = new ArrayList<ArrayList<Integer>>();
-        rrIndexToTeamId = new HashMap<Integer, Integer>();
-
         // Add existing players (for hot-reloading)
-        ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player : currentlyOnline) {
+        for (PlayerInterface player : players) {
             player.teleport(serverSpawn);
-            PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
-            givePracticeModeSelect(player);
+            player.reset(GameMode.ADVENTURE);
+            givePracticeModeSelect(player.bukkitPlayer);
         }
 
         dodgeballPracticeMode();
@@ -166,7 +161,7 @@ public class ServerDodgeball extends ServerInterface {
             @Override
             public void onEnd() {
                 sendTitleAll("Joining Lobby...", "", 5, 20, 30);
-                sendPlayersToLobby();
+                MCGMain.bungeeManager.sendAllPlayers(MCGMain.lobbyId, false, true);
 
                 state = GAME_WAITING;
                 displayedWelcomeMessage = false;
@@ -217,7 +212,7 @@ public class ServerDodgeball extends ServerInterface {
             @Override
             public void onStart() {
                 for (PlayerInterface p : players) {
-                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                    p.setGameMode(GameMode.SPECTATOR);
                 }
             }
 
@@ -225,8 +220,8 @@ public class ServerDodgeball extends ServerInterface {
             public void onEnd() {
                 timerStartGame.start();
                 for (PlayerInterface player : players) {
-                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
-                    player.bukkitPlayer.teleport(serverSpawn);
+                    player.reset(GameMode.ADVENTURE);
+                    player.teleport(serverSpawn);
                     player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
                 }
             }
@@ -287,7 +282,7 @@ public class ServerDodgeball extends ServerInterface {
     }
 
     @Override
-    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+    public PlayerDodgeball createNewPlayerInterface(UUID uuid, String name) {
         return new PlayerDodgeball(this, uuid, name);
     }
 
@@ -354,12 +349,11 @@ public class ServerDodgeball extends ServerInterface {
 
                     // This section of code is from dodgeballStart() except without the teleporting
                     // It's just for settings the opponentTeam field in each player
-                    for (PlayerInterface player : players) {
-                        PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
+                    for (PlayerDodgeball player : players) {
                         if (player.myTeam.id == team1.id)
-                            playerDodgeball.opponentTeam = team2;
+                            player.opponentTeam = team2;
                         if (player.myTeam.id == team2.id)
-                            playerDodgeball.opponentTeam = team1;
+                            player.opponentTeam = team1;
                     }
                 }
             }
@@ -397,26 +391,24 @@ public class ServerDodgeball extends ServerInterface {
                     Point3D blueSpawnLocation = arenaSpawns.get(arenaNo).add(0, 0, 45);
                     arenaNo++;
 
-                    for (PlayerInterface player : players) {
-                        PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
-
+                    for (PlayerDodgeball player : players) {
                         // Send team 1 to RED spawn
                         if (player.myTeam.id == team1.id) {
-                            playerDodgeball.opponentTeam = team2;
-                            playerDodgeball.arena = arenaNo;
+                            player.opponentTeam = team2;
+                            player.arena = arenaNo;
                             Location redSpawn = new Location(world,
                                     redSpawnLocation.getX(), redSpawnLocation.getY(), redSpawnLocation.getZ());
-                            player.bukkitPlayer.teleport(redSpawn);
+                            player.teleport(redSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(redSpawn, true);
                             playerColor.put(player.bukkitPlayer.getUniqueId(), true);
                         }
                         // Send team 2 to BLUE spawn
                         if (player.myTeam.id == team2.id) {
-                            playerDodgeball.opponentTeam = team1;
-                            playerDodgeball.arena = arenaNo;
+                            player.opponentTeam = team1;
+                            player.arena = arenaNo;
                             Location blueSpawn = new Location(world,
                                     blueSpawnLocation.getX(), blueSpawnLocation.getY(), blueSpawnLocation.getZ());
-                            player.bukkitPlayer.teleport(blueSpawn);
+                            player.teleport(blueSpawn);
                             player.bukkitPlayer.setBedSpawnLocation(blueSpawn, true);
                             playerColor.put(player.bukkitPlayer.getUniqueId(), false);
                         }
@@ -426,43 +418,41 @@ public class ServerDodgeball extends ServerInterface {
         }
 
         // Reset kills and lives counter
-        for (PlayerInterface player : players) {
-            PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
-            playerDodgeball.kills = 0;
-            playerDodgeball.lives = 3;
-            playerDodgeball.invulnerable = true;
-            playerDodgeball.inSpawn = true;
-            playerDodgeball.spawnTimer = SPAWN_TIMER;
+        for (PlayerDodgeball player : players) {
+            player.kills = 0;
+            player.lives = 3;
+            player.invulnerable = true;
+            player.inSpawn = true;
+            player.spawnTimer = SPAWN_TIMER;
 
-            PlayerUtils.resetPlayer(playerDodgeball.bukkitPlayer, GameMode.ADVENTURE);
-            playerDodgeball.bukkitPlayer.setInvisible(true);
-            giveBow(playerDodgeball);
+            player.reset(GameMode.ADVENTURE);
+            player.bukkitPlayer.setInvisible(true);
+            giveBow(player);
         }
     }
 
     private void dodgeballTick() {
         // Logic for spawn timers
-        for (PlayerInterface player : players) {
-            PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
+        for (PlayerDodgeball player : players) {
             // Logic only applies if the game isn't already about to end, only to those who are in spawn, and are still playing the game
-            if (timerInProgress.get() >= 12 * 20 && playerDodgeball.inSpawn && playerDodgeball.bukkitPlayer.getGameMode() == GameMode.ADVENTURE && playerDodgeball.arena != -1) {
+            if (timerInProgress.get() >= 12 * 20 && player.inSpawn && player.getGameMode() == GameMode.ADVENTURE && player.arena != -1) {
 
                 // Decrement timer
-                playerDodgeball.spawnTimer = Math.max(playerDodgeball.spawnTimer - 1, 0);
+                player.spawnTimer = Math.max(player.spawnTimer - 1, 0);
 
                 // Start killing the player if they are in spawn for too long
-                if (playerDodgeball.spawnTimer <= 0) {
-                    playerDodgeball.bukkitPlayer.damage(1);
+                if (player.spawnTimer <= 0) {
+                    player.bukkitPlayer.damage(1);
                 }
 
                 // Send the player messages
-                int secondsLeft = (int) (playerDodgeball.spawnTimer / 20 + 0.5);
+                int secondsLeft = (int) (player.spawnTimer / 20 + 0.5);
                 if (secondsLeft >= 11 && secondsLeft <= 14) {
-                    playerDodgeball.bukkitPlayer.sendTitle(ChatColor.GOLD + "You must leave spawn!", ChatColor.GOLD + "Or else you will start to take damage!", 0, 20, 10);
+                    player.bukkitPlayer.sendTitle(ChatColor.GOLD + "You must leave spawn!", ChatColor.GOLD + "Or else you will start to take damage!", 0, 20, 10);
                 } else if (secondsLeft > 0 && secondsLeft <= 10) {
-                    playerDodgeball.bukkitPlayer.sendTitle("" + secondsLeft + " seconds left", "Until you start to take damage!", 0, 20, 10);
+                    player.bukkitPlayer.sendTitle("" + secondsLeft + " seconds left", "Until you start to take damage!", 0, 20, 10);
                 } else if (secondsLeft <= 0) {
-                    playerDodgeball.bukkitPlayer.sendTitle(ChatColor.RED + "You must leave spawn!", ChatColor.RED + "You will now take damage until you die!", 0, 20, 10);
+                    player.bukkitPlayer.sendTitle(ChatColor.RED + "You must leave spawn!", ChatColor.RED + "You will now take damage until you die!", 0, 20, 10);
                 }
             }
         }
@@ -485,9 +475,8 @@ public class ServerDodgeball extends ServerInterface {
         // Check if all arena's competitions have completed
         if (timerInProgress.get() > 17 * 20) {
             boolean terminate = true;
-            for (PlayerInterface player : players) {
-                PlayerDodgeball playerDodgeball = (PlayerDodgeball) player;
-                if (playerDodgeball.bukkitPlayer.getGameMode() != GameMode.SPECTATOR && playerDodgeball.arena != -1) {
+            for (PlayerDodgeball player : players) {
+                if (player.getGameMode() != GameMode.SPECTATOR && player.arena != -1) {
                     terminate = false;
                     break;
                 }
@@ -501,11 +490,11 @@ public class ServerDodgeball extends ServerInterface {
 
     private void dodgeballEnd() {
         ArrayList<PlayerDodgeball> playerDodgeballs = new ArrayList<>();
-        for (PlayerInterface player : players) {
-            playerDodgeballs.add((PlayerDodgeball) player);
-            ((PlayerDodgeball) player).arena = -1;
-            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
-            player.bukkitPlayer.teleport(serverSpawn);
+        for (PlayerDodgeball player : players) {
+            playerDodgeballs.add(player);
+            player.arena = -1;
+            player.reset(GameMode.ADVENTURE);
+            player.teleport(serverSpawn);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
         }
 

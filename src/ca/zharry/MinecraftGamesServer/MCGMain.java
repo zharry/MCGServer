@@ -1,10 +1,18 @@
 package ca.zharry.MinecraftGamesServer;
 
 import ca.zharry.MinecraftGamesServer.Commands.*;
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.SQL.SQLManager;
 import ca.zharry.MinecraftGamesServer.Servers.*;
+import ca.zharry.MinecraftGamesServer.Utils.BungeeManager;
+import ca.zharry.MinecraftGamesServer.Utils.GameModeManager;
+import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.ListenerPriority;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -28,7 +36,9 @@ import java.util.stream.Collectors;
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
     public static SQLManager sqlManager;
+    public static GameModeManager gameModeManager;
     public static ProtocolManager protocolManager;
+    public static BungeeManager bungeeManager;
     public static boolean allowUserJoinTeam;
 
     // Global configuration
@@ -42,8 +52,8 @@ public class MCGMain extends JavaPlugin {
     // Minigame information
     public static String lobbyId = "lobby";
     public static HashMap<String, String> serverNames = new HashMap<>();
-    public static HashMap<String, Class<? extends ServerInterface>> serverClasses = new HashMap<>();
-    public static void addServer(String id, Class<? extends ServerInterface> serverClass, String name) {
+    public static HashMap<String, Class<? extends ServerInterface<? extends PlayerInterface>>> serverClasses = new HashMap<>();
+    public static void addServer(String id, Class<? extends ServerInterface<? extends PlayerInterface>> serverClass, String name) {
         serverNames.put(id, name);
         serverClasses.put(id, serverClass);
     }
@@ -60,11 +70,10 @@ public class MCGMain extends JavaPlugin {
         addServer("survivalgames", ServerSurvivalGames.class, "Survival Games");
     }
 
-    public static String serverToSendAll;
-
     @Override
     public void onEnable() {
         protocolManager = ProtocolLibrary.getProtocolManager();
+        gameModeManager = new GameModeManager();
 
         try {
             Properties sqlProperties = new Properties();
@@ -78,40 +87,18 @@ public class MCGMain extends JavaPlugin {
             new BukkitRunnable() {
                 public void run() {
                     sqlManager.tick();
+                    gameModeManager.tick();
                 }
             }.runTaskTimer(this, 0, 0);
 
-            getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
-            getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new PluginMessageListener() {
-                @Override
-                public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-                    ByteArrayDataInput input = ByteStreams.newDataInput(message);
-                    String subchannel = input.readUTF();
-                    if(subchannel.equals("PlayerList")) {
-                        if(serverToSendAll == null) {
-                            return;
-                        }
-                        input.readUTF();
-                        String[] players = input.readUTF().split(", ");
-                        for(String otherPlayerName : players) {
-                            ByteArrayDataOutput output = ByteStreams.newDataOutput();
-                            output.writeUTF("ConnectOther");
-                            output.writeUTF(otherPlayerName);
-                            output.writeUTF(serverToSendAll);
-                            player.sendPluginMessage(MCGMain.this, "BungeeCord", output.toByteArray());
-                        }
-                        serverToSendAll = null;
-                    }
-                }
-            });
-
             // Instantiate the correct ServerInterface
             this.getConfigurationFile();
-            Class<? extends ServerInterface> serverClass = serverClasses.get(serverMinigame);
+            Class<? extends ServerInterface<? extends PlayerInterface>> serverClass = serverClasses.get(serverMinigame);
             if(serverClass == null) {
                 throw new RuntimeException("Server " + serverMinigame + " does not exist");
             }
-            server = serverClass.getConstructor(JavaPlugin.class, World.class).newInstance(this, getServer().getWorld("world"));
+            server = serverClass.getConstructor(JavaPlugin.class, World.class, String.class).newInstance(this, getServer().getWorld("world"), serverMinigame);
+            bungeeManager = new BungeeManager(this, server);
 
             server.onEnableCall();
             this.getCommand("cutscene").setExecutor(new CommandCutscene(server));

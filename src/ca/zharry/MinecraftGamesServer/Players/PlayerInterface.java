@@ -5,46 +5,41 @@ import ca.zharry.MinecraftGamesServer.MCGScore;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
-import ca.zharry.MinecraftGamesServer.Utils.ChatStringUtils;
-import ca.zharry.MinecraftGamesServer.Utils.SidebarDisplay;
-import ca.zharry.MinecraftGamesServer.Utils.StringAlignUtils;
-import ca.zharry.MinecraftGamesServer.Utils.TableGenerator;
+import ca.zharry.MinecraftGamesServer.Utils.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-import javax.sql.rowset.CachedRowSet;
-import java.sql.PreparedStatement;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.UUID;
 
 public abstract class PlayerInterface {
 
     // Scores
-    public String curMinigame;
     private int currentScore = 0;
     public ArrayList<MCGScore> previousScores = new ArrayList<>();
 
     public Player bukkitPlayer; // null if the player is offline
     public UUID uuid;
     public String name; // Unformatted raw username
-    public ServerInterface server;
+    public ServerInterface<? extends PlayerInterface> server;
     public Scoreboard scoreboard;
     public SidebarDisplay sidebar;
     public MCGTeam myTeam;
     public Cutscene cutscene;
 
-    public PlayerInterface(ServerInterface server, UUID uuid, String name, String curMinigame) {
+    public PlayerInterface(ServerInterface<? extends PlayerInterface> server, UUID uuid, String name) {
         this.server = server;
         this.uuid = uuid;
         this.name = name;
-        this.curMinigame = curMinigame;
 
         fetchData();
 
@@ -78,11 +73,7 @@ public abstract class PlayerInterface {
         }
         minecraftTeam.addEntry(player.name);
         minecraftTeam.setColor(team.chatColor);
-        minecraftTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
-        minecraftTeam.setCanSeeFriendlyInvisibles(false);
-        if(team != server.defaultTeam) {
-            minecraftTeam.setAllowFriendlyFire(false);
-        }
+        server.configureScoreboardTeam(minecraftTeam, team);
     }
 
     /* PLAYER LOGIC */
@@ -121,7 +112,7 @@ public abstract class PlayerInterface {
 
     public int getScore(String minigame) {
         int val = 0;
-        if (minigame.equals(curMinigame)) {
+        if (minigame.equals(server.minigame)) {
             val += currentScore;
         }
         for (MCGScore score : previousScores) {
@@ -153,7 +144,7 @@ public abstract class PlayerInterface {
         this.currentScore += scoreDelta;
         MCGMain.sqlManager.executeQueryAsync(
                 "INSERT INTO `logs` (`season`, `minigame`, `playeruuid`, `scoredelta`, `message`) " +
-                        " VALUES (?, ?, ?, ?, ?)", MCGMain.SEASON, curMinigame, uuid.toString(), scoreDelta, notes);
+                        " VALUES (?, ?, ?, ?, ?)", MCGMain.SEASON, server.minigame, uuid.toString(), scoreDelta, notes);
     }
 
     public int getCurrentScore() {
@@ -244,6 +235,10 @@ public abstract class PlayerInterface {
         return ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + name + ChatColor.RESET;
     }
 
+    public String getDisplayName() {
+        return myTeam.chatColor + name + ChatColor.RESET;
+    }
+
     /* SIDEBAR */
 
     public abstract void updateSidebar();
@@ -330,7 +325,7 @@ public abstract class PlayerInterface {
                 int score = resultSet.getInt("score");
                 String metadata = resultSet.getString("metadata");
 
-                if (season == MCGMain.SEASON && minigame.equals(curMinigame)) {
+                if (season == MCGMain.SEASON && minigame.equals(server.minigame)) {
                     currentScore = score;
                     newMetadata = metadata;
                 } else {
@@ -354,7 +349,7 @@ public abstract class PlayerInterface {
                             "`score` = VALUES(`score`), " +
                             "`metadata` = VALUES(`metadata`), " +
                             "`time` = current_timestamp()",
-                    uuid.toString(), MCGMain.SEASON, curMinigame, getCurrentScore(), saveMetadata());
+                    uuid.toString(), MCGMain.SEASON, server.minigame, getCurrentScore(), saveMetadata());
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -362,10 +357,62 @@ public abstract class PlayerInterface {
 
     public final void commitName() {
         try {
-            MCGMain.sqlManager.executeQuery("REPLACE INTO `players`(`uuid`, `season`, `username`, `teamid`) VALUES (?, ?, ?, ?)", uuid.toString(), MCGMain.SEASON, name, myTeam.id == 0 ? null : myTeam.id);
+            MCGMain.sqlManager.executeQuery(
+                    "INSERT INTO `players`(`uuid`, `season`, `username`, `teamid`) " +
+                            "VALUES (?, ?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE " +
+                            "`username` = VALUES(`username`)",
+                    uuid.toString(), MCGMain.SEASON, name, myTeam.id == 0 ? null : myTeam.id);
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public void setGameMode(GameMode mode) {
+        MCGMain.gameModeManager.setGameMode(bukkitPlayer, mode);
+    }
+
+    public GameMode getGameMode() {
+        return MCGMain.gameModeManager.getGameMode(bukkitPlayer);
+    }
+
+    public void reset(GameMode mode) {
+        setGameMode(mode);
+        bukkitPlayer.getInventory().clear();
+        bukkitPlayer.setWalkSpeed(0.2f);
+        bukkitPlayer.setAbsorptionAmount(0);
+        bukkitPlayer.setHealth(20);
+        bukkitPlayer.setHealthScaled(false);
+        bukkitPlayer.setFoodLevel(20);
+        bukkitPlayer.setSaturation(5);
+        bukkitPlayer.setExhaustion(0);
+        bukkitPlayer.setExp(0);
+        bukkitPlayer.setTotalExperience(0);
+        bukkitPlayer.getActivePotionEffects().clear();
+        bukkitPlayer.setFallDistance(0);
+    }
+
+    public void teleport(Location location) {
+        bukkitPlayer.teleport(location);
+    }
+
+    public void teleportPositionOnly(Location location) {
+        NMSHelper.teleport(bukkitPlayer, location.getX(), location.getY(), location.getZ(), 0, 0, false, false, false, true, true);
+    }
+
+    public Location getLocation() {
+        return bukkitPlayer.getLocation();
+    }
+
+    public void setHealth(double health) {
+        bukkitPlayer.setHealth(health);
+    }
+
+    public boolean equals(Object o) {
+        if(!(o instanceof PlayerInterface)) {
+            return false;
+        }
+        return uuid.equals(((PlayerInterface) o).uuid);
     }
 
 }

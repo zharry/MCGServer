@@ -3,12 +3,12 @@ package ca.zharry.MinecraftGamesServer.Timer;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
+import ca.zharry.MinecraftGamesServer.Utils.NMSHelper;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.PacketContainer;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -26,7 +26,7 @@ public abstract class Cutscene {
     private TreeMap<Long, CutsceneStep> events = new TreeMap<>();
 
     private Plugin plugin;
-    private ServerInterface server;
+    private ServerInterface<? extends PlayerInterface> server;
 
     private HashMap<PlayerInterface, ActivePlayer> activePlayers = new HashMap<>();
     public int entityId;
@@ -43,7 +43,7 @@ public abstract class Cutscene {
     public double speed = 1;
     public boolean forceCut = false;
 
-    public Cutscene(Plugin plugin, ServerInterface server, ArrayList<CutsceneStep> steps) {
+    public Cutscene(Plugin plugin, ServerInterface<? extends PlayerInterface> server, ArrayList<CutsceneStep> steps) {
         this.plugin = plugin;
         this.server = server;
 
@@ -78,69 +78,15 @@ public abstract class Cutscene {
         onStart();
 
         // Cache players
-//        activePlayers.clear();
         for(PlayerInterface player : server.players) {
-//            activePlayers.put(player, new ActivePlayer(player));
-//            try {
-//                player.bukkitPlayer.getGameMode();
-//                player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-//            } catch(Exception e) {
-//                e.printStackTrace();
-//            }
             addPlayerToCutscene(player);
         }
-//
-//        // Hide all cutscene players from each other
-//        for(PlayerInterface player1 : activePlayers.keySet()) {
-//            for(PlayerInterface player2 : activePlayers.keySet()) {
-//                player1.bukkitPlayer.hidePlayer(plugin, player2.bukkitPlayer);
-//            }
-//        }
 
         joinQuitListener = new PlayerJoinQuitListener();
         plugin.getServer().getPluginManager().registerEvents(joinQuitListener, plugin);
 
         cameraMover = new MoveCameraTimer();
         cameraMover.runTaskTimer(plugin, 0, 1);
-
-//        for (int i = 0; i < steps.size(); i++) {
-//            int iteration = i;
-//            new BukkitRunnable() {
-//                @Override
-//                public void run() {
-//                    // Send title message
-//                    server.sendTitleAll(steps.get(iteration).title, steps.get(iteration).subtitle, 10, steps.get(iteration).titleDelay, 10);
-//
-//
-//                    Location location = steps.get(iteration).location;
-//
-//
-//
-//                    // Teleport all players
-//                    for (PlayerInterface p : playingForPlayer) {
-//                        p.bukkitPlayer.teleport(steps.get(iteration).location);
-//                        if(!p.isOnline()) {
-//                            continue;
-//                        }
-//                        try {
-//                            MCGMain.protocolManager.sendServerPacket(p.bukkitPlayer, teleportEntity, false);
-//                            System.out.println("sent");
-//                        } catch(Exception e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                }
-//            }.runTaskLater(plugin, steps.get(iteration).delay);
-//        }
-//
-//        new BukkitRunnable() {
-//            @Override
-//            public void run() {
-//
-//
-//                onEnd();
-//            }
-//        }.runTaskLater(plugin, steps.get(steps.size() - 1).delay + steps.get(steps.size() - 1).titleDelay + 40);
     }
 
     public void end() {
@@ -171,15 +117,10 @@ public abstract class Cutscene {
         }
 
         ActivePlayer activePlayer = new ActivePlayer(player);
-//        player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-        new BukkitRunnable() {
-            public void run() {
-                player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-            }
-        }.runTaskLater(plugin, 1);
+        player.setGameMode(GameMode.SPECTATOR);
         player.cutscene = this;
         if(cameraMover != null) {
-            teleportPlayerNMS(player.bukkitPlayer, new Location(player.bukkitPlayer.getWorld(), lastX, lastY, lastZ, (float) lastYaw, (float) lastPitch));
+            player.teleport(new Location(player.bukkitPlayer.getWorld(), lastX, lastY, lastZ, (float) lastYaw, (float) lastPitch));
             spawnFakeEntity(player, lastX, lastY, lastZ, lastYaw, lastPitch);
             spectateEntity(player, true);
         }
@@ -194,8 +135,8 @@ public abstract class Cutscene {
                 player2.bukkitPlayer.showPlayer(plugin, player.bukkitPlayer);
             }
             ActivePlayer activePlayer = activePlayers.get(player);
-            activePlayer.player.bukkitPlayer.teleport(activePlayer.startLocation);
-            activePlayer.player.bukkitPlayer.setGameMode(activePlayer.startGameMode);
+            activePlayer.player.teleport(activePlayer.startLocation);
+            activePlayer.player.setGameMode(activePlayer.startGameMode);
             player.cutscene = null;
             activePlayers.remove(player);
         }
@@ -247,16 +188,6 @@ public abstract class Cutscene {
         }
     }
 
-    public void teleportPlayerNMS(Player player, Location location) {
-        try {
-            Object handle = player.getClass().getDeclaredMethod("getHandle").invoke(player);
-            Object playerConnection = handle.getClass().getDeclaredField("playerConnection").get(handle);
-            playerConnection.getClass().getDeclaredMethod("teleport", Location.class).invoke(playerConnection, location);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public void teleportEntity(double x, double y, double z, double yaw, double pitch, boolean isCut) {
         PacketContainer teleportEntity = new PacketContainer(PacketType.Play.Server.ENTITY_TELEPORT);
         // id
@@ -275,7 +206,7 @@ public abstract class Cutscene {
                 } catch(Exception e) {
                     e.printStackTrace();
                 }
-                teleportPlayerNMS(player.bukkitPlayer, new Location(server.world, x, y, z, (float) yaw, (float) pitch));
+                player.teleportPositionOnly(new Location(server.world, x, y, z, (float) yaw, (float) pitch));
                 spectateEntity(true);
             }
         }
@@ -283,7 +214,7 @@ public abstract class Cutscene {
         for(PlayerInterface player : activePlayers.keySet()) {
             try {
                 MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, teleportEntity, false);
-                teleportPlayerNMS(player.bukkitPlayer, new Location(server.world, x, y, z, (float) yaw, (float) pitch));
+                player.teleportPositionOnly(new Location(server.world, x, y, z, (float) yaw, (float) pitch));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -308,8 +239,8 @@ public abstract class Cutscene {
         public Location startLocation;
         public ActivePlayer(PlayerInterface player) {
             this.player = player;
-            startGameMode = player.bukkitPlayer.getGameMode();
-            startLocation = player.bukkitPlayer.getLocation();
+            startGameMode = player.getGameMode();
+            startLocation = player.getLocation();
         }
     }
 

@@ -25,7 +25,7 @@ public class PlayerDodgeball extends PlayerInterface {
     public ServerDodgeball server;
 
     public PlayerDodgeball(ServerDodgeball server, UUID uuid, String username) {
-        super(server, uuid, username, "dodgeball");
+        super(server, uuid, username);
         this.server = server;
     }
 
@@ -42,7 +42,7 @@ public class PlayerDodgeball extends PlayerInterface {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
 
-            if (bukkitPlayer.getGameMode() == GameMode.ADVENTURE)
+            if (getGameMode() == GameMode.ADVENTURE)
                 sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress);
             else
                 sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Waiting for others: " + ChatColor.RESET + server.timerInProgress);

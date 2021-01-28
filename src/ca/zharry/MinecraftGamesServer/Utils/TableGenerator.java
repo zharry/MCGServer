@@ -19,11 +19,11 @@ public class TableGenerator {
     private static List<Character> char4 = Arrays.asList('I', 't', ' ', '[', ']', '€');
     private static List<Character> char3 = Arrays.asList('l', '`', '³', '\'');
     private static List<Character> char2 = Arrays.asList(',', '.', '!', 'i', '´', ':', ';', '|');
-    private static char char1 = '\u17f2';
+    private static char char1 = '\u205a'; //17f2, 0384, 02c8
     private static Pattern regex = Pattern.compile(char1+"(?:§r)?(\\s*)"
-            + "(?:§r§8)?"+char1+"(?:§r)?(\\s*)"
-            + "(?:§r§8)?"+char1+"(?:§r)?(\\s*)"
-            + "(?:§r§8)?"+char1);
+            + "(?:§r§0)?"+char1+"(?:§r)?(\\s*)"
+            + "(?:§r§0)?"+char1+"(?:§r)?(\\s*)"
+            + "(?:§r§0)?"+char1);
     private static String colors = "[&§][0-9a-fA-Fk-oK-OrR]";
     private Alignment[] alignments;
     private List<Row> table = new ArrayList<>();
@@ -101,7 +101,7 @@ public class TableGenerator {
                 String char1s = concatChars(char1, char1Amount);
 
                 if (coloredDistances)
-                    char1s = "§r§8" + char1s + "§r";
+                    char1s = "§r§0" + char1s + "§r";
 
                 if (agn == Alignment.LEFT) {
                     sb.append(text);
@@ -135,8 +135,8 @@ public class TableGenerator {
                     String char1Right = concatChars(char1, char1RightAmount);
 
                     if (coloredDistances) {
-                        char1Left = "§r§8" + char1Left + "§r";
-                        char1Right = "§r§8" + char1Right + "§r";
+                        char1Left = "§r§0" + char1Left + "§r";
+                        char1Right = "§r§0" + char1Right + "§r";
                     }
 
                     sb.append(spacesLeft).append(char1Left).append(text);
@@ -151,7 +151,7 @@ public class TableGenerator {
             if (receiver == Receiver.CLIENT) {
                 for (int i = 0; i < 2; i++) {
                     Matcher matcher = regex.matcher(line);
-                    line = matcher.replaceAll("$1$2$3 ").replace("§r§8§r", "§r")
+                    line = matcher.replaceAll("$1$2$3 ").replace("§r§0§r", "§r")
                             .replaceAll("§r(\\s*)§r", "§r$1");
                 }
             }

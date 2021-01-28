@@ -2,6 +2,7 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
+import ca.zharry.MinecraftGamesServer.Utils.LocationUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -19,86 +20,73 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
 
-public class ListenerParkour implements Listener {
-
-    ServerParkour server;
+public class ListenerParkour extends PlayerListenerAdapter<ServerParkour, PlayerParkour> {
 
     public ListenerParkour(ServerParkour server) {
-        this.server = server;
+        super(server, PlayerParkour.class);
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        PlayerParkour playerParkour = (PlayerParkour) server.playerLookup.get(player.getUniqueId());
+    @Override
+    public void onJoin(PlayerParkour player, PlayerJoinEvent event) {
         player.setGameMode(GameMode.ADVENTURE);
-        player.setInvisible(false);
-        server.setPlayerInventoryContents(playerParkour);
+        player.bukkitPlayer.setInvisible(false);
+        server.setPlayerInventoryContents(player);
 
         if (server.state == ServerParkour.GAME_WAITING) {
             player.teleport(server.serverSpawn);
-            player.setBedSpawnLocation(server.serverSpawn, true);
+            player.bukkitPlayer.setBedSpawnLocation(server.serverSpawn, true);
 
         } else if (server.state == ServerParkour.GAME_STARTING) {
             Point3D checkpointLoc = server.stage1Checkpoints.get(0);
             Location firstCheckpoint = new Location(server.world, checkpointLoc.x, checkpointLoc.y, checkpointLoc.z);
             player.teleport(firstCheckpoint);
-            player.setBedSpawnLocation(firstCheckpoint, true);
+            player.bukkitPlayer.setBedSpawnLocation(firstCheckpoint, true);
 
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
             // Teleport player to last checkpoint
             Point3D checkpointLoc = server.stage1Checkpoints.get(0);
-            switch (playerParkour.stage) {
+            switch (player.stage) {
                 case 1:
-                    checkpointLoc = server.stage1Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage1Checkpoints.get(player.level);
                     break;
                 case 2:
-                    checkpointLoc = server.stage2Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage2Checkpoints.get(player.level);
                     break;
                 case 3:
-                    checkpointLoc = server.stage3Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage3Checkpoints.get(player.level);
                     break;
                 case 4:
-                    checkpointLoc = server.stage4Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage4Checkpoints.get(player.level);
                     break;
                 case 5:
-                    checkpointLoc = server.stage5Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage5Checkpoints.get(player.level);
                     break;
                 case 6:
-                    checkpointLoc = server.stage6Checkpoints.get(playerParkour.level);
+                    checkpointLoc = server.stage6Checkpoints.get(player.level);
                     break;
                 default:
             }
             Location nextStage = new Location(server.world, checkpointLoc.getX() + 0.5, checkpointLoc.getY() + 1, checkpointLoc.getZ() + 0.5, 90, 0);
             player.teleport(nextStage);
-            player.setInvisible(true);
+            player.bukkitPlayer.setInvisible(true);
 
         } else if (server.state == ServerParkour.GAME_FINISHED) {
             player.teleport(server.mapEnd);
-            player.setBedSpawnLocation(server.mapEnd, true);
+            player.bukkitPlayer.setBedSpawnLocation(server.mapEnd, true);
         }
     }
 
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
+    @Override
+    public void onDeath(PlayerParkour player, PlayerDeathEvent event) {
         event.setDeathMessage(null);
     }
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        PlayerParkour playerParkour = (PlayerParkour) server.getPlayerFromUUID(player.getUniqueId());
-
+    @Override
+    public void onMove(PlayerParkour player, PlayerMoveEvent event) {
         // Disable player movement in during countdown and pre-game
         if (server.state == ServerParkour.GAME_STARTING) {
-            if (event.getFrom().getX() != event.getTo().getX() ||
-                    event.getFrom().getY() != event.getTo().getY() ||
-                    event.getFrom().getZ() != event.getTo().getZ()) {
-                Location location = new Location(server.world,
-                        event.getFrom().getX(), event.getFrom().getY(), event.getFrom().getZ());
-                location.setPitch(player.getLocation().getPitch());
-                location.setYaw(player.getLocation().getYaw());
-                event.getPlayer().teleport(location);
+            if(!LocationUtils.positionEquals(event.getFrom(), event.getTo())) {
+                player.teleportPositionOnly(event.getFrom());
             }
             return;
         }
@@ -136,19 +124,19 @@ public class ListenerParkour implements Listener {
                 };
 
                 // Award points if this is new
-                if (stage == playerParkour.stage && levels[stage] > playerParkour.level ||
-                        stage > playerParkour.stage) {
+                if (stage == player.stage && levels[stage] > player.level ||
+                        stage > player.stage) {
                     if (levels[stage] != 0) {
-                        playerParkour.stage = stage;
-                        playerParkour.level = levels[stage];
+                        player.stage = stage;
+                        player.level = levels[stage];
                         int newScore = stageCompletedLevels[stage - 1] * 150 + levels[stage] * 150;
-                        playerParkour.addScore(newScore - playerParkour.getCurrentScore(), "completed " + playerParkour.stage + "-" + playerParkour.level);
-                        playerParkour.bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
-                        server.sendMessageAll(playerParkour.bukkitPlayer.getDisplayName() +
-                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + playerParkour.getCurrentScore() + "] " +
+                        player.addScore(newScore - player.getCurrentScore(), "completed " + player.stage + "-" + player.level);
+                        player.bukkitPlayer.sendTitle("Stage " + stage + "-" + levels[stage], "Checkpoint Completed", 10, 30, 10);
+                        server.sendMessageAll(player.bukkitPlayer.getDisplayName() +
+                                ChatColor.RESET + "" + ChatColor.BOLD + " [" + player.getCurrentScore() + "] " +
                                 ChatColor.RESET + "has completed Stage " + stage + "-" + levels[stage]);
 
-                        playerParkour.bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
+                        player.bukkitPlayer.setBedSpawnLocation(blockLocation.add(0.5, 1, 0.5), true);
                     }
                 }
 
@@ -171,52 +159,49 @@ public class ListenerParkour implements Listener {
                     finishedStage = true;
                     nextStart = server.stage6Checkpoints.get(0);
                 } else if (stage6Index == server.stage6Checkpoints.size() - 1) {
-                    playerParkour.bukkitPlayer.teleport(server.mapEnd);
+                    player.teleport(server.mapEnd);
                     return;
                 }
                 if (finishedStage) {
                     Location nextStage = new Location(server.world, nextStart.getX() + 0.5, nextStart.getY() + 1, nextStart.getZ() + 0.5, 90, 0);
-                    playerParkour.bukkitPlayer.teleport(nextStage);
-                    playerParkour.bukkitPlayer.setBedSpawnLocation(nextStage, true);
+                    player.teleport(nextStage);
+                    player.bukkitPlayer.setBedSpawnLocation(nextStage, true);
                 }
             }
         }
     }
 
-    @EventHandler
-    public void onPlayerDamage(EntityDamageEvent e) {
+    @Override
+    public void onDamage(PlayerParkour player, EntityDamageEvent e) {
         if (e.getCause() == EntityDamageEvent.DamageCause.CONTACT) {
-            e.setDamage(e.getDamage() / 10);
+            e.setDamage(0);
             return;
         }
-        if (e.getCause() != EntityDamageEvent.DamageCause.VOID)
+        if (e.getCause() != EntityDamageEvent.DamageCause.VOID) {
             e.setCancelled(true);
+        }
     }
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
+    @Override
+    public void onInventoryClick(PlayerParkour player, InventoryClickEvent event) {
         event.setCancelled(true);
     }
 
-    @EventHandler
-    public void onPlayerDropItem(PlayerDropItemEvent event) {
+    @Override
+    public void onDropItem(PlayerParkour player, PlayerDropItemEvent event) {
         event.setCancelled(true);
     }
 
-    @EventHandler
-    public void onPlayerItemUse(PlayerInteractEvent event) {
+    @Override
+    public void onInteract(PlayerParkour player, PlayerInteractEvent event) {
         // Disable farmland trampling
         if (event.getAction() == Action.PHYSICAL) {
             event.setCancelled(true);
         }
-    }
 
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getClickedBlock() != null && event.getClickedBlock().getType() == Material.ACACIA_DOOR) {
             return;
         }
-        Player p = event.getPlayer();
         Block block = event.getClickedBlock();
 
         // Practice Mode - Level Select
@@ -234,34 +219,33 @@ public class ListenerParkour implements Listener {
             return;
         }
         if (server.state == ServerParkour.GAME_WAITING && block != null && event.getMaterial() == Material.TARGET) {
-            p.teleport(new Location(p.getWorld(), -10000.5, 64, 0.5, 90, 0));
+            player.teleport(new Location(server.world, -10000.5, 64, 0.5, 90, 0));
             event.setCancelled(true);
             return;
         }
 
         // Test for Checkpoint reset
         if ((server.state == ServerParkour.GAME_INPROGRESS || server.state == ServerParkour.GAME_WAITING) && event.getMaterial() == Material.PAPER) {
-            p.setHealth(0);
+            player.setHealth(0);
             event.setCancelled(true);
             return;
         }
 
         // Test for disable Waypoints
         if (event.getMaterial() == Material.END_ROD) {
-            PlayerParkour playerParkour = (PlayerParkour) server.getPlayerFromUUID(p.getUniqueId());
-            if (playerParkour.waypointsEnabled) {
-                server.disableWaypoints(playerParkour);
+            if (player.waypointsEnabled) {
+                server.disableWaypoints(player);
             } else {
-                server.enableWaypoints(playerParkour);
+                server.enableWaypoints(player);
             }
-            playerParkour.waypointsEnabled = !playerParkour.waypointsEnabled;
-            p.sendMessage("Waypoints have been " + (playerParkour.waypointsEnabled ? ChatColor.GREEN + "enabled" : ChatColor.RED + "disabled"));
+            player.waypointsEnabled = !player.waypointsEnabled;
+            player.bukkitPlayer.sendMessage("Waypoints have been " + (player.waypointsEnabled ? ChatColor.GREEN + "enabled" : ChatColor.RED + "disabled"));
             event.setCancelled(true);
         }
     }
 
-    @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
+    @Override
+    public void onRespawn(PlayerParkour player, PlayerRespawnEvent event) {
         Location location = event.getRespawnLocation();
         location.setYaw(90);
         event.setRespawnLocation(location);

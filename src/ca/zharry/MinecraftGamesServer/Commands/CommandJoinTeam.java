@@ -2,6 +2,7 @@ package ca.zharry.MinecraftGamesServer.Commands;
 
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -17,9 +18,9 @@ import java.util.stream.Collectors;
 
 public class CommandJoinTeam implements TabExecutor {
 
-	public ServerInterface server;
+	public ServerInterface<? extends PlayerInterface> server;
 
-	public CommandJoinTeam(ServerInterface server) {
+	public CommandJoinTeam(ServerInterface<? extends PlayerInterface> server) {
 		this.server = server;
 	}
 

@@ -16,7 +16,7 @@ public class PlayerSurvivalGames extends PlayerInterface {
     public ServerSurvivalGames server;
 
     public PlayerSurvivalGames(ServerSurvivalGames server, UUID uuid, String username) {
-        super(server, uuid, username, "survivalgames");
+        super(server, uuid, username);
         this.server = server;
     }
 

@@ -16,7 +16,7 @@ public class PlayerParkour extends PlayerInterface {
     public ServerParkour server;
 
     public PlayerParkour(ServerParkour server, UUID uuid, String username) {
-        super(server, uuid, username, "parkour");
+        super(server, uuid, username);
         this.server = server;
     }
 

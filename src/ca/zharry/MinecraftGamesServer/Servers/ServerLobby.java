@@ -6,16 +6,18 @@ import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
 import ca.zharry.MinecraftGamesServer.MCGMain;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Team;
 
 import java.util.UUID;
 
-public class ServerLobby extends ServerInterface {
+public class ServerLobby extends ServerInterface<PlayerLobby> {
 
     // Game config
     public static final int TIMER_START = 60 * 20;
@@ -27,17 +29,24 @@ public class ServerLobby extends ServerInterface {
     public int state = ERROR;
     public String nextMinigame;
 
+    // No damage region
+    public static final double SAFE_MIN_X = 1443;
+    public static final double SAFE_MAX_X = 1492;
+    public static final double SAFE_MIN_Z = 511;
+    public static final double SAFE_MAX_Z = 549;
+
     // Server tasks
     public Timer timerNextGame;
 
-    public ServerLobby(JavaPlugin plugin, World world) {
-        super(plugin, world);
+    public ServerLobby(JavaPlugin plugin, World world, String minigame) {
+        super(plugin, world, minigame);
         serverSpawn = new Location(world, 1484.5, 4, 530, 90, 0);
 
         timerNextGame = new Timer(plugin, "next", TIMER_START) {
             @Override
             public void onStart() {
                 state = LOBBY_STARTED;
+                commitAllPlayers();
                 sendTitleAll(MCGMain.serverNames.get(nextMinigame), "is starting in 60 seconds!");
             }
 
@@ -52,7 +61,7 @@ public class ServerLobby extends ServerInterface {
 
             @Override
             public void onEnd() {
-                sendPlayersToGame(nextMinigame);
+                MCGMain.bungeeManager.sendAllPlayers(nextMinigame, false, true);
 
                 state = LOBBY_WAITING;
                 timerNextGame.set(TIMER_START);
@@ -60,34 +69,10 @@ public class ServerLobby extends ServerInterface {
         };
     }
 
-//    public enum VanillaClickType {
-//        PICKUP,
-//        QUICK_MOVE,
-//        SWAP,
-//        CLONE,
-//        THROW,
-//        QUICK_CRAFT,
-//        PICKUP_ALL
-//    }
-
     @Override
     public void onEnableCall() {
         super.onEnableCall();
         this.state = LOBBY_WAITING;
-//        MCGMain.protocolManager.addPacketListener(new PacketAdapter(this.plugin, PacketType.Play.Client.WINDOW_CLICK) {
-//            @Override
-//            public void onPacketReceiving(PacketEvent event) {
-//                PacketContainer packet = event.getPacket();
-////                System.out.println(packet);
-//                int containerId = packet.getIntegers().read(0);
-//                int slotNum = packet.getIntegers().read(1);
-//                int buttonNum = packet.getIntegers().read(2);
-//                short uid = packet.getShorts().read(0);
-//                ItemStack itemStack = packet.getItemModifier().read(0);
-//                VanillaClickType clickType = packet.getEnumModifier(VanillaClickType.class, 5).read(0);
-//                System.out.println(String.format("ContainerId=%d, slotId=%d, buttonNum=%d, uid=%d, itemstack=%s, clickType=%s", containerId, slotNum, buttonNum, uid, itemStack.toString(), clickType.toString()));
-//            }
-//        });
     }
 
     @Override
@@ -106,11 +91,17 @@ public class ServerLobby extends ServerInterface {
     public void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(new ListenerLobby(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
+//        plugin.getServer().getPluginManager().registerEvents(new DisableDamage(), plugin);
     }
 
     @Override
-    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+    public PlayerLobby createNewPlayerInterface(UUID uuid, String name) {
         return new PlayerLobby(this, uuid, name);
+    }
+
+    @Override
+    public void configureScoreboardTeam(Team minecraftTeam, MCGTeam team) {
+        super.configureScoreboardTeam(minecraftTeam, team);
+        minecraftTeam.setAllowFriendlyFire(true);
     }
 }

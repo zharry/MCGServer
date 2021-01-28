@@ -3,13 +3,13 @@ package ca.zharry.MinecraftGamesServer.Servers;
 import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSpleef;
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSpleef;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
@@ -33,7 +33,7 @@ import java.util.Comparator;
 import java.util.Random;
 import java.util.UUID;
 
-public class ServerSpleef extends ServerInterface {
+public class ServerSpleef extends ServerInterface<PlayerSpleef> {
 
     public ProtocolManager protocolManager;
 
@@ -77,14 +77,13 @@ public class ServerSpleef extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerSpleef(JavaPlugin plugin, World world) {
-        super(plugin, world);
+    public ServerSpleef(JavaPlugin plugin, World world, String minigame) {
+        super(plugin, world, minigame);
         serverSpawn = new Location(world, 14.5, 75, 17.5);
 
         // Add existing players (for hot-reloading)
-        ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player : currentlyOnline) {
-            PlayerUtils.resetPlayer(player, GameMode.ADVENTURE);
+        for (PlayerInterface player : players) {
+            player.reset(GameMode.ADVENTURE);
             player.teleport(serverSpawn);
         }
 
@@ -207,7 +206,7 @@ public class ServerSpleef extends ServerInterface {
             @Override
             public void onEnd() {
                 sendTitleAll("Joining Lobby...", "", 5, 20, 30);
-                sendPlayersToLobby();
+                MCGMain.bungeeManager.sendAllPlayers(MCGMain.lobbyId, false, true);
 
                 state = GAME_WAITING;
                 firstRun = true;
@@ -303,7 +302,7 @@ public class ServerSpleef extends ServerInterface {
     }
 
     @Override
-    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+    public PlayerSpleef createNewPlayerInterface(UUID uuid, String name) {
         return new PlayerSpleef(this, uuid, name);
     }
 
@@ -312,18 +311,17 @@ public class ServerSpleef extends ServerInterface {
     private void spleefBegin() {
         spleefRestore(world);
         world.getEntitiesByClass(TNTPrimed.class).forEach(Entity::remove);
-        players.forEach((player) -> ((PlayerSpleef) player).dead = false);
+        players.forEach((player) -> player.dead = false);
 
-        for (PlayerInterface player : players) {
-            sendToArena((PlayerSpleef) player, TELEPORT_MIN_Y, TELEPORT_MAX_Y);
+        for (PlayerSpleef player : players) {
+            sendToArena(player, TELEPORT_MIN_Y, TELEPORT_MAX_Y);
         }
     }
 
     private void spleefTick() {
         int counter = 0;
-        for (PlayerInterface player : players) {
-            PlayerSpleef playerSpleef = (PlayerSpleef) player;
-            if (!playerSpleef.dead) {
+        for (PlayerSpleef player : players) {
+            if (!player.dead) {
                 counter++;
             }
         }
@@ -346,7 +344,7 @@ public class ServerSpleef extends ServerInterface {
                 }
                 if (hunger >= 18) {
                     health = Math.min(health + 1, 20);
-                    player.bukkitPlayer.setHealth(health);
+                    player.setHealth(health);
                 }
             }
         }
@@ -355,10 +353,9 @@ public class ServerSpleef extends ServerInterface {
         if (timerInProgress.get() < 2400 && timerInProgress.get() > 0) {
             if(suddenDeathState == SUDDENDEATH_PENDING) {
                 spleefRestore(world);
-                for (PlayerInterface player : players) {
-                    PlayerSpleef playerSpleef = (PlayerSpleef) player;
-                    if (!playerSpleef.dead) {
-                        sendToArena((PlayerSpleef) player, TELEPORT_SUDDENDEATH_MIN_Y, TELEPORT_SUDDENDEATH_MAX_Y);
+                for (PlayerSpleef player : players) {
+                    if (!player.dead) {
+                        sendToArena(player, TELEPORT_SUDDENDEATH_MIN_Y, TELEPORT_SUDDENDEATH_MAX_Y);
                     }
                 }
                 suddenDeathState = SUDDENDEATH_COUNTDOWN;
@@ -381,19 +378,13 @@ public class ServerSpleef extends ServerInterface {
 
     private void spleefEnd() {
         ArrayList<PlayerSpleef> playerSpleefs = new ArrayList<>();
-        for (PlayerInterface player : players) {
-            playerSpleefs.add((PlayerSpleef) player);
-            // Race condition fix for last player alive being stuck in spectator mode after round ends
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
-                    player.bukkitPlayer.teleport(serverSpawn);
-                }
-            }.runTaskLater(plugin, 5); // Spectator is set in 1 tick delay
+        for (PlayerSpleef player : players) {
+            playerSpleefs.add(player);
+            player.reset(GameMode.ADVENTURE);
+            player.teleport(serverSpawn);
 
 
-            if (!((PlayerSpleef) player).dead) {
+            if (!player.dead) {
                 player.addScore(250, "last player alive");
                 player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last player(s) alive!", "You have received 250 additional points!", 0, 60, 10);
                 sendMessageAll(ChatColor.RESET + player.bukkitPlayer.getDisplayName() + " is the last player alive, and has received 250 additional points!");
@@ -447,9 +438,8 @@ public class ServerSpleef extends ServerInterface {
 
     public int getPlayersAlive() {
         int counter = 0;
-        for (PlayerInterface player : players) {
-            PlayerSpleef playerSpleef = (PlayerSpleef) player;
-            if (!playerSpleef.dead) {
+        for (PlayerSpleef player : players) {
+            if (!player.dead) {
                 counter++;
             }
         }
@@ -479,7 +469,7 @@ public class ServerSpleef extends ServerInterface {
             }
         }
 
-        PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.SURVIVAL);
+        player.reset(GameMode.SURVIVAL);
         ItemStack pickaxe = new ItemStack(Material.DIAMOND_PICKAXE, 1);
         ItemMeta pickaxeMeta = pickaxe.getItemMeta();
         pickaxeMeta.addEnchant(Enchantment.DIG_SPEED, 32767, true);
@@ -488,7 +478,7 @@ public class ServerSpleef extends ServerInterface {
         pickaxe.setItemMeta(pickaxeMeta);
         player.bukkitPlayer.getInventory().addItem(pickaxe);
 
-        player.bukkitPlayer.teleport(spreadStart);
+        player.teleport(spreadStart);
     }
 
     /* MAP LOGIC */

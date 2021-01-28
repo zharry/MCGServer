@@ -2,6 +2,7 @@ package ca.zharry.MinecraftGamesServer.Servers;
 
 import ca.zharry.MinecraftGamesServer.Commands.*;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSurvivalGames;
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerSurvivalGames;
@@ -9,7 +10,6 @@ import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.Coord3D;
-import ca.zharry.MinecraftGamesServer.Utils.PlayerUtils;
 import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
@@ -33,7 +33,7 @@ import org.bukkit.potion.PotionType;
 
 import java.util.*;
 
-public class ServerSurvivalGames extends ServerInterface {
+public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
 
     // Ingame variables
     public int stage = 0;
@@ -100,8 +100,8 @@ public class ServerSurvivalGames extends ServerInterface {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    public ServerSurvivalGames(JavaPlugin plugin, World world) {
-        super(plugin, world);
+    public ServerSurvivalGames(JavaPlugin plugin, World world, String minigame) {
+        super(plugin, world, minigame);
         serverSpawn = new Location(world, 0.5, 176, 0.5);
 
         initCornucopiaSpawns();
@@ -111,9 +111,8 @@ public class ServerSurvivalGames extends ServerInterface {
         resetWorldBorder();
 
         // Add existing players (for hot-reloading)
-        ArrayList<Player> currentlyOnline = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player player : currentlyOnline) {
-            PlayerUtils.resetPlayer(player, GameMode.SURVIVAL);
+        for (PlayerSurvivalGames player : players) {
+            player.reset(GameMode.SURVIVAL);
             player.teleport(serverSpawn);
         }
 
@@ -209,7 +208,7 @@ public class ServerSurvivalGames extends ServerInterface {
             @Override
             public void onEnd() {
                 sendTitleAll("Joining Lobby...", "", 5, 20, 30);
-                sendPlayersToLobby();
+                MCGMain.bungeeManager.sendAllPlayers(MCGMain.lobbyId, false, true);
 
                 state = GAME_WAITING;
                 stage = 0;
@@ -343,7 +342,7 @@ public class ServerSurvivalGames extends ServerInterface {
             @Override
             public void onStart() {
                 for (PlayerInterface p : players) {
-                    p.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
+                    p.setGameMode(GameMode.SPECTATOR);
                 }
             }
 
@@ -351,8 +350,8 @@ public class ServerSurvivalGames extends ServerInterface {
             public void onEnd() {
                 timerStartGame.start();
                 for (PlayerInterface player : players) {
-                    PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.ADVENTURE);
-                    player.bukkitPlayer.teleport(serverSpawn);
+                    player.reset(GameMode.ADVENTURE);
+                    player.teleport(serverSpawn);
                     player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
                 }
             }
@@ -401,7 +400,7 @@ public class ServerSurvivalGames extends ServerInterface {
     }
 
     @Override
-    public PlayerInterface createNewPlayerInterface(UUID uuid, String name) {
+    public PlayerSurvivalGames createNewPlayerInterface(UUID uuid, String name) {
         return new PlayerSurvivalGames(this, uuid, name);
     }
 
@@ -416,8 +415,8 @@ public class ServerSurvivalGames extends ServerInterface {
 
         // Assign Players a unique pad
         int spawnPads = spawnpoints.size();
-        for (PlayerInterface player : players) {
-            PlayerUtils.resetPlayer(player.bukkitPlayer, GameMode.SURVIVAL);
+        for (PlayerSurvivalGames player : players) {
+            player.reset(GameMode.SURVIVAL);
 
             // Get a free spawn slot
             int padNo;
@@ -432,8 +431,8 @@ public class ServerSurvivalGames extends ServerInterface {
             Location spawnPadLoc = new Location(world, spawnPad.x + 0.5, spawnPad.y, spawnPad.z + 0.5);
             spawnPadLoc.setPitch(0);
             spawnPadLoc.setYaw((float) Math.toDegrees(Math.atan2(spawnPad.x, -spawnPad.z)));
-            player.bukkitPlayer.teleport(spawnPadLoc);
-            player.bukkitPlayer.setGameMode(GameMode.SURVIVAL);
+            player.teleport(spawnPadLoc);
+            player.setGameMode(GameMode.SURVIVAL);
         }
     }
 
@@ -473,7 +472,7 @@ public class ServerSurvivalGames extends ServerInterface {
             // Check if each team still has at least one player alive
             boolean alive = false;
             for (UUID uuid : team.players) {
-                PlayerSurvivalGames player = (PlayerSurvivalGames) playerLookup.get(uuid);
+                PlayerSurvivalGames player = playerLookup.get(uuid);
                 if (player != null)
                     if (!player.dead) {
                         alive = true;
@@ -503,16 +502,15 @@ public class ServerSurvivalGames extends ServerInterface {
         timerFinished.start();
 
         ArrayList<PlayerSurvivalGames> playerSurvivalGamess = new ArrayList<>();
-        for (PlayerInterface player : players) {
-            player.bukkitPlayer.setGameMode(GameMode.SPECTATOR);
-            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
-            playerSurvivalGamess.add(playerSurvivalGames);
-            if (!playerSurvivalGames.dead) {
-                playerSurvivalGames.addScore(250, "last one standing");
-                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last one standing!", "You have received 250 additional points!", 10, 60, 10);
+        for (PlayerSurvivalGames player : players) {
+            player.setGameMode(GameMode.SPECTATOR);
+            playerSurvivalGamess.add(player);
+            if (!player.dead) {
+                player.addScore(250, "last one standing");
+                player.bukkitPlayer.sendTitle(ChatColor.GREEN + "Last one standing!", "You have received 250 additional points!", 10, 60, 10);
                 sendMessageAll(ChatColor.RESET + player.bukkitPlayer.getDisplayName() + " is the last one standing, and has received 250 additional points!");
             } else {
-                playerSurvivalGames.bukkitPlayer.sendTitle(ChatColor.RED + "Game Over!", "", 10, 60, 10);
+                player.bukkitPlayer.sendTitle(ChatColor.RED + "Game Over!", "", 10, 60, 10);
             }
             player.commit();
         }
@@ -560,9 +558,8 @@ public class ServerSurvivalGames extends ServerInterface {
     /* SUPPORTING LOGIC */
     public int getPlayersAlive() {
         int counter = 0;
-        for (PlayerInterface player : players) {
-            PlayerSurvivalGames playerSurvivalGames = (PlayerSurvivalGames) player;
-            if (!playerSurvivalGames.dead) {
+        for (PlayerSurvivalGames player : players) {
+            if (!player.dead) {
                 counter++;
             }
         }
