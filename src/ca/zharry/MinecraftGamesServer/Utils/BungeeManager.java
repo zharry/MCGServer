@@ -73,4 +73,12 @@ public class BungeeManager implements PluginMessageListener {
 		}
 	}
 
+	public void kickPlayer(Player player, String kickString) {
+		ByteArrayDataOutput output = ByteStreams.newDataOutput();
+		output.writeUTF("KickPlayer");
+		output.writeUTF(player.getName());
+		output.writeUTF(kickString);
+		player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
+	}
+
 }

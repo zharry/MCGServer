@@ -43,6 +43,9 @@ public class PlayerListenerAdapter<S extends ServerInterface, T extends PlayerIn
 
 	public <E extends Event> void registerEvent(Class<E> eventClass, Function<E, Entity> getPlayer, BiConsumer<T, E> dispatch) {
 		pluginManager.registerEvent(eventClass, this, EventPriority.NORMAL, (l, e) -> {
+			if (!eventClass.isInstance(e)) {
+				return;
+			}
 			T player = getPlayerInterfaceIgnoreCreative(getPlayer.apply((E) e), ignoreCreative);
 			if(player != null) {
 				dispatch.accept(player, (E) e);

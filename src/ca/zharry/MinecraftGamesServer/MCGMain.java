@@ -6,6 +6,8 @@ import ca.zharry.MinecraftGamesServer.SQL.SQLManager;
 import ca.zharry.MinecraftGamesServer.Servers.*;
 import ca.zharry.MinecraftGamesServer.Utils.BungeeManager;
 import ca.zharry.MinecraftGamesServer.Utils.GameModeManager;
+import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
+import ca.zharry.MinecraftGamesServer.Utils.ResourcePackManager;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
@@ -21,6 +23,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -35,10 +38,16 @@ import java.util.stream.Collectors;
 
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
+
+    // Managers
+    public static ProtocolManager protocolManager;
     public static SQLManager sqlManager;
     public static GameModeManager gameModeManager;
-    public static ProtocolManager protocolManager;
     public static BungeeManager bungeeManager;
+    public static ResourcePackManager resourcePackManager;
+    public static MusicManager musicManager;
+
+    // Allow user self enroll in teams
     public static boolean allowUserJoinTeam;
 
     // Global configuration
@@ -47,7 +56,7 @@ public class MCGMain extends JavaPlugin {
 
     // Current server information
     public String serverMinigame;
-    public ServerInterface server;
+    public ServerInterface<? extends PlayerInterface> server;
 
     // Minigame information
     public static String lobbyId = "lobby";
@@ -74,6 +83,8 @@ public class MCGMain extends JavaPlugin {
     public void onEnable() {
         protocolManager = ProtocolLibrary.getProtocolManager();
         gameModeManager = new GameModeManager();
+        resourcePackManager = new ResourcePackManager(this);
+        musicManager = new MusicManager(this);
 
         try {
             Properties sqlProperties = new Properties();
@@ -82,14 +93,6 @@ public class MCGMain extends JavaPlugin {
 
             sqlManager = new SQLManager("jdbc:mysql://mysql:3306/mcg", sqlProperties, 5);
             this.setupDatabase();
-
-            // Start up ticking to allow executeQueryAsyncTick
-            new BukkitRunnable() {
-                public void run() {
-                    sqlManager.tick();
-                    gameModeManager.tick();
-                }
-            }.runTaskTimer(this, 0, 0);
 
             // Instantiate the correct ServerInterface
             this.getConfigurationFile();
@@ -100,10 +103,20 @@ public class MCGMain extends JavaPlugin {
             server = serverClass.getConstructor(JavaPlugin.class, World.class, String.class).newInstance(this, getServer().getWorld("world"), serverMinigame);
             bungeeManager = new BungeeManager(this, server);
 
-            server.onEnableCall();
             this.getCommand("cutscene").setExecutor(new CommandCutscene(server));
             this.getCommand("join").setExecutor(new CommandJoinTeam(server));
             this.getCommand("teams").setExecutor(new CommandTeams(server));
+
+            // Tick some of the managers
+            new BukkitRunnable() {
+                public void run() {
+                    sqlManager.tick();
+                    gameModeManager.tick();
+                    musicManager.tick();
+                }
+            }.runTaskTimer(this, 0, 0);
+
+            server.onEnableCall();
 
             logger.info("MCG Plugin Enabled!");
         } catch(Exception e) {

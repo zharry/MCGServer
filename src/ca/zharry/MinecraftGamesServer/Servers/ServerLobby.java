@@ -2,14 +2,13 @@ package ca.zharry.MinecraftGamesServer.Servers;
 
 import ca.zharry.MinecraftGamesServer.Commands.CommandLobbySetNextGame;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
-import ca.zharry.MinecraftGamesServer.Listeners.DisableDamage;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
-import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
+import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -73,6 +72,11 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
     public void onEnableCall() {
         super.onEnableCall();
         this.state = LOBBY_WAITING;
+
+        MCGMain.resourcePackManager.forceResourcePack("http://localhost:25599/test.zip?t=" + System.nanoTime(), "test" + System.nanoTime());
+        MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
+        MusicManager.Music music2 = new MusicManager.Music("tsf:music.glidermusic2", 140.8);
+        MCGMain.musicManager.playMusicBackgroundSequence(i -> i == 0 ? music1 : music2);
     }
 
     @Override
