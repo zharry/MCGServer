@@ -76,7 +76,7 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
         MCGMain.resourcePackManager.forceResourcePack("http://localhost:25599/test.zip?t=" + System.nanoTime(), "test" + System.nanoTime());
         MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
         MusicManager.Music music2 = new MusicManager.Music("tsf:music.glidermusic2", 140.8);
-        MCGMain.musicManager.playMusicBackgroundSequence(i -> i == 0 ? music1 : music2);
+        MCGMain.musicManager.playMusicBackgroundSequence(p -> p.index == 0 ? music1 : music2);
     }
 
     @Override

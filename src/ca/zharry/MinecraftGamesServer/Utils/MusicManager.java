@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class MusicManager {
@@ -20,7 +21,7 @@ public class MusicManager {
 	public TreeSet<PlayerWrapper> playerEventQueue = new TreeSet<>();
 	public HashMap<Player, PlayerWrapper> playerWrapperLookup = new HashMap<>();
 
-	Function<Integer, Music> getNextBackgroundMusic;
+	Function<PlayerWrapper, Music> getNextBackgroundMusic;
 
 	public MusicManager(JavaPlugin plugin) {
 		Bukkit.getOnlinePlayers().forEach(player -> playerWrapperLookup.put(player, new PlayerWrapper(player)));
@@ -66,16 +67,17 @@ public class MusicManager {
 		}
 	}
 
-	public void playMusicBackgroundSequence(Function<Integer, Music> getNextMusic) {
+	public void playMusicBackgroundSequence(Function<PlayerWrapper, Music> getNextMusic) {
 		getNextBackgroundMusic = getNextMusic;
 		playMusicAllSequence(getNextMusic);
 	}
 
 	public void playMusicAllOnce(Music music) {
-		playMusicAllSequence(i -> i == 0 ? music : null);
+		playMusicAllSequence(p -> p.index == 0 ? music : null);
 	}
 
-	public void playMusicAllSequence(Function<Integer, Music> getNextMusic) {
+	public void playMusicAllSequence(Function<PlayerWrapper, Music> getNextMusic) {
+		stopMusicAll();
 		playerWrapperLookup.values().forEach(player -> player.playMusic(getNextMusic));
 	}
 
@@ -89,9 +91,11 @@ public class MusicManager {
 
 		public long nextEvent;
 
+		public long userLong;
+
 		public Player player;
 
-		public Function<Integer, Music> getNextMusic;
+		public Function<PlayerWrapper, Music> getNextMusic;
 
 		public PlayerWrapper(Player player) {
 			this.player = player;
@@ -102,7 +106,7 @@ public class MusicManager {
 				return false;
 			}
 
-			currentMusic = getNextMusic.apply(index);
+			currentMusic = getNextMusic.apply(this);
 			if(currentMusic == null) {
 				return false;
 			}
@@ -110,12 +114,15 @@ public class MusicManager {
 			nextEvent = currentTime + (long) (currentMusic.length * 1e9);
 			index += 1;
 
-			player.playSound(player.getLocation(), currentMusic.resourceName, SoundCategory.MUSIC, 1, 1);
+			if (currentMusic.resourceName != null) {
+				player.playSound(player.getLocation(), currentMusic.resourceName, SoundCategory.MUSIC, 1, 1);
+			}
 			return true;
 		}
 
-		public void playMusic(Function<Integer, Music> getNextMusic) {
+		public void playMusic(Function<PlayerWrapper, Music> getNextMusic) {
 			stopMusic();
+			userLong = 0;
 			this.getNextMusic = getNextMusic;
 			nextEvent = 0;
 			index = 0;
@@ -124,7 +131,9 @@ public class MusicManager {
 
 		public void stopMusic() {
 			if(currentMusic != null) {
-				player.stopSound(currentMusic.resourceName, SoundCategory.MUSIC);
+				if(currentMusic.resourceName != null) {
+					player.stopSound(currentMusic.resourceName, SoundCategory.MUSIC);
+				}
 			}
 			playerEventQueue.remove(this);
 		}
