@@ -1,6 +1,8 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
+import ca.zharry.MinecraftGamesServer.Utils.Saved;
 import org.bukkit.ChatColor;
 
 import java.util.UUID;
@@ -8,7 +10,9 @@ import java.util.UUID;
 public class PlayerParkour extends PlayerInterface {
 
     // Minigame variables
+    @Saved
     public int stage = 0; // What stage they are currently on
+    @Saved
     public int level = 0; // What level of the stage they have completed
 
     public boolean waypointsEnabled = true;
@@ -25,7 +29,7 @@ public class PlayerParkour extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Parkour");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + MCGMain.serverNames.get(server.minigame));
 
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
@@ -43,27 +47,10 @@ public class PlayerParkour extends PlayerInterface {
         }
         sidebar.add("");
 
-        setTeamScoresForSidebar("parkour", myTeam.id);
+        setTeamScoresForSidebar(server.minigame, myTeam.id);
         sidebar.add("");
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("parkour"));
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore(server.minigame));
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
-    }
-
-    @Override
-    public void loadMetadata(String metadata) {
-        if(metadata != null) {
-            try {
-                String[] data = metadata.split("-");
-                stage = Integer.parseInt(data[0]);
-                level = Integer.parseInt(data[1]);
-            } catch (Exception ignore) {
-            }
-        }
-    }
-
-    @Override
-    public String saveMetadata() {
-        return stage + "-" + level;
     }
 }

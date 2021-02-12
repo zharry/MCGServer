@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerSpleef;
 import org.bukkit.ChatColor;
 
@@ -22,7 +23,7 @@ public class PlayerSpleef extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Spleef");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + MCGMain.serverNames.get(server.minigame));
         if (server.state == ServerSpleef.GAME_STARTING || server.state == ServerSpleef.GAME_INPROGRESS) {
             sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Round: " + ChatColor.RESET + "" + server.currentGame + "/" + ServerSpleef.TOTAL_GAMES);
         }
@@ -40,10 +41,10 @@ public class PlayerSpleef extends PlayerInterface {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished);
         }
         sidebar.add("");
-        setTeamScoresForSidebar("spleef", myTeam.id);
+        setTeamScoresForSidebar(server.minigame, myTeam.id);
         sidebar.add("  ");
         sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Still alive: " + ChatColor.RESET + "" + server.getPlayersAlive());
-        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore("spleef"));
+        sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore(server.minigame));
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
     }

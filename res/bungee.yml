@@ -1,0 +1,6 @@
+name: MinecraftGamesServer
+version: 0.4.1
+author: Harry Zhang
+main: ca.zharry.MinecraftGamesServer.BungeeMain
+api-version: 1.16
+depends: []

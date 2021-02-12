@@ -1,8 +1,10 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerDodgeball;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
+import ca.zharry.MinecraftGamesServer.Utils.Saved;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -12,11 +14,13 @@ import java.util.UUID;
 public class PlayerDodgeball extends PlayerInterface {
 
     // Minigame variables
+    @Saved
     public int totalKills = 0;
+    @Saved
+    public boolean invulnerable = true;
     public int kills = 0;
     public int lives = 0;
     public int arena = -1;
-    public boolean invulnerable = true;
     public boolean inSpawn = true;
     public int spawnTimer = ServerDodgeball.SPAWN_TIMER;
     public MCGTeam opponentTeam;
@@ -34,7 +38,7 @@ public class PlayerDodgeball extends PlayerInterface {
         // This is a spacer
         sidebar.add("                          ");
 
-        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + "Dodgeball");
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game: " + ChatColor.RESET + MCGMain.serverNames.get(server.minigame));
 
         if (server.state == ServerParkour.GAME_WAITING) {
             sidebar.add(ChatColor.WHITE + "Waiting for game start...");
@@ -52,7 +56,7 @@ public class PlayerDodgeball extends PlayerInterface {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished);
         }
         sidebar.add("");
-        setTeamScoresForSidebar("dodgeball", myTeam.id);
+        setTeamScoresForSidebar(server.minigame, myTeam.id);
         sidebar.add("");
         if (opponentTeam != null) {
             if (server.state == ServerParkour.GAME_STARTING) {
@@ -72,23 +76,6 @@ public class PlayerDodgeball extends PlayerInterface {
         }
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());
         sidebar.end();
-    }
-
-    @Override
-    public void loadMetadata(String metadata) {
-        if(metadata != null) {
-            try {
-                String[] metadataSplit = metadata.split("\\|");
-                totalKills = Integer.parseInt(metadataSplit[0]);
-                invulnerable = Boolean.parseBoolean(metadataSplit[1]);
-            } catch (Exception ignore) {
-            }
-        }
-    }
-
-    @Override
-    public String saveMetadata() {
-        return totalKills + "|" + invulnerable;
     }
 
     @Override

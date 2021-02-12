@@ -9,10 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityShootBowEvent;
-import org.bukkit.event.entity.FoodLevelChangeEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.*;
@@ -22,7 +19,7 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-public class PlayerListenerAdapter<S extends ServerInterface, T extends PlayerInterface> implements Listener {
+public class PlayerListenerAdapter<S extends ServerInterface<? extends PlayerInterface>, T extends PlayerInterface> implements Listener {
 
 	protected final S server;
 	private final Class<T> type;
@@ -86,10 +83,13 @@ public class PlayerListenerAdapter<S extends ServerInterface, T extends PlayerIn
 		registerEvent(PlayerDropItemEvent.class, PlayerDropItemEvent::getPlayer, this::onDropItem);
 		registerEvent(PlayerRespawnEvent.class, PlayerRespawnEvent::getPlayer, this::onRespawn);
 		registerEvent(PlayerInteractEvent.class, PlayerInteractEvent::getPlayer, this::onInteract);
+		registerEvent(PlayerInteractEntityEvent.class, PlayerInteractEntityEvent::getPlayer, this::onInteractEntity);
+		registerEvent(PlayerInteractAtEntityEvent.class, PlayerInteractAtEntityEvent::getPlayer, this::onInteractAtEntity);
 		registerEvent(EntityShootBowEvent.class, EntityShootBowEvent::getEntity, this::onShootBow);
 		registerEvent(InventoryClickEvent.class, InventoryClickEvent::getWhoClicked, this::onInventoryClick);
 		registerEvent(InventoryOpenEvent.class, InventoryOpenEvent::getPlayer, this::onInventoryOpen);
 		registerEvent(FoodLevelChangeEvent.class, FoodLevelChangeEvent::getEntity, this::onFoodLevelChange);
+		registerEvent(EntityToggleGlideEvent.class, EntityToggleGlideEvent::getEntity, this::onToggleGlide);
 	}
 
 	protected void onJoin(T player, PlayerJoinEvent event) {}
@@ -102,8 +102,11 @@ public class PlayerListenerAdapter<S extends ServerInterface, T extends PlayerIn
 	protected void onDropItem(T player, PlayerDropItemEvent event) {}
 	protected void onRespawn(T player, PlayerRespawnEvent event) {}
 	protected void onInteract(T player, PlayerInteractEvent event) {}
+	protected void onInteractEntity(T player, PlayerInteractEntityEvent event) {}
+	protected void onInteractAtEntity(T player, PlayerInteractAtEntityEvent event) {}
 	protected void onShootBow(T player, EntityShootBowEvent event) {}
 	protected void onInventoryClick(T player, InventoryClickEvent event) {}
 	protected void onInventoryOpen(T player, InventoryOpenEvent event) {}
 	protected void onFoodLevelChange(T player, FoodLevelChangeEvent event) {}
+	protected void onToggleGlide(T player, EntityToggleGlideEvent event) {}
 }

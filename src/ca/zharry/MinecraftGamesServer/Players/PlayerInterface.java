@@ -6,10 +6,7 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Utils.*;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
@@ -301,19 +298,12 @@ public abstract class PlayerInterface {
         }
     }
 
-    public void loadMetadata(String metadata) {
-    }
-
-    public String saveMetadata() {
-        return "";
-    }
-
     /* SQL LOGIC */
 
     public final void fetchData() {
         this.previousScores.clear();
 
-        String newMetadata = null;
+        String newMetadata = "{}";
 
         try {
             ResultSet resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `scores` WHERE `uuid` = ?", uuid.toString());
@@ -333,12 +323,11 @@ public abstract class PlayerInterface {
                     this.previousScores.add(newScore);
                 }
             }
-
+            ClassSaveHandler.fromJSON(this, newMetadata);
         } catch (Exception e) {
+            Bukkit.broadcast(ChatColor.RED + "[MCG] Could not load metadata for " + this + ": " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
             e.printStackTrace();
         }
-
-        loadMetadata(newMetadata);
     }
 
     public final void commit() {
@@ -349,8 +338,9 @@ public abstract class PlayerInterface {
                             "`score` = VALUES(`score`), " +
                             "`metadata` = VALUES(`metadata`), " +
                             "`time` = current_timestamp()",
-                    uuid.toString(), MCGMain.SEASON, server.minigame, getCurrentScore(), saveMetadata());
+                    uuid.toString(), MCGMain.SEASON, server.minigame, getCurrentScore(), ClassSaveHandler.toJSON(this));
         } catch (SQLException e) {
+            Bukkit.broadcast(ChatColor.RED + "[MCG] Could not save metadata for " + this + ": " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
             e.printStackTrace();
         }
     }
@@ -400,6 +390,10 @@ public abstract class PlayerInterface {
         NMSHelper.teleport(bukkitPlayer, location.getX(), location.getY(), location.getZ(), 0, 0, false, false, false, true, true);
     }
 
+    public void teleportRelative(double x, double y, double z, float yaw, float pitch, boolean relX, boolean relY, boolean relZ, boolean relYaw, boolean relPitch) {
+        NMSHelper.teleport(bukkitPlayer, x, y, z, yaw, pitch, relX, relY, relZ, relYaw, relPitch);
+    }
+
     public Location getLocation() {
         return bukkitPlayer.getLocation();
     }
@@ -413,6 +407,10 @@ public abstract class PlayerInterface {
             return false;
         }
         return uuid.equals(((PlayerInterface) o).uuid);
+    }
+
+    public String toString() {
+        return "PlayerInterface[" + name + ", " + uuid + "]";
     }
 
 }

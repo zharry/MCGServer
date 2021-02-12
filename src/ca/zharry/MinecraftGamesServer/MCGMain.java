@@ -28,6 +28,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 public class MCGMain extends JavaPlugin {
     public static final Logger logger = Logger.getLogger("Minecraft");
+    public static File resourcePackRoot = new File("/home/mcg/ResourcePack");
 
     // Managers
     public static ProtocolManager protocolManager;
@@ -77,6 +79,7 @@ public class MCGMain extends JavaPlugin {
         addServer("spleef", ServerSpleef.class, "Spleef");
         addServer("dodgeball", ServerDodgeball.class, "Dodgeball");
         addServer("survivalgames", ServerSurvivalGames.class, "Survival Games");
+        addServer("elytrarun", ServerElytraRun.class, "Elytra Run");
     }
 
     @Override
@@ -101,7 +104,9 @@ public class MCGMain extends JavaPlugin {
                 throw new RuntimeException("Server " + serverMinigame + " does not exist");
             }
             server = serverClass.getConstructor(JavaPlugin.class, World.class, String.class).newInstance(this, getServer().getWorld("world"), serverMinigame);
-            bungeeManager = new BungeeManager(this, server);
+            bungeeManager = new BungeeManager(this, server, resourcePackManager);
+
+            resourcePackManager.initialize();
 
             this.getCommand("cutscene").setExecutor(new CommandCutscene(server));
             this.getCommand("join").setExecutor(new CommandJoinTeam(server));
@@ -131,6 +136,8 @@ public class MCGMain extends JavaPlugin {
         if(server != null) {
             server.onDisableCall();
         }
+
+        musicManager.stopMusicAll();
 
         sqlManager.stop();
     }

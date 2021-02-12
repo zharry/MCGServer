@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Utils;
 
+import ca.zharry.MinecraftGamesServer.BungeeMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import com.google.common.io.ByteArrayDataInput;
@@ -9,53 +10,63 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
+import java.nio.charset.StandardCharsets;
+
 public class BungeeManager implements PluginMessageListener {
 
 	public final ServerInterface<? extends PlayerInterface> server;
 	public final JavaPlugin plugin;
+	public ResourcePackManager resourcePackManager;
 
 	public String nextTargetServer;
 	public boolean reloadRequested;
 
-	public BungeeManager(JavaPlugin plugin, ServerInterface<? extends PlayerInterface> server) {
+	public BungeeManager(JavaPlugin plugin, ServerInterface<? extends PlayerInterface> server, ResourcePackManager resourcePackManager) {
 		this.plugin = plugin;
 		this.server = server;
+		this.resourcePackManager = resourcePackManager;
 
 		plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, "BungeeCord");
 		plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, "BungeeCord", this);
+		plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, BungeeMain.BUNGEE_CHANNEL_NAME);
+		plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, BungeeMain.BUNGEE_CHANNEL_NAME, this);
 	}
 
 	@Override
 	public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-		ByteArrayDataInput input = ByteStreams.newDataInput(message);
-		String subchannel = input.readUTF();
-		if(subchannel.equals("PlayerList")) {
-			if(nextTargetServer == null) {
-				return;
-			}
-			input.readUTF();
-			String[] players = input.readUTF().split(", ");
-			for(String otherPlayerName : players) {
-				ByteArrayDataOutput output;
-				if(reloadRequested) {
-					output = ByteStreams.newDataOutput();
-					output.writeUTF("Forward");
-					output.writeUTF(nextTargetServer);
-					output.writeUTF("MCG_Reload");
-					output.writeShort(0);
-					player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
-					reloadRequested = false;
+		if (channel.equals(BungeeMain.BUNGEE_CHANNEL_NAME)) {
+			resourcePackManager.bungeePlayerResourcePackInfo(player, new String(message, StandardCharsets.UTF_8));
+		} else if (channel.equals("BungeeCord")) {
+			ByteArrayDataInput input = ByteStreams.newDataInput(message);
+			String subchannel = input.readUTF();
+			if (subchannel.equals("PlayerList")) {
+				if (nextTargetServer == null) {
+					return;
 				}
+				input.readUTF();
+				String[] players = input.readUTF().split(", ");
+				for (String otherPlayerName : players) {
+					ByteArrayDataOutput output;
+					if (reloadRequested) {
+						output = ByteStreams.newDataOutput();
+						output.writeUTF("Forward");
+						output.writeUTF(nextTargetServer);
+						output.writeUTF("MCG_Reload");
+						output.writeShort(0);
+						player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
+						reloadRequested = false;
+					}
 
-				output = ByteStreams.newDataOutput();
-				output.writeUTF("ConnectOther");
-				output.writeUTF(otherPlayerName);
-				output.writeUTF(nextTargetServer);
-				player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
+					output = ByteStreams.newDataOutput();
+					output.writeUTF("ConnectOther");
+					output.writeUTF(otherPlayerName);
+					output.writeUTF(nextTargetServer);
+					player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
+				}
+				nextTargetServer = null;
+			} else if (subchannel.equals("MCG_Reload")) {
+				server.reloadTeamsAndPlayers();
 			}
-			nextTargetServer = null;
-		} else if(subchannel.equals("MCG_Reload")) {
-			server.reloadTeamsAndPlayers();
 		}
 	}
 
@@ -79,6 +90,14 @@ public class BungeeManager implements PluginMessageListener {
 		output.writeUTF(player.getName());
 		output.writeUTF(kickString);
 		player.sendPluginMessage(plugin, "BungeeCord", output.toByteArray());
+	}
+
+	public static void requestPlayerResourcePackInfo(JavaPlugin plugin, Player player) {
+		player.sendPluginMessage(plugin, BungeeMain.BUNGEE_CHANNEL_NAME, new byte[0]);
+	}
+
+	public static void updatePlayerResourcePackInfo(JavaPlugin plugin, Player player, String info) {
+		player.sendPluginMessage(plugin, BungeeMain.BUNGEE_CHANNEL_NAME, info.getBytes(StandardCharsets.UTF_8));
 	}
 
 }

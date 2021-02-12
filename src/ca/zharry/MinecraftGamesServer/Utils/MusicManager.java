@@ -152,7 +152,7 @@ public class MusicManager {
 		public double length;
 		public Music(String resourceName, double length) {
 			this.resourceName = resourceName;
-			this.length = length;
+			this.length = length - 0.5 / 20;
 		}
 
 		public String toString() {

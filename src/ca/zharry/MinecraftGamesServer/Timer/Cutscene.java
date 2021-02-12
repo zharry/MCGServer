@@ -6,8 +6,17 @@ import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Utils.NMSHelper;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.reflect.EquivalentConverter;
+import com.comphenix.protocol.wrappers.BukkitConverters;
+import com.comphenix.protocol.wrappers.Vector3F;
+import com.comphenix.protocol.wrappers.WrappedAttribute;
+import com.comphenix.protocol.wrappers.WrappedDataWatcher;
+import net.minecraft.server.v1_16_R3.ArgumentRotationAxis;
+import net.minecraft.server.v1_16_R3.Packet;
+import net.minecraft.server.v1_16_R3.PacketPlayOutEntityMetadata;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Rotation;
 import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,6 +26,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.EulerAngle;
 
 import java.util.*;
 
@@ -91,6 +101,13 @@ public abstract class Cutscene {
 
     public void end() {
         if(cameraMover != null) {
+            cancel();
+            onEnd();
+        }
+    }
+
+    public void cancel() {
+        if(cameraMover != null) {
             spectateEntity(false);
             removeFakeEntity();
             ArrayList<PlayerInterface> playersCopy = new ArrayList<>(activePlayers.keySet());
@@ -102,7 +119,6 @@ public abstract class Cutscene {
             joinQuitListener = null;
             cameraMover = null;
             server.currentCutscene = null;
-            onEnd();
         }
     }
 
@@ -159,8 +175,23 @@ public abstract class Cutscene {
         // data
         createEntity.getIntegers().write(6, 0);
 
+//        PacketContainer container = new PacketContainer(PacketType.Play.Server.ENTITY_METADATA);
+//        WrappedDataWatcher watcher = new WrappedDataWatcher();
+//        WrappedDataWatcher.Serializer serializer = WrappedDataWatcher.Registry.getVectorSerializer();
+//        watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(15, serializer), new Vector3F(90f, 90f, 0));
+//        container.getWatchableCollectionModifier().write(0, watcher.getWatchableObjects());
+//        container.getIntegers().write(0, entityId);
+
+        PacketContainer entityLook = new PacketContainer(PacketType.Play.Server.ENTITY_HEAD_ROTATION);
+        // id
+        entityLook.getIntegers().write(0, entityId);
+        // rotation
+        entityLook.getBytes().write(0, (byte) Math.round(yaw * 256.0 / 360.0));
+
         try {
             MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, createEntity, false);
+            MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, entityLook, false);
+//            MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, container, false);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -189,20 +220,37 @@ public abstract class Cutscene {
     }
 
     public void teleportEntity(double x, double y, double z, double yaw, double pitch, boolean isCut) {
-        PacketContainer teleportEntity = new PacketContainer(PacketType.Play.Server.ENTITY_TELEPORT);
+        PacketContainer entityTeleport = new PacketContainer(PacketType.Play.Server.ENTITY_TELEPORT);
         // id
-        teleportEntity.getIntegers().write(0, entityId);
+        entityTeleport.getIntegers().write(0, entityId);
         // position
-        teleportEntity.getDoubles().write(0, x).write(1, y).write(2, z);
+        entityTeleport.getDoubles().write(0, x).write(1, y).write(2, z);
         // rotation
-        teleportEntity.getBytes().write(0, (byte) Math.round(yaw * 256.0 / 360.0)).write(1, (byte) Math.round(pitch * 256.0 / 360.0));
+        entityTeleport.getBytes().write(0, (byte) Math.round(yaw * 256.0 / 360.0)).write(1, (byte) Math.round(pitch * 256.0 / 360.0));
+
+        PacketContainer entityLook = new PacketContainer(PacketType.Play.Server.ENTITY_HEAD_ROTATION);
+        // id
+        entityLook.getIntegers().write(0, entityId);
+        // rotation
+        entityLook.getBytes().write(0, (byte) Math.round(yaw * 256.0 / 360.0));
+
+
+//        PacketContainer container = new PacketContainer(PacketType.Play.Server.ENTITY_METADATA);
+//        WrappedDataWatcher watcher = new WrappedDataWatcher();
+//        WrappedDataWatcher.Serializer serializer = WrappedDataWatcher.Registry.getVectorSerializer();
+//        watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(15, serializer), new Vector3F((float) Math.toRadians(yaw), (float) Math.toRadians(pitch), (float) 0));
+//        container.getWatchableCollectionModifier().write(0, watcher.getWatchableObjects());
+//        container.getIntegers().write(0, entityId);
+
 
         if(isCut) {
             for(PlayerInterface player : activePlayers.keySet()) {
                 spectateEntity(false);
                 spawnFakeEntity(x, y, z, yaw, pitch);
                 try {
-                    MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, teleportEntity, false);
+                    MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, entityTeleport, false);
+                    MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, entityLook, false);
+//                    MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, container, false);
                 } catch(Exception e) {
                     e.printStackTrace();
                 }
@@ -213,7 +261,9 @@ public abstract class Cutscene {
 
         for(PlayerInterface player : activePlayers.keySet()) {
             try {
-                MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, teleportEntity, false);
+                MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, entityTeleport, false);
+                MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, entityLook, false);
+//                MCGMain.protocolManager.sendServerPacket(player.bukkitPlayer, container, false);
                 player.teleportPositionOnly(new Location(server.world, x, y, z, (float) yaw, (float) pitch));
             } catch (Exception e) {
                 e.printStackTrace();

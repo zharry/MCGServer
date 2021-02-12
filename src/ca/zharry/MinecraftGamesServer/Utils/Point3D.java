@@ -37,4 +37,8 @@ public class Point3D {
         return new Point3D(this.x + x, this.y + y, this.z + z);
     }
 
+    public Point3D subtract(Point3D p3d) {
+        return new Point3D(this.x - p3d.x, this.y - p3d.y, this.z - p3d.z);
+    }
+
 }

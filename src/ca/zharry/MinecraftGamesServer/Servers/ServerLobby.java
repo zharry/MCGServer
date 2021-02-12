@@ -9,11 +9,13 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
+import ca.zharry.MinecraftGamesServer.Utils.Zone;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Team;
 
+import java.io.File;
 import java.util.UUID;
 
 public class ServerLobby extends ServerInterface<PlayerLobby> {
@@ -28,11 +30,8 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
     public int state = ERROR;
     public String nextMinigame;
 
-    // No damage region
-    public static final double SAFE_MIN_X = 1443;
-    public static final double SAFE_MAX_X = 1492;
-    public static final double SAFE_MIN_Z = 511;
-    public static final double SAFE_MAX_Z = 549;
+    // Inside the building
+    public static final Zone SAFE_REGION = new Zone().rangeX(1443, 1492).rangeZ(511, 549).maxY(29);
 
     // Server tasks
     public Timer timerNextGame;
@@ -73,7 +72,7 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
         super.onEnableCall();
         this.state = LOBBY_WAITING;
 
-        MCGMain.resourcePackManager.forceResourcePack("http://localhost:25599/test.zip?t=" + System.nanoTime(), "test" + System.nanoTime());
+        MCGMain.resourcePackManager.forceResourcePack("https://play.mcg-private.tk/test.zip", new File(MCGMain.resourcePackRoot, "test.zip"));
         MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
         MusicManager.Music music2 = new MusicManager.Music("tsf:music.glidermusic2", 140.8);
         MCGMain.musicManager.playMusicBackgroundSequence(p -> p.index == 0 ? music1 : music2);

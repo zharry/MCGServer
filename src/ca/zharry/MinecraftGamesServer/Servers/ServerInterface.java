@@ -7,8 +7,6 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteStreams;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
@@ -18,12 +16,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Team;
 
-import javax.sql.rowset.CachedRowSet;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -81,6 +76,10 @@ public abstract class ServerInterface<P extends PlayerInterface> {
         // Commit existing players (for hot-reloading)
         for (P player : players) {
             player.commit();
+        }
+
+        if(currentCutscene != null) {
+            currentCutscene.cancel();
         }
     }
 

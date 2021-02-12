@@ -15,9 +15,9 @@ public class MCGTeam {
     public ChatColor chatColor;
     public ArrayList<UUID> players = new ArrayList<>();
 
-    private ServerInterface server;
+    private ServerInterface<? extends PlayerInterface> server;
 
-    public MCGTeam(int id, String teamname, String color, ServerInterface server) {
+    public MCGTeam(int id, String teamname, String color, ServerInterface<? extends PlayerInterface> server) {
         this.id = id;
         this.teamname = teamname;
         this.color = color;

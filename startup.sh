@@ -44,6 +44,13 @@ sleep 30s
 #
 #sleep 30s
 
+echo "Starting Elytra Run server..."
+cd ../ElytraRun
+tmux new-session -d -s "elytrarun" ./server.sh
+tmux ls
+
+sleep 30s
+
 echo "All done!"
 echo "Use tmux ls to see all available consoles"
 echo "Use tmux attach-session -t name to attach to a console"
