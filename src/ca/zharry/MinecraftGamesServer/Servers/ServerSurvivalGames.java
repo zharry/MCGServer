@@ -19,7 +19,6 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.enchantments.EnchantmentWrapper;
-import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -372,8 +371,8 @@ public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerBegin, timerInProgress, timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandStart(this, startGameTutorial));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerStartGame, timerBegin, timerInProgress, timerFinished));
     }
 
     @Override

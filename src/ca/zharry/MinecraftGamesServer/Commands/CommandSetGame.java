@@ -14,12 +14,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class CommandLobbySetNextGame implements TabExecutor {
+public class CommandSetGame implements TabExecutor {
 
     private ServerLobby server;
     private Timer timer;
 
-    public CommandLobbySetNextGame(ServerLobby server, Timer timer) {
+    public CommandSetGame(ServerLobby server, Timer timer) {
         this.server = server;
         this.timer = timer;
     }

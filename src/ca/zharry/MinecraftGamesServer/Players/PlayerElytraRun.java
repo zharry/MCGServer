@@ -1,17 +1,19 @@
 package ca.zharry.MinecraftGamesServer.Players;
 
+import ca.zharry.MinecraftGamesServer.Listeners.ListenerElytraRun;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Servers.ServerElytraRun;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
-import ca.zharry.MinecraftGamesServer.Utils.Saved;
 import org.bukkit.ChatColor;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 public class PlayerElytraRun extends PlayerInterface {
 
-    @Saved
-    public int tunnel;
+    public double[] maxDistance = new double[ServerElytraRun.tunnels.length];
+    public long[] completedTime = new long[ServerElytraRun.tunnels.length];
 
     public boolean dead;
 
@@ -41,18 +43,25 @@ public class PlayerElytraRun extends PlayerInterface {
         } else if (server.state == ServerParkour.GAME_STARTING) {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Game begins: " + ChatColor.RESET + server.timerStartGame);
         } else if (server.state == ServerParkour.GAME_INPROGRESS) {
+            sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Tunnel: " + ChatColor.RESET + (server.tunnel + 1) + "/" + ServerElytraRun.tunnels.length);
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Time left: " + ChatColor.RESET + server.timerInProgress);
         } else if (server.state == ServerParkour.GAME_FINISHED) {
             sidebar.add(ChatColor.RED + "" + ChatColor.BOLD + "Back to lobby: " + ChatColor.RESET + server.timerFinished);
         }
 
-        if (server.state == ServerParkour.GAME_INPROGRESS || server.state == ServerParkour.GAME_FINISHED) {
-            sidebar.add("");
-            sidebar.add(ChatColor.AQUA + "" + ChatColor.BOLD + "Complete Tunnel: " + ChatColor.RESET + tunnel + "/" + server.jumpPlatform.length);
-        }
         sidebar.add("");
-
-        setTeamScoresForSidebar(server.minigame, myTeam.id);
+        if (server.state == ServerParkour.GAME_STARTING || server.state == ServerParkour.GAME_INPROGRESS) {
+            List<PlayerElytraRun> sortedPlayers = server.getSortedPlayers();
+            Collections.reverse(sortedPlayers);
+            setRankedDisplayForSidebar(sortedPlayers, this, (player, position, bold) -> {
+                if (player.maxDistance[server.tunnel] == Double.POSITIVE_INFINITY)
+                    return " " + player.myTeam.chatColor + position + ". " + bold + player.name + " " + ChatColor.RESET + "Finished " + ListenerElytraRun.timeToString(player.completedTime[server.tunnel]) + "s";
+                else
+                    return " " + player.myTeam.chatColor + position + ". " + bold + player.name + " " + Math.round(100.0 * player.maxDistance[server.tunnel] / server.tunnelLength(server.tunnel)) + "%";
+            });
+        } else {
+            setTeamScoresForSidebar(server.minigame, myTeam.id);
+        }
         sidebar.add("");
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Team Score: " + ChatColor.RESET + "" + myTeam.getScore(server.minigame));
         sidebar.add(ChatColor.GREEN + "" + ChatColor.BOLD + "Your Score: " + ChatColor.RESET + "" + getCurrentScore());

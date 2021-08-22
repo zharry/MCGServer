@@ -16,7 +16,12 @@ import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 
 public abstract class PlayerInterface {
 
@@ -32,6 +37,7 @@ public abstract class PlayerInterface {
     public SidebarDisplay sidebar;
     public MCGTeam myTeam;
     public Cutscene cutscene;
+    public boolean disableCommit = false;
 
     public PlayerInterface(ServerInterface<? extends PlayerInterface> server, UUID uuid, String name) {
         this.server = server;
@@ -242,59 +248,42 @@ public abstract class PlayerInterface {
 
     public void setTeamScoresForSidebar(String curMinigameStr, int curTeamID) {
         ArrayList<MCGTeam> sortedTeams = server.getTeamsOrderedByScore(curMinigameStr);
-        if(sortedTeams.size() < 4) {
-            sidebar.add(ChatColor.RED + "Not enough teams");
-            return;
-        }
-        int curTeamPlace = -1;
-        for (int i = 0; i < sortedTeams.size(); i++) {
-            int curId = sortedTeams.get(i).id;
-            if (curId == curTeamID) {
-                curTeamPlace = i;
+        setRankedDisplayForSidebar(sortedTeams, server.getTeamFromTeamID(curTeamID), (team, position, bold) ->
+                " " + team.chatColor + position + ". " + bold + team.teamname + " " + ChatColor.RESET + team.getScore(curMinigameStr)
+        );
+    }
+
+    public <T> void setRankedDisplayForSidebar(List<T> sortedList, T c, TriFunction<T, Integer, String, String> value) {
+        int curPlace = -1;
+        for (int i = 0; i < sortedList.size(); i++) {
+            if (sortedList.get(i).equals(c)) {
+                curPlace = i;
                 break;
             }
         }
 
-        int[] resIds;
-        int[] placements;
-        if (curTeamPlace == 0 || curTeamPlace == 1 || curTeamPlace == -1) {
-            resIds = new int[]{
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(1).id,
-                    sortedTeams.get(2).id,
-                    sortedTeams.get(3).id
-            };
-            placements = new int[]{1, 2, 3, 4};
-        } else if (curTeamPlace == sortedTeams.size() - 1) {
-            resIds = new int[]{
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(1).id,
-                    sortedTeams.get(curTeamPlace - 1).id,
-                    curTeamID
-            };
-            placements = new int[]{1, 2, curTeamPlace, curTeamPlace + 1};
-        } else {
-            resIds = new int[]{
-                    sortedTeams.get(0).id,
-                    sortedTeams.get(curTeamPlace - 1).id,
-                    curTeamID,
-                    sortedTeams.get(curTeamPlace + 1).id
-            };
-            placements = new int[]{1, curTeamPlace, curTeamPlace + 1, curTeamPlace + 2};
+        for (int i = sortedList.size(); i <= 4; i++) {
+            sortedList.add(null);
         }
-//        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
 
-        for (int i = 0; i < 5; i++) {
-            if (i == 0) {
-                sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
-                continue;
-            }
+        int[] placements;
+        if (curPlace == 0 || curPlace == 1 || curPlace == -1) {
+            placements = new int[]{1, 2, 3, 4};
+        } else if (curPlace == sortedList.size() - 1) {
+            placements = new int[]{1, 2, curPlace, curPlace + 1};
+        } else {
+            placements = new int[]{1, curPlace, curPlace + 1, curPlace + 2};
+        }
+
+        sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
+
+        for (int i = 0; i < 4; i++) {
             String bold = "";
-            if (resIds[i - 1] == curTeamID) {
+            if (sortedList.get(i) == null) break;
+            if (sortedList.get(i).equals(c)) {
                 bold = ChatColor.BOLD.toString();
             }
-            MCGTeam t = server.getTeamFromTeamID(resIds[i - 1]);
-            sidebar.add(t.chatColor + " " + placements[i - 1] + ". " + bold + t.teamname + ChatColor.WHITE + " " + t.getScore(curMinigameStr));
+            sidebar.add(value.apply(sortedList.get(placements[i] - 1), placements[i], bold));
         }
     }
 
@@ -317,7 +306,9 @@ public abstract class PlayerInterface {
 
                 if (season == MCGMain.SEASON && minigame.equals(server.minigame)) {
                     currentScore = score;
-                    newMetadata = metadata;
+                    if(metadata != null) {
+                        newMetadata = metadata;
+                    }
                 } else {
                     MCGScore newScore = new MCGScore(id, uuid, season, minigame, score, metadata);
                     this.previousScores.add(newScore);
@@ -325,12 +316,15 @@ public abstract class PlayerInterface {
             }
             ClassSaveHandler.fromJSON(this, newMetadata);
         } catch (Exception e) {
-            Bukkit.broadcast(ChatColor.RED + "[MCG] Could not load metadata for " + this + ": " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            MCGMain.broadcastError("Could not load metadata for " + this + ": " + e);
             e.printStackTrace();
         }
     }
 
     public final void commit() {
+        if(disableCommit) {
+            return;
+        }
         try {
             MCGMain.sqlManager.executeQuery(
                     "INSERT INTO `scores` (`uuid`, `season`, `minigame`, `score`, `metadata`) " +
@@ -340,7 +334,7 @@ public abstract class PlayerInterface {
                             "`time` = current_timestamp()",
                     uuid.toString(), MCGMain.SEASON, server.minigame, getCurrentScore(), ClassSaveHandler.toJSON(this));
         } catch (SQLException e) {
-            Bukkit.broadcast(ChatColor.RED + "[MCG] Could not save metadata for " + this + ": " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            MCGMain.broadcastError("Could not save metadata for " + this + ": " + e);
             e.printStackTrace();
         }
     }

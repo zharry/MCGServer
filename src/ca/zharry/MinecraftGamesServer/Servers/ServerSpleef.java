@@ -1,6 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
+import ca.zharry.MinecraftGamesServer.Commands.CommandStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerSpleef;
 import ca.zharry.MinecraftGamesServer.MCGMain;
@@ -20,7 +20,6 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -270,8 +269,8 @@ public class ServerSpleef extends ServerInterface<PlayerSpleef> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerBegin, timerInProgress, timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandStart(this, startGameTutorial));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerStartGame, timerBegin, timerInProgress, timerFinished));
     }
 
     @Override

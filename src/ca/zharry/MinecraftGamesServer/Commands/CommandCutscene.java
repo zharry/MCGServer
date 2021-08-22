@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Commands;
 
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
@@ -15,12 +16,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommandCutscene implements TabExecutor {
+public class CommandCutscene extends CommandBase {
 
-	public final ServerInterface server;
-
-	public CommandCutscene(ServerInterface server) {
-		this.server = server;
+	public CommandCutscene(ServerInterface<? extends PlayerInterface> server) {
+		super(server);
 	}
 
 	@Override

@@ -1,6 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandLobbySetNextGame;
+import ca.zharry.MinecraftGamesServer.Commands.CommandSetGame;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerLobby;
@@ -86,8 +86,8 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("setgame").setExecutor(new CommandLobbySetNextGame(this, timerNextGame));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerNextGame));
+        plugin.getCommand("setgame").setExecutor(new CommandSetGame(this, timerNextGame));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerNextGame));
     }
 
     @Override

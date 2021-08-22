@@ -1,6 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
+import ca.zharry.MinecraftGamesServer.Commands.CommandStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerElytraRun;
@@ -10,27 +10,26 @@ import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
-import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
-import ca.zharry.MinecraftGamesServer.Utils.NMSHelper;
-import ca.zharry.MinecraftGamesServer.Utils.Point3D;
-import ca.zharry.MinecraftGamesServer.Utils.Zone;
+import ca.zharry.MinecraftGamesServer.Utils.*;
 import org.bukkit.*;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
     // Game config
-    public static final int TIMER_STARTING = 60 * 20;
-    public static final int TIMER_INPROGRESS = 15 * 60 * 20;
+    public static final int TIMER_STARTING = 30 * 20;
+    public static final int TIMER_STARTING_NEXT = 60 * 20;
+    public static final int TIMER_INPROGRESS = 5 * 60 * 20;
     public static final int TIMER_FINISHED = 45 * 20;
 
     // Server state
@@ -40,6 +39,15 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     public static final int GAME_INPROGRESS = 2;
     public static final int GAME_FINISHED = 3;
     public int state = ERROR;
+
+    public long roundStartTime;
+
+    public BarrierSet barriers = new BarrierSet()
+            .fill(new Coord3D(319, 238, 675), new Coord3D(314, 234, 675))
+            .fill(new Coord3D(326, 228, 4559), new Coord3D(344, 246, 4559))
+            .fill(new Coord3D(277, 245, 5697), new Coord3D(295, 227, 5697));
+
+    public int tunnel = 0;
 
     public Location practiceChooser = new Location(world, 10000.5, 64, 0.5);
 
@@ -81,22 +89,39 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             new Location(world, 286.5, 231.5, 5695.5, 0, 0),
     };
 
+    public Location[] startingLocation = new Location[] {
+            jumpPlatform[0],
+            tunnelAirlockStart[1].toLocation(world, -90, 0),
+            tunnelAirlockStart[2].toLocation(world, 90, 0),
+    };
+
+    public Location oldSpawn = new Location(world, 280.5, 240, 545.5);
+    public Location endArea = new Location(world, 290, 232, 676.5);
+
     // Server tasks
     public Timer timerStartGame;
     public Timer timerInProgress;
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
+    void loadHintPaths() {
+
+    }
+
+
     public ServerElytraRun(JavaPlugin plugin, World world, String minigame) {
         super(plugin, world, minigame);
-        serverSpawn = new Location(world, 280.5, 240, 545.5);
-//        NMSHelper.replaceChunkProvider(world);
+
+        loadHintPaths();
+
+        serverSpawn = startingLocation[0];
 
         // Add existing players (for hot-reloading)
         for (PlayerInterface player : players) {
             player.teleport(serverSpawn);
             player.reset(GameMode.ADVENTURE);
         }
+        barriers.setBarrier(world);
 
         timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
@@ -104,8 +129,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                 state = GAME_STARTING;
                 players.forEach(player -> {
                     giveElytra(player);
-                    player.teleport(jumpPlatform[0]);
-                    player.tunnel = 0;
+                    player.teleport(startingLocation[tunnel]);
                     player.dead = false;
                 });
                 MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
@@ -119,7 +143,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                         "Ready?",
                         "",
                         "",
-                        ChatColor.GREEN + "Fight!");
+                        ChatColor.GREEN + "Go!");
             }
 
             @Override
@@ -132,6 +156,8 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             @Override
             public void onStart() {
                 state = GAME_INPROGRESS;
+                barriers.clearBarrier(world);
+                roundStartTime = System.nanoTime();
             }
 
             @Override
@@ -146,6 +172,17 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
             @Override
             public void onEnd() {
+                elytraRunRoundEnd();
+                barriers.setBarrier(world);
+
+                tunnel++;
+                if(tunnel < tunnels.length) {
+                    timerStartGame.set(TIMER_STARTING_NEXT);
+                    timerInProgress.set(TIMER_INPROGRESS);
+                    timerStartGame.start();
+                } else {
+                    timerFinished.start();
+                }
             }
         };
 
@@ -154,6 +191,9 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             public void onStart() {
                 state = GAME_FINISHED;
                 commitAllPlayers();
+                for (PlayerInterface player : players) {
+                    player.teleport(jumpPlatform[0]);
+                }
             }
 
             @Override
@@ -236,6 +276,34 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         }
     }
 
+    public void elytraRunRoundEnd() {
+        List<PlayerElytraRun> sortedPlayers = getSortedPlayers();
+
+        int prizePool = 0;
+        int position = sortedPlayers.size();
+        for (PlayerElytraRun player: sortedPlayers) {
+            player.addScore(prizePool += 100, "finished " + --position);
+            player.bukkitPlayer.sendMessage(ChatColor.WHITE + "" + ChatColor.BOLD + "[+" + prizePool + "] " +
+                    ChatColor.RESET + "you completed tunnel " + (this.tunnel + 1) + " in position " + (position + 1) + "/" + sortedPlayers.size());
+        }
+    }
+
+    public List<PlayerElytraRun> getSortedPlayers() {
+        return Stream.concat(players.stream(), offlinePlayers.stream())
+                .filter(p -> p.isOnline() || p.maxDistance[this.tunnel] > 1e-9)
+                .sorted((a, b) -> {
+                    double aDist = a.maxDistance[this.tunnel];
+                    long aTime = a.completedTime[this.tunnel];
+                    double bDist = b.maxDistance[this.tunnel];
+                    long bTime = b.completedTime[this.tunnel];
+
+                    if (aDist == Double.POSITIVE_INFINITY && bDist == Double.POSITIVE_INFINITY)
+                        return Long.compare(bTime, aTime);
+                    return Double.compare(aDist, bDist);
+                })
+                .collect(Collectors.toList());
+    }
+
     public int getTunnel(Location location) {
         for(int i = 0; i < tunnels.length; ++i) {
             if(tunnels[i].contains(location)) {
@@ -254,11 +322,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     }
 
     public Location getPlayerStartLocation(PlayerElytraRun player) {
-        if(player.tunnel < ServerElytraRun.tunnels.length) {
-            return jumpPlatform[player.tunnel];
-        } else {
-            return practiceChooser;
-        }
+        return jumpPlatform[tunnel];
     }
 
     public double tunnelLength(int tunnel) {
@@ -284,6 +348,8 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             player.dead = true;
             player.inBlock = false;
             player.inBlockTimer = 0;
+            player.bukkitPlayer.getInventory().clear();
+            player.bukkitPlayer.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20, 0, false, false, false));
             new BukkitRunnable() {
                 public void run() {
                     player.setHealth(0);
@@ -293,8 +359,9 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     }
 
     public void spawnDeathEffect(PlayerElytraRun player) {
-        world.playSound(player.getLocation(), "tsf:glider.death", SoundCategory.PLAYERS, 1, 1);
-        world.spawnParticle(Particle.EXPLOSION_HUGE, player.getLocation(), 10);
+        world.playSound(player.getLocation(), "tsf:glider.death", SoundCategory.PLAYERS, 0.5f, 1);
+        world.spawnParticle(Particle.EXPLOSION_LARGE, player.getLocation(), 5);
+        player.bukkitPlayer.spawnParticle(Particle.EXPLOSION_HUGE, player.getLocation(), 10);
     }
 
     @Override
@@ -325,20 +392,20 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerInProgress, timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandStart(this, startGameTutorial));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerStartGame, timerInProgress, timerFinished));
     }
 
     @Override
     public void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(new ListenerElytraRun(this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new DisableHunger(), plugin);
-        plugin.getServer().getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onWorldLoad(WorldLoadEvent e) {
-                NMSHelper.replaceChunkProvider(e.getWorld());
-            }
-        }, plugin);
+//        plugin.getServer().getPluginManager().registerEvents(new Listener() {
+//            @EventHandler
+//            public void onWorldLoad(WorldLoadEvent e) {
+//                NMSHelper.replaceChunkProvider(e.getWorld());
+//            }
+//        }, plugin);
     }
 
     @Override

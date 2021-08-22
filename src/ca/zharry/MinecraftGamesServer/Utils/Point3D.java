@@ -1,5 +1,8 @@
 package ca.zharry.MinecraftGamesServer.Utils;
 
+import org.bukkit.Location;
+import org.bukkit.World;
+
 public class Point3D {
     public double x, y, z;
 
@@ -39,6 +42,10 @@ public class Point3D {
 
     public Point3D subtract(Point3D p3d) {
         return new Point3D(this.x - p3d.x, this.y - p3d.y, this.z - p3d.z);
+    }
+
+    public Location toLocation(World world, float yaw, float pitch) {
+        return new Location(world, x, y, z, yaw, pitch);
     }
 
 }

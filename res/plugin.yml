@@ -74,3 +74,8 @@ commands:
 
       §c/timer set default [timer]
     permission: mcg.admin
+  scores:
+    description: Change scores of players
+    usage:
+      §c/scores ??? idk what the args are use autocomplete
+    permission: mcg.admin

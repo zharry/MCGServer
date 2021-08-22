@@ -5,7 +5,6 @@ import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerParkour;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.MCGTeam;
-import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
@@ -204,8 +203,8 @@ public class ServerParkour extends ServerInterface<PlayerParkour> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerInProgress, timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandStart(this, startGameTutorial));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerStartGame, timerInProgress, timerFinished));
     }
 
     @Override

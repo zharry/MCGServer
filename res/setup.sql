@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `logs` (
 	`season` INT NOT NULL,
 	`minigame` VARCHAR(255) NOT NULL,
 	`playeruuid` VARCHAR(255) NOT NULL,
-	`scoredelta` INT NOT NULL,
+	`scoredelta` INT,
 	`message` VARCHAR(255) NOT NULL,
 	`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;

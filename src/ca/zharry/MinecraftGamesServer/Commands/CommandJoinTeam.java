@@ -16,12 +16,10 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class CommandJoinTeam implements TabExecutor {
-
-	public ServerInterface<? extends PlayerInterface> server;
+public class CommandJoinTeam extends CommandBase {
 
 	public CommandJoinTeam(ServerInterface<? extends PlayerInterface> server) {
-		this.server = server;
+		super(server);
 	}
 
 	@Override
@@ -66,7 +64,7 @@ public class CommandJoinTeam implements TabExecutor {
 		} catch (SQLException e) {
 			sender.sendMessage("Could not join " + server.getTeamFromTeamID(teamId));
 			e.printStackTrace();
-			Bukkit.broadcast(ChatColor.RED + "[MCG] SQL operation failed: " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+			MCGMain.broadcastError("SQL operation failed: " + e.toString());
 		}
 
 		server.reloadTeamsAndPlayers();

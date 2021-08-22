@@ -1,21 +1,22 @@
 package ca.zharry.MinecraftGamesServer.Commands;
 
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabExecutor;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommandCutsceneStart implements TabExecutor {
+public class CommandStart extends CommandBase {
 
     private final Cutscene cutscene;
 
-    public CommandCutsceneStart(Cutscene cutscene) {
+    public CommandStart(ServerInterface<? extends PlayerInterface> server, Cutscene cutscene) {
+        super(server);
         this.cutscene = cutscene;
     }
 

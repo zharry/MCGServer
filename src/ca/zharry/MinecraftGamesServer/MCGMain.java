@@ -4,10 +4,7 @@ import ca.zharry.MinecraftGamesServer.Commands.*;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
 import ca.zharry.MinecraftGamesServer.SQL.SQLManager;
 import ca.zharry.MinecraftGamesServer.Servers.*;
-import ca.zharry.MinecraftGamesServer.Utils.BungeeManager;
-import ca.zharry.MinecraftGamesServer.Utils.GameModeManager;
-import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
-import ca.zharry.MinecraftGamesServer.Utils.ResourcePackManager;
+import ca.zharry.MinecraftGamesServer.Utils.*;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
@@ -63,10 +60,10 @@ public class MCGMain extends JavaPlugin {
     // Minigame information
     public static String lobbyId = "lobby";
     public static HashMap<String, String> serverNames = new HashMap<>();
-    public static HashMap<String, Class<? extends ServerInterface<? extends PlayerInterface>>> serverClasses = new HashMap<>();
-    public static void addServer(String id, Class<? extends ServerInterface<? extends PlayerInterface>> serverClass, String name) {
+    public static HashMap<String, TriFunction<JavaPlugin, World, String, ServerInterface<? extends PlayerInterface>>> serverConstructors = new HashMap<>();
+    public static void addServer(String id, TriFunction<JavaPlugin, World, String, ServerInterface<? extends PlayerInterface>> constructor, String name) {
         serverNames.put(id, name);
-        serverClasses.put(id, serverClass);
+        serverConstructors.put(id, constructor);
     }
 
     public static List<String> getMinigames() {
@@ -74,12 +71,20 @@ public class MCGMain extends JavaPlugin {
     }
 
     static {
-        addServer("lobby", ServerLobby.class, "Lobby");
-        addServer("parkour", ServerParkour.class, "Parkour");
-        addServer("spleef", ServerSpleef.class, "Spleef");
-        addServer("dodgeball", ServerDodgeball.class, "Dodgeball");
-        addServer("survivalgames", ServerSurvivalGames.class, "Survival Games");
-        addServer("elytrarun", ServerElytraRun.class, "Elytra Run");
+        addServer("lobby", ServerLobby::new, "Lobby");
+        addServer("parkour", ServerParkour::new, "Parkour");
+        addServer("spleef", ServerSpleef::new, "Spleef");
+        addServer("dodgeball", ServerDodgeball::new, "Dodgeball");
+        addServer("survivalgames", ServerSurvivalGames::new, "Survival Games");
+        addServer("elytrarun", ServerElytraRun::new, "Elytra Run");
+    }
+
+    public static void broadcastInfo(String msg) {
+        Bukkit.broadcast(ChatColor.GRAY + "[MCG] " + msg, Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+    }
+
+    public static void broadcastError(String msg) {
+        Bukkit.broadcast(ChatColor.RED + "[MCG] " + msg, Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
     }
 
     @Override
@@ -99,11 +104,10 @@ public class MCGMain extends JavaPlugin {
 
             // Instantiate the correct ServerInterface
             this.getConfigurationFile();
-            Class<? extends ServerInterface<? extends PlayerInterface>> serverClass = serverClasses.get(serverMinigame);
-            if(serverClass == null) {
+            if(!serverConstructors.containsKey(serverMinigame)) {
                 throw new RuntimeException("Server " + serverMinigame + " does not exist");
             }
-            server = serverClass.getConstructor(JavaPlugin.class, World.class, String.class).newInstance(this, getServer().getWorld("world"), serverMinigame);
+            server = serverConstructors.get(serverMinigame).apply(this, getServer().getWorld("world"), serverMinigame);
             bungeeManager = new BungeeManager(this, server, resourcePackManager);
 
             resourcePackManager.initialize();
@@ -111,6 +115,7 @@ public class MCGMain extends JavaPlugin {
             this.getCommand("cutscene").setExecutor(new CommandCutscene(server));
             this.getCommand("join").setExecutor(new CommandJoinTeam(server));
             this.getCommand("teams").setExecutor(new CommandTeams(server));
+            this.getCommand("scores").setExecutor(new CommandScores(server));
 
             // Tick some of the managers
             new BukkitRunnable() {
@@ -125,21 +130,34 @@ public class MCGMain extends JavaPlugin {
 
             logger.info("MCG Plugin Enabled!");
         } catch(Exception e) {
-            Bukkit.broadcast("MinecraftGamesServer onEnable failed: " + ChatColor.RED + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            broadcastError("onEnable failed: " + e.toString());
             throw new RuntimeException(e);
         }
     }
 
     @Override
     public void onDisable() {
-        logger.info("MCG Plugin Disabled!");
-        if(server != null) {
-            server.onDisableCall();
+        try {
+            if (server != null) {
+                server.onDisableCall();
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
         }
 
-        musicManager.stopMusicAll();
+        try {
+            musicManager.stopMusicAll();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
-        sqlManager.stop();
+        try {
+            sqlManager.stop();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        logger.info("MCG Plugin Disabled!");
     }
 
     public void getConfigurationFile() {

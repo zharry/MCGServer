@@ -78,7 +78,7 @@ public class MusicManager {
 
 	public void playMusicAllSequence(Function<PlayerWrapper, Music> getNextMusic) {
 		stopMusicAll();
-		playerWrapperLookup.values().forEach(player -> player.playMusic(getNextMusic));
+//		playerWrapperLookup.values().forEach(player -> player.playMusic(getNextMusic));
 	}
 
 	public void stopMusicAll() {
@@ -115,7 +115,7 @@ public class MusicManager {
 			index += 1;
 
 			if (currentMusic.resourceName != null) {
-				player.playSound(player.getLocation(), currentMusic.resourceName, SoundCategory.MUSIC, 1, 1);
+//				player.playSound(player.getLocation(), currentMusic.resourceName, SoundCategory.MUSIC, 1, 1);
 			}
 			return true;
 		}

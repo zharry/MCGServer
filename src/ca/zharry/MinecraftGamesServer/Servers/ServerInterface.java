@@ -178,16 +178,20 @@ public abstract class ServerInterface<P extends PlayerInterface> {
         players.forEach(PlayerInterface::commit);
     }
 
+    public void unloadPlayers() {
+        offlinePlayers.clear();
+        offlinePlayerLookup.clear();
+
+        players.forEach(PlayerInterface::commit);
+        players.clear();
+        playerLookup.clear();
+
+        defaultTeam.players.clear();
+    }
+
     public void reloadTeamsAndPlayers() {
         try {
-            offlinePlayers.clear();
-            offlinePlayerLookup.clear();
-
-            players.forEach(PlayerInterface::commit);
-            players.clear();
-            playerLookup.clear();
-
-            defaultTeam.players.clear();
+            unloadPlayers();
 
             this.fetchTeams();
             this.fetchPlayers();
@@ -201,9 +205,9 @@ public abstract class ServerInterface<P extends PlayerInterface> {
                 MCGMain.logger.info("Team '" + team + "': " + team.players.stream().map(UUID::toString).collect(Collectors.joining(", ")));
             }
 
-            Bukkit.broadcast(ChatColor.GRAY + "[MCG] Teams and scores reload successful", Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            MCGMain.broadcastInfo("Teams and scores reload successful");
         } catch(Exception e) {
-            Bukkit.broadcast(ChatColor.RED + "[MCG] Teams reload failed: " + e.toString(), Server.BROADCAST_CHANNEL_ADMINISTRATIVE);
+            MCGMain.broadcastError("Teams reload failed: " + e);
             e.printStackTrace();
         }
     }

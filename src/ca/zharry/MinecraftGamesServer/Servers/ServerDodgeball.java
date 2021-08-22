@@ -1,6 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Servers;
 
-import ca.zharry.MinecraftGamesServer.Commands.CommandCutsceneStart;
+import ca.zharry.MinecraftGamesServer.Commands.CommandStart;
 import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerDodgeball;
@@ -242,8 +242,8 @@ public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
 
     @Override
     public void registerCommands() {
-        plugin.getCommand("start").setExecutor(new CommandCutsceneStart(startGameTutorial));
-        plugin.getCommand("timer").setExecutor(new CommandTimer(timerStartGame, timerInProgress, timerFinished));
+        plugin.getCommand("start").setExecutor(new CommandStart(this, startGameTutorial));
+        plugin.getCommand("timer").setExecutor(new CommandTimer(this, timerStartGame, timerInProgress, timerFinished));
     }
 
     @Override

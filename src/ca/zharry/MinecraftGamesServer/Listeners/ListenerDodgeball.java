@@ -63,7 +63,7 @@ public class ListenerDodgeball extends PlayerListenerAdapter<ServerDodgeball, Pl
             if (dead.lives <= 0)
                 return;
 
-            PlayerDodgeball killer = getPlayerInterface(dead.bukkitPlayer);
+            PlayerDodgeball killer = getPlayerInterface(dead.bukkitPlayer.getKiller());
             try {
                 if (dead.equals(killer))
                     return;

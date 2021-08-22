@@ -7,6 +7,7 @@ import javax.sql.rowset.RowSetFactory;
 import javax.sql.rowset.RowSetProvider;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.concurrent.*;
 
@@ -81,6 +82,7 @@ public class SQLManager {
 	}
 
 	public CachedRowSet executeQuery(String query, Object... params) throws SQLException {
+//		System.out.println(query + " " + Arrays.toString(params));
 		Connection connection = null;
 		try {
 			connection = pool.take();
@@ -124,6 +126,7 @@ public class SQLManager {
 			} catch(Exception e) {
 			}
 		}
+		MCGMain.logger.info("Closed connections to SQL");
 	}
 
 	private static class WaitingForTickResult {

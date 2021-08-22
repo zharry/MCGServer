@@ -1,5 +1,7 @@
 package ca.zharry.MinecraftGamesServer.Commands;
 
+import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Servers.ServerInterface;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -12,11 +14,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class CommandTimer implements TabExecutor {
+public class CommandTimer extends CommandBase {
 
 	public final Timer[] timers;
 
-	public CommandTimer(Timer... timers) {
+	public CommandTimer(ServerInterface<? extends PlayerInterface> server, Timer... timers) {
+		super(server);
 		this.timers = timers;
 	}
 
@@ -71,15 +74,15 @@ public class CommandTimer implements TabExecutor {
 		}
 
 		switch(args[0].toLowerCase()) {
-			case "start":
-				timer.start();
-				break;
+//			case "start":
+//				timer.start();
+//				break;
 			case "end":
 				timer.end();
 				break;
-			case "cancel":
-				timer.cancel();
-				break;
+//			case "cancel":
+//				timer.cancel();
+//				break;
 			case "pause":
 				timer.pause();
 				break;
@@ -102,7 +105,7 @@ public class CommandTimer implements TabExecutor {
 	public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 		String currArg = (args.length > 0 ? args[args.length - 1] : "").toLowerCase();
 		if(args.length <= 1) {
-			return Stream.of("start", "end", "cancel", "pause", "resume", "set")
+			return Stream.of(/*"start", */"end", /*"cancel", */"pause", "resume", "set")
 					.filter(c -> c.startsWith(currArg))
 					.sorted()
 					.collect(Collectors.toList());

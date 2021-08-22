@@ -4,19 +4,19 @@ services:
         container_name: mysql
         image: mariadb
         volumes:
-            - /home/harry/MCG/MySQL:/var/lib/mysql
+            - /home/mcg/Docker/MySQL:/var/lib/mysql
         ports:
             - "3306:3306"
         environment:
             - MYSQL_ROOT_PASSWORD=password
-        mem_limit: 256m
+        mem_limit: 1g
     phpmyadmin:
         container_name: phpmyadmin
         image: phpmyadmin/phpmyadmin
         depends_on:
             - mysql
         ports:
-            - "8080:80"
+            - "25511:80"
         environment:
             - PMA_HOST=mysql
         mem_limit: 128m
@@ -26,7 +26,21 @@ services:
         depends_on:
             - mysql
         ports:
-            - "25565-25700:25565-25700"
+            - "25565:25565"
         volumes:
-            - /home/harry/MCG:/home/harry/MCG
-        mem_limit: 10g
+            - /home/mcg/Servers:/home/mcg/Servers
+            - /home/mcg/ResourcePack:/home/mcg/ResourcePack
+        mem_limit: 48g
+    mcghttp:
+        container_name: mcghttp
+        image: node:14-alpine
+        depends_on:
+            - mysql
+        ports:
+            - "25599:25599"
+        volumes:
+            - /home/mcg/HTTPServer:/server
+            - /home/mcg/ResourcePack:/resourcepack
+        working_dir: /server
+        entrypoint: node app.js
+        mem_limit: 128m
