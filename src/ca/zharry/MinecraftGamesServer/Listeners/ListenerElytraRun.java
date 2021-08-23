@@ -98,6 +98,14 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
             }
 
             canFly = true;
+        } else if (server.state == ServerElytraRun.GAME_WAITING) {
+            if(ServerElytraRun.tunnelFinish[server.tunnel].contains(dst)) {
+                if(player.startingTime != 0) {
+                    long timeTaken = System.nanoTime() - player.startingTime;
+                    player.bukkitPlayer.sendTitle("Tunnel completed in " + timeToString(timeTaken), "");
+                    player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("Tunnel completed in " + timeToString(timeTaken) + " seconds!"));
+                }
+            }
         }
 
         if(server.state == ServerElytraRun.GAME_INPROGRESS || server.state == ServerElytraRun.GAME_WAITING) {
