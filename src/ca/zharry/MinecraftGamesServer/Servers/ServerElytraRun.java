@@ -18,8 +18,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -51,19 +54,19 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
     public Location practiceChooser = new Location(world, 10000.5, 64, 0.5);
 
-    public static Zone[] tunnels = new Zone[] {
+    public static Zone[] tunnels = new Zone[]{
             new Zone().minZ(300).maxZ(2100),
             new Zone().minZ(3100).maxZ(4660),
             new Zone().minZ(5597).maxZ(7150)
     };
 
-    public static Zone[] dangerZones = new Zone[] {
+    public static Zone[] dangerZones = new Zone[]{
             new Zone().minZ(670).maxZ(2027).maxY(227),
             new Zone().minZ(3189).maxZ(4560).maxY(232),
             new Zone().minZ(5697).maxZ(7080).maxY(231)
     };
 
-    public static Zone[] tunnelFinish = new Zone[] {
+    public static Zone[] tunnelFinish = new Zone[]{
             new Zone().minZ(2027).maxZ(2100),
             new Zone().minZ(3100).maxZ(3189),
             new Zone().minZ(7080).maxZ(7150)
@@ -71,25 +74,25 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
     public static Zone endDrop = new Zone().minZ(7121).maxZ(7139).minX(262).maxX(280).maxY(10);
 
-    public static Point3D[] tunnelAirlockStart = new Point3D[] {
+    public static Point3D[] tunnelAirlockStart = new Point3D[]{
             null,
             new Point3D(308.5, 223, 4583.5),
             new Point3D(313.5, 222, 5673.5)
     };
 
-    public static Point3D[] tunnelAirlockEnd = new Point3D[] {
+    public static Point3D[] tunnelAirlockEnd = new Point3D[]{
             new Point3D(345.5, 12, 2061.5),
             new Point3D(305.5, 12, 3154.5),
             null
     };
 
-    public Location[] jumpPlatform = new Location[] {
+    public Location[] jumpPlatform = new Location[]{
             new Location(world, 317, 234, 673, 0, 0),
             new Location(world, 335.5, 232.5, 4561.5, 180, 0),
             new Location(world, 286.5, 231.5, 5695.5, 0, 0),
     };
 
-    public Location[] startingLocation = new Location[] {
+    public Location[] startingLocation = new Location[]{
             jumpPlatform[0],
             tunnelAirlockStart[1].toLocation(world, -90, 0),
             tunnelAirlockStart[2].toLocation(world, 90, 0),
@@ -104,8 +107,24 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     public Timer timerFinished;
     public Cutscene startGameTutorial;
 
-    void loadHintPaths() {
+    public static ArrayList<Point3D> hints;
 
+    void loadHintPaths() {
+        hints = new ArrayList<>();
+        for (int i = 0; i < tunnels.length; i++) {
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(ServerElytraRun.class.getResourceAsStream("/ElytraRun/hints-" + i + ".txt")));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] coords = line.split(",");
+                    double x = Double.parseDouble(coords[0]), y = Double.parseDouble(coords[1]), z = Double.parseDouble(coords[2]);
+
+                    hints.add(new Point3D(x, y, z));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 
@@ -113,6 +132,24 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         super(plugin, world, minigame);
 
         loadHintPaths();
+
+        final int HINT_DISTANCE = (16 * 7) * (16 * 7);
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (PlayerElytraRun p : players) {
+                    if (!p.hintsEnabled) continue;
+                    Point3D pos = new Point3D(p.getLocation());
+                    Vector v = p.bukkitPlayer.getVelocity();
+                    for (Point3D hint : hints) {
+                        Point3D dist = hint.subtract(pos);
+                        if (dist.distanceSquared() < HINT_DISTANCE) {
+                            p.bukkitPlayer.spawnParticle(Particle.FLAME, hint.x, hint.y, hint.z, 0, 0, 0, 0, 0);
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0, 10);
 
         serverSpawn = startingLocation[0];
 
@@ -128,7 +165,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             public void onStart() {
                 state = GAME_STARTING;
                 players.forEach(player -> {
-                    giveElytra(player);
+                    giveInventory(player);
                     player.teleport(startingLocation[tunnel]);
                     player.dead = false;
                 });
@@ -176,7 +213,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                 barriers.setBarrier(world);
 
                 tunnel++;
-                if(tunnel < tunnels.length) {
+                if (tunnel < tunnels.length) {
                     timerStartGame.set(TIMER_STARTING_NEXT);
                     timerInProgress.set(TIMER_INPROGRESS);
                     timerStartGame.start();
@@ -259,14 +296,18 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                 timerStartGame.start();
             }
         };
+
+        for (PlayerElytraRun p : players){
+            giveInventory(p);
+        }
     }
 
     public void elytraRunTick() {
-        if(state == GAME_INPROGRESS) {
-            for(PlayerElytraRun player : players) {
-                if(player.inBlock) {
-                    player.inBlockTimer ++;
-                    if(player.inBlockTimer > 3) {
+        if (state == GAME_INPROGRESS) {
+            for (PlayerElytraRun player : players) {
+                if (player.inBlock) {
+                    player.inBlockTimer++;
+                    if (player.inBlockTimer > 3) {
                         killPlayer(player);
                     }
                 } else {
@@ -281,7 +322,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
         int prizePool = 0;
         int position = sortedPlayers.size();
-        for (PlayerElytraRun player: sortedPlayers) {
+        for (PlayerElytraRun player : sortedPlayers) {
             player.addScore(prizePool += 100, "finished " + --position);
             player.bukkitPlayer.sendMessage(ChatColor.WHITE + "" + ChatColor.BOLD + "[+" + prizePool + "] " +
                     ChatColor.RESET + "you completed tunnel " + (this.tunnel + 1) + " in position " + (position + 1) + "/" + sortedPlayers.size());
@@ -305,20 +346,28 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     }
 
     public int getTunnel(Location location) {
-        for(int i = 0; i < tunnels.length; ++i) {
-            if(tunnels[i].contains(location)) {
+        for (int i = 0; i < tunnels.length; ++i) {
+            if (tunnels[i].contains(location)) {
                 return i;
             }
         }
         return -1;
     }
 
-    public void giveElytra(PlayerElytraRun player) {
+    public void giveInventory(PlayerElytraRun player) {
+        player.bukkitPlayer.getInventory().clear();
+
         ItemStack item = new ItemStack(Material.ELYTRA, 1);
         ItemMeta meta = item.getItemMeta();
         meta.setUnbreakable(true);
         item.setItemMeta(meta);
         player.bukkitPlayer.getInventory().setChestplate(item);
+
+        ItemStack waypoints = new ItemStack(Material.END_ROD, 1);
+        ItemMeta waypointsItemMeta = waypoints.getItemMeta();
+        waypointsItemMeta.setDisplayName(ChatColor.GREEN + "Toggle in-game hints");
+        waypoints.setItemMeta(waypointsItemMeta);
+        player.bukkitPlayer.getInventory().setItem(0, waypoints);
     }
 
     public Location getPlayerStartLocation(PlayerElytraRun player) {
@@ -336,14 +385,14 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         double distance = playerZ - tunnelMinZ;
         distance = Math.min(Math.max(distance, 0), tunnelLength(tunnel));
         double jumpZ = jumpPlatform[tunnel].getZ();
-        if(jumpZ - tunnelMinZ > tunnelMaxZ - jumpZ) {
+        if (jumpZ - tunnelMinZ > tunnelMaxZ - jumpZ) {
             distance = tunnelLength(tunnel) - distance;
         }
         return distance;
     }
 
     public void killPlayer(PlayerElytraRun player) {
-        if(!player.dead) {
+        if (!player.dead) {
             spawnDeathEffect(player);
             player.dead = true;
             player.inBlock = false;

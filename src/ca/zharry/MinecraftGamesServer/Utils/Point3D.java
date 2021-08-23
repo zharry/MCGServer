@@ -12,6 +12,14 @@ public class Point3D {
         this.z = z;
     }
 
+    public Point3D(Location loc) {
+        this(loc.getX(), loc.getY(), loc.getZ());
+    }
+
+    public double distanceSquared() {
+        return x * x + y * y + z * z;
+    }
+
     public double getX() {
         return x;
     }

@@ -22,6 +22,8 @@ public class PlayerElytraRun extends PlayerInterface {
 
     public long startingTime;
 
+    public boolean hintsEnabled = true;
+
     // Minigame variables
 
     public ServerElytraRun server;
