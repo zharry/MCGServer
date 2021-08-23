@@ -70,13 +70,10 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
         }
         boolean canFly = false;
         Location dst = event.getTo();
-        if(ServerElytraRun.endDrop.contains(dst)) {
-            player.teleport(server.practiceChooser);
-        }
+
+        double dist = server.getPlayerDistance(player, server.tunnel);
 
         if(server.state == ServerElytraRun.GAME_INPROGRESS) {
-            double dist = server.getPlayerDistance(player, server.tunnel);
-
             player.inBlock = false;
             // If the Player reached the end of the tunnel
             if(ServerElytraRun.tunnelFinish[server.tunnel].contains(dst)) {
@@ -100,41 +97,57 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
                 }
             }
 
-            // Player is in a zone where they can crash
-            if(ServerElytraRun.dangerZones[server.tunnel].contains(dst)) {
-                if (dist > player.maxDistance[server.tunnel])
-                    player.maxDistance[server.tunnel] = dist;
-
-                if(player.startingTime == 0 && player.getLocation().distance(server.jumpPlatform[server.tunnel]) < 100) {
-                    player.startingTime = System.nanoTime();
-                }
-                if(player.startingTime != 0) {
-                    player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(
-                            String.format("Speed: %.1f  Completion: %.0f%%",
-                                    event.getTo().distance(event.getFrom()) * 20,
-                                    100.0 * server.getPlayerDistance(player, server.tunnel) / server.tunnelLength(server.tunnel)
-                            )
-                                    /*+ timeToString(System.nanoTime() - player.startingTime)*/
-                    ));
-                }
-
-                // If the player has crashed
-                if(server.world.getBlockAt(player.getLocation()).getType() != Material.AIR) {
-                    player.inBlock = true;
-                }
-                if(player.bukkitPlayer.isOnGround()) {
-                    server.killPlayer(player);
-                }
-            } else {
-                player.startingTime = 0;
-            }
             canFly = true;
+        }
+
+        if(server.state == ServerElytraRun.GAME_INPROGRESS || server.state == ServerElytraRun.GAME_WAITING) {
+            int tunnel;
+            if(server.state == ServerElytraRun.GAME_WAITING) {
+                tunnel = server.getTunnel(dst);
+            } else {
+                tunnel = server.tunnel;
+            }
+            if(tunnel != -1) {
+                // Player is in a zone where they can crash
+                if (ServerElytraRun.dangerZones[tunnel].contains(dst)) {
+                    if (dist > player.maxDistance[tunnel])
+                        player.maxDistance[tunnel] = dist;
+
+                    if (player.startingTime == 0 && player.getLocation().distance(server.jumpPlatform[tunnel]) < 100) {
+                        player.startingTime = System.nanoTime();
+                    }
+                    if (player.startingTime != 0) {
+                        player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(
+                                String.format("Speed: %.1f  Completion: %.0f%%",
+                                        event.getTo().distance(event.getFrom()) * 20,
+                                        100.0 * server.getPlayerDistance(player, tunnel) / server.tunnelLength(tunnel)
+                                )
+                                /*+ timeToString(System.nanoTime() - player.startingTime)*/
+                        ));
+                    }
+
+                    // If the player has crashed
+                    if (server.world.getBlockAt(player.getLocation()).getType() != Material.AIR) {
+                        player.inBlock = true;
+                    }
+                    if (player.bukkitPlayer.isOnGround()) {
+                        server.killPlayer(player);
+                    }
+                } else {
+                    player.startingTime = 0;
+                }
+                player.lastTunnel = tunnel;
+            }
         }
 
         if(server.state == ServerElytraRun.GAME_STARTING) {
             if(ServerElytraRun.dangerZones[0].contains(dst)) {
                 player.teleport(server.jumpPlatform[0]);
             }
+        }
+
+        if(server.state == ServerElytraRun.GAME_WAITING) {
+            canFly = true;
         }
 
         ItemStack chestplate = player.bukkitPlayer.getInventory().getChestplate();
@@ -158,6 +171,9 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
 
     @Override
     protected void onInteract(PlayerElytraRun player, PlayerInteractEvent event) {
+        if(event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+            return;
+        }
         /*if(event.getAction() == Action.PHYSICAL) {
             Block block = event.getClickedBlock();
             if(block != null && block.getType() == Material.LIGHT_WEIGHTED_PRESSURE_PLATE) {
@@ -178,9 +194,16 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
                     String line2 = sign.getLine(2);
                     if(line2.startsWith("Tunnel ")) {
                         player.teleport(server.jumpPlatform[Integer.parseInt(line2.substring(7)) - 1]);
+                        return;
                     }
                 }
             }
+        }
+
+        if(event.getMaterial() == Material.TARGET && server.state == ServerElytraRun.GAME_WAITING) {
+            player.teleport(server.practiceChooser);
+            event.setCancelled(true);
+            return;
         }
 
         if (event.getMaterial() == Material.END_ROD) {
@@ -212,10 +235,8 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
     @Override
     public void onRespawn(PlayerElytraRun player, PlayerRespawnEvent event) {
         player.dead = false;
-        if(server.state == ServerElytraRun.GAME_INPROGRESS || server.state == ServerElytraRun.GAME_STARTING) {
-            server.giveInventory(player);
-            event.setRespawnLocation(server.getPlayerStartLocation(player));
-        }
+        server.giveInventory(player);
+        event.setRespawnLocation(server.getPlayerStartLocation(player));
     }
 
     @Override

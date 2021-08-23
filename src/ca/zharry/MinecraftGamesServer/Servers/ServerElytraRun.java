@@ -158,13 +158,15 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             player.teleport(serverSpawn);
             player.reset(GameMode.ADVENTURE);
         }
-        barriers.setBarrier(world);
+        barriers.clearBarrier(world);
 
         timerStartGame = new Timer(plugin, "start", TIMER_STARTING) {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
+                barriers.setBarrier(world);
                 players.forEach(player -> {
+                    player.reset(GameMode.ADVENTURE);
                     giveInventory(player);
                     player.teleport(startingLocation[tunnel]);
                     player.dead = false;
@@ -296,10 +298,6 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                 timerStartGame.start();
             }
         };
-
-        for (PlayerElytraRun p : players){
-            giveInventory(p);
-        }
     }
 
     public void elytraRunTick() {
@@ -368,10 +366,23 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         waypointsItemMeta.setDisplayName(ChatColor.GREEN + "Toggle in-game hints");
         waypoints.setItemMeta(waypointsItemMeta);
         player.bukkitPlayer.getInventory().setItem(0, waypoints);
+
+        if (state == GAME_WAITING) {
+            ItemStack levelSelect = new ItemStack(Material.TARGET, 1);
+            meta = levelSelect.getItemMeta();
+            meta.setDisplayName(ChatColor.GREEN + "Level select");
+            levelSelect.setItemMeta(meta);
+            player.bukkitPlayer.getInventory().setItem(8, levelSelect);
+        }
+
     }
 
     public Location getPlayerStartLocation(PlayerElytraRun player) {
-        return jumpPlatform[tunnel];
+        if(state == GAME_WAITING) {
+            return jumpPlatform[player.lastTunnel];
+        } else {
+            return jumpPlatform[tunnel];
+        }
     }
 
     public double tunnelLength(int tunnel) {
@@ -418,6 +429,10 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         super.onEnableCall();
         MCGMain.resourcePackManager.forceResourcePack("https://play.mcg-private.tk/test.zip", new File(MCGMain.resourcePackRoot, "test.zip"));
         this.state = GAME_WAITING;
+
+        for (PlayerElytraRun p : players){
+            giveInventory(p);
+        }
 //        MCGMain.protocolManager.addPacketListener(new PacketAdapter(plugin, PacketType.Play.Server.MAP_CHUNK) {
 //            @Override
 //            public void onPacketSending(PacketEvent event) {

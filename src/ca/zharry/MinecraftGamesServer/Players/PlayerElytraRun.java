@@ -20,6 +20,8 @@ public class PlayerElytraRun extends PlayerInterface {
     public boolean inBlock;
     public int inBlockTimer = 0;
 
+    public int lastTunnel;
+
     public long startingTime;
 
     public boolean hintsEnabled = true;
