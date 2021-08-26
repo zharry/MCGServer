@@ -50,7 +50,7 @@ public class MCGMain extends JavaPlugin {
     public static boolean allowUserJoinTeam;
 
     // Global configuration
-    public static final int SEASON = 2;
+    public static final int SEASON = 3;
     public static final int PLAYER_TARGET = 32;
 
     // Current server information
@@ -97,7 +97,7 @@ public class MCGMain extends JavaPlugin {
         try {
             Properties sqlProperties = new Properties();
             sqlProperties.setProperty("user", "root");
-            sqlProperties.setProperty("password", "password");
+            sqlProperties.setProperty("password", "");
 
             sqlManager = new SQLManager("jdbc:mysql://mysql:3306/mcg", sqlProperties, 5);
             this.setupDatabase();

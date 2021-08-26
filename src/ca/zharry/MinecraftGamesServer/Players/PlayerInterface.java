@@ -217,6 +217,17 @@ public abstract class PlayerInterface {
             sb.append(noTeamSB);
         }
 
+        StringBuilder spectatorSB = new StringBuilder();
+
+        for (PlayerInterface player : server.spectators) {
+            spectatorSB.append(player.getPlayerNameForTabMenu()).append("\n");
+        }
+
+        if(spectatorSB.length() != 0) {
+            sb.append("\n").append("Spectators").append(":\n\n");
+            sb.append(spectatorSB);
+        }
+
         for (int i = 0; i < 100; i++) sb.append(EMPTY_LINE);
         bukkitPlayer.setPlayerListHeader(sb.toString());
     }
@@ -248,9 +259,9 @@ public abstract class PlayerInterface {
 
     public void setTeamScoresForSidebar(String curMinigameStr, int curTeamID) {
         ArrayList<MCGTeam> sortedTeams = server.getTeamsOrderedByScore(curMinigameStr);
-        setRankedDisplayForSidebar(sortedTeams, server.getTeamFromTeamID(curTeamID), (team, position, bold) ->
-                " " + team.chatColor + position + ". " + bold + team.teamname + " " + ChatColor.RESET + team.getScore(curMinigameStr)
-        );
+        setRankedDisplayForSidebar(sortedTeams, server.getTeamFromTeamID(curTeamID), (team, position, bold) -> {
+            return " " + team.chatColor + position + ". " + bold + team.teamname + " " + ChatColor.RESET + team.getScore(curMinigameStr);
+        });
     }
 
     public <T> void setRankedDisplayForSidebar(List<T> sortedList, T c, TriFunction<T, Integer, String, String> value) {
@@ -262,28 +273,33 @@ public abstract class PlayerInterface {
             }
         }
 
-        for (int i = sortedList.size(); i <= 4; i++) {
+        for (int i = sortedList.size(); i < 4; i++) {
             sortedList.add(null);
         }
 
         int[] placements;
-        if (curPlace == 0 || curPlace == 1 || curPlace == -1) {
-            placements = new int[]{1, 2, 3, 4};
+
+        // 1st, 2nd, or 3rd
+        if (curPlace == 0 || curPlace == 1 || curPlace == 2 || curPlace == -1) {
+            placements = new int[]{0, 1, 2, 3};
+        // Dead last
         } else if (curPlace == sortedList.size() - 1) {
-            placements = new int[]{1, 2, curPlace, curPlace + 1};
+            placements = new int[]{0, 1, curPlace - 1, curPlace};
+        // Every position in between
         } else {
-            placements = new int[]{1, curPlace, curPlace + 1, curPlace + 2};
+            placements = new int[]{0, curPlace - 1, curPlace, curPlace + 1};
         }
 
         sidebar.add(ChatColor.BLUE + "" + ChatColor.BOLD + "Game scores: ");
 
         for (int i = 0; i < 4; i++) {
             String bold = "";
-            if (sortedList.get(i) == null) break;
-            if (sortedList.get(i).equals(c)) {
+            T entry = sortedList.get(placements[i]);
+            if (entry == null) break;
+            if (entry.equals(c)) {
                 bold = ChatColor.BOLD.toString();
             }
-            sidebar.add(value.apply(sortedList.get(placements[i] - 1), placements[i], bold));
+            sidebar.add(value.apply(entry, placements[i] + 1, bold));
         }
     }
 

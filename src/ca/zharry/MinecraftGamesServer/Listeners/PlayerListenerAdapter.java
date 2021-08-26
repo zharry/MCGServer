@@ -43,7 +43,7 @@ public class PlayerListenerAdapter<S extends ServerInterface<? extends PlayerInt
 			if (!eventClass.isInstance(e)) {
 				return;
 			}
-			T player = getPlayerInterfaceIgnoreCreative(getPlayer.apply((E) e), ignoreCreative);
+			T player = getPlayerInterfaceIgnoreCreativeAndSpectators(getPlayer.apply((E) e), ignoreCreative);
 			if(player != null) {
 				dispatch.accept(player, (E) e);
 			}
@@ -58,18 +58,23 @@ public class PlayerListenerAdapter<S extends ServerInterface<? extends PlayerInt
 		return null;
 	}
 
-	public T getPlayerInterfaceIgnoreCreative(Entity e, boolean ignoreCreative) {
+	public T getPlayerInterfaceIgnoreCreativeAndSpectators(Entity e, boolean ignoreCreative) {
 		if(!(e instanceof Player)) {
 			return null;
 		}
+		// Ignore creative
 		if(ignoreCreative && MCGMain.gameModeManager.getGameMode((Player) e) == GameMode.CREATIVE) {
+			return null;
+		}
+		// Ignore spectators
+		if(server.spectatorNames.contains(e.getName())) {
 			return null;
 		}
 		return getPlayerFromUUID(e.getUniqueId());
 	}
 
 	public T getPlayerInterface(Entity p) {
-		return getPlayerInterfaceIgnoreCreative(p, false);
+		return getPlayerInterfaceIgnoreCreativeAndSpectators(p, false);
 	}
 
 	public void registerEvents() {

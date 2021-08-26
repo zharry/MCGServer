@@ -68,7 +68,7 @@ public class ListenerDodgeball extends PlayerListenerAdapter<ServerDodgeball, Pl
                 if (dead.equals(killer))
                     return;
 
-                // If the killer is dead
+                // If the killer is dead TODO
                 if (killer.lives <= 0)
                     return;
 
@@ -329,6 +329,11 @@ public class ListenerDodgeball extends PlayerListenerAdapter<ServerDodgeball, Pl
                 @Override
                 public void run() {
                     Projectile entity = e.getEntity();
+                    if(entity.isDead()) {
+                        this.cancel();
+                        tasks.remove(entity);
+                        return;
+                    }
                     World w = entity.getWorld();
                     Location l = entity.getLocation();
                     Player p = (Player) e.getEntity().getShooter();

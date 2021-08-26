@@ -9,13 +9,19 @@ import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.MusicManager;
+import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import ca.zharry.MinecraftGamesServer.Utils.Zone;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.Team;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class ServerLobby extends ServerInterface<PlayerLobby> {
@@ -39,6 +45,34 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
     public ServerLobby(JavaPlugin plugin, World world, String minigame) {
         super(plugin, world, minigame);
         serverSpawn = new Location(world, 1484.5, 4, 530, 90, 0);
+//        ArrayList<Point3D> points = new ArrayList<>();
+//        try {
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream("/Lobby/hints-0.txt")));
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                String[] s = line.split(",");
+//                points.add(new Point3D(Double.parseDouble(s[0]), Double.parseDouble(s[1]), Double.parseDouble(s[2])));
+//            }
+//        } catch(Exception e) {
+//            e.printStackTrace();
+//        }
+
+//        new BukkitRunnable() {
+//            public void run() {
+////            Location l = player.getLocation();
+////            try {
+////                output.write((l.getX() + "," + l.getY() + "," + l.getZ() + "\n").getBytes(StandardCharsets.UTF_8));
+////                output.flush();
+////            } catch (Exception e) {
+////                e.printStackTrace();
+////            }
+//                for(PlayerLobby player : players) {
+//                    for(Point3D p : points) {
+//                        player.bukkitPlayer.spawnParticle(Particle.FLAME, p.x, p.y, p.z, 0, 0, 0, 0, 0);
+//                    }
+//                }
+//            }
+//        }.runTaskTimer(plugin, 0, 1);
 
         timerNextGame = new Timer(plugin, "next", TIMER_START) {
             @Override
@@ -72,7 +106,7 @@ public class ServerLobby extends ServerInterface<PlayerLobby> {
         super.onEnableCall();
         this.state = LOBBY_WAITING;
 
-        MCGMain.resourcePackManager.forceResourcePack("https://play.mcg-private.tk/test.zip", new File(MCGMain.resourcePackRoot, "test.zip"));
+        MCGMain.resourcePackManager.forceResourcePack("http://play.mcg-private.tk:25599/resource.zip", new File(MCGMain.resourcePackRoot, "resource.zip"));
         MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
         MusicManager.Music music2 = new MusicManager.Music("tsf:music.glidermusic2", 140.8);
         MCGMain.musicManager.playMusicBackgroundSequence(p -> p.index == 0 ? music1 : music2);

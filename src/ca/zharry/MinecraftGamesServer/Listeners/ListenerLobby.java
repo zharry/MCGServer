@@ -3,8 +3,11 @@ package ca.zharry.MinecraftGamesServer.Listeners;
 import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Servers.ServerLobby;
+import ca.zharry.MinecraftGamesServer.Utils.Point3D;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
@@ -19,10 +22,23 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+
 public class ListenerLobby extends PlayerListenerAdapter<ServerLobby, PlayerLobby> {
+    FileOutputStream output;
 
     public ListenerLobby(ServerLobby server) {
         super(server, PlayerLobby.class);
+        try {
+            output = new FileOutputStream("coords.txt");
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -46,6 +62,18 @@ public class ListenerLobby extends PlayerListenerAdapter<ServerLobby, PlayerLobb
 
     @Override
     public void onMove(PlayerLobby player, PlayerMoveEvent event) {
+        if(player.name.equals("H0PEFULL")) {
+//            Location l = player.getLocation();
+//            try {
+//                output.write((l.getX() + "," + l.getY() + "," + l.getZ() + "\n").getBytes(StandardCharsets.UTF_8));
+//                output.flush();
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//            for(Point3D p : points) {
+//                player.bukkitPlayer.spawnParticle(Particle.FLAME, p.x, p.y, p.z, 0, 0, 0, 0, 0);
+//            }
+        }
         ItemStack chestplate = player.bukkitPlayer.getInventory().getChestplate();
         if(chestplate != null) {
             ItemMeta meta = chestplate.getItemMeta();

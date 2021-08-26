@@ -19,6 +19,7 @@ import org.bukkit.scoreboard.Team;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,6 +36,10 @@ public abstract class ServerInterface<P extends PlayerInterface> {
     public HashMap<UUID, P> playerLookup = new HashMap<>();
     public ArrayList<P> offlinePlayers = new ArrayList<>();
     public HashMap<UUID, P> offlinePlayerLookup = new HashMap<>();
+    public ArrayList<P> spectators = new ArrayList<>();
+    public HashMap<UUID, P> spectatorLookup = new HashMap<>();
+
+    public HashSet<String> spectatorNames = new HashSet<>();
 
     public ArrayList<Integer> teamIDs = new ArrayList<>();
     private HashMap<Integer, MCGTeam> teams = new HashMap<>(); // Team ID to MCGTeam Mapping
@@ -52,7 +57,10 @@ public abstract class ServerInterface<P extends PlayerInterface> {
         taskScoreboard = new BukkitRunnable() {
             @Override
             public void run() {
-                for (PlayerInterface player : players) {
+                for (P player : players) {
+                    player.doStatsRefresh();
+                }
+                for (P player : spectators) {
                     player.doStatsRefresh();
                 }
             }
@@ -105,6 +113,14 @@ public abstract class ServerInterface<P extends PlayerInterface> {
     }
 
     public void playerJoin(Player player) {
+        if(spectatorNames.contains(player.getName())) {
+            P playerInterface = createNewPlayerInterface(player.getUniqueId(), player.getName());
+            spectators.add(playerInterface);
+            spectatorLookup.put(player.getUniqueId(), playerInterface);
+            playerInterface.playerJoin(player);
+            playerInterface.reset(GameMode.SPECTATOR);
+            return;
+        }
         UUID uuid = player.getUniqueId();
         P playerInterface = offlinePlayerLookup.get(uuid);
         if(playerInterface != null) {
@@ -124,14 +140,37 @@ public abstract class ServerInterface<P extends PlayerInterface> {
     public void playerQuit(Player player) {
         UUID uuid = player.getUniqueId();
         P playerInterface = playerLookup.get(uuid);
-        playerInterface.playerQuit(player);
-        offlinePlayers.add(playerInterface);
-        offlinePlayerLookup.put(uuid, playerInterface);
-        players.remove(playerInterface);
-        playerLookup.remove(uuid);
+        if(playerInterface != null) {
+            playerInterface.playerQuit(player);
+            offlinePlayers.add(playerInterface);
+            offlinePlayerLookup.put(uuid, playerInterface);
+            players.remove(playerInterface);
+            playerLookup.remove(uuid);
+        }
+        playerInterface = spectatorLookup.get(uuid);
+        if(playerInterface != null) {
+            playerInterface.playerQuit(player);
+            spectators.remove(playerInterface);
+            spectatorLookup.remove(uuid);
+        }
+
     }
 
     /* TEAM LOGIC */
+
+    public void fetchSpectators() {
+        this.spectatorNames.clear();
+
+        try {
+            ResultSet resultSet = MCGMain.sqlManager.executeQuery("SELECT * FROM `spectators`");
+            while(resultSet.next()) {
+                String username = resultSet.getString("username");
+                this.spectatorNames.add(username);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public void fetchTeams() {
         this.teams.clear();
@@ -179,6 +218,9 @@ public abstract class ServerInterface<P extends PlayerInterface> {
     }
 
     public void unloadPlayers() {
+        spectators.clear();
+        spectatorLookup.clear();
+
         offlinePlayers.clear();
         offlinePlayerLookup.clear();
 
@@ -193,6 +235,7 @@ public abstract class ServerInterface<P extends PlayerInterface> {
         try {
             unloadPlayers();
 
+            this.fetchSpectators();
             this.fetchTeams();
             this.fetchPlayers();
 

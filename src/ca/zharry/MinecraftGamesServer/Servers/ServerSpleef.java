@@ -27,6 +27,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Random;
@@ -258,6 +259,7 @@ public class ServerSpleef extends ServerInterface<PlayerSpleef> {
     @Override
     public void onEnableCall() {
         super.onEnableCall();
+        MCGMain.resourcePackManager.forceResourcePack("http://play.mcg-private.tk:25599/resource.zip", new File(MCGMain.resourcePackRoot, "resource.zip"));
         this.state = GAME_WAITING;
     }
 

@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Listeners;
 
+import ca.zharry.MinecraftGamesServer.MCGMain;
 import ca.zharry.MinecraftGamesServer.Players.PlayerElytraRun;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerElytraRun;
@@ -8,6 +9,7 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -22,16 +24,16 @@ import java.nio.charset.StandardCharsets;
 
 public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, PlayerElytraRun> {
 
-    FileOutputStream output;
+//    FileOutputStream output;
 
     public ListenerElytraRun(ServerElytraRun server) {
         super(server, PlayerElytraRun.class);
 
-        try {
-            output = new FileOutputStream("coords.txt");
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
+//        try {
+//            output = new FileOutputStream("coords.txt");
+//        } catch(Exception e) {
+//            e.printStackTrace();
+//        }
     }
 
     @Override
@@ -58,12 +60,12 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
     @Override
     public void onMove(PlayerElytraRun player, PlayerMoveEvent event) {
         Location l = player.getLocation();
-        try {
-            output.write((System.nanoTime() + " " + l.getX() + " " + l.getY() + " " + l.getZ() + "\n").getBytes(StandardCharsets.UTF_8));
-            output.flush();
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
+//        try {
+//            output.write((l.getX() + "," + l.getY() + "," + l.getZ() + "\n").getBytes(StandardCharsets.UTF_8));
+//            output.flush();
+//        } catch(Exception e) {
+//            e.printStackTrace();
+//        }
         if(player.dead) {
             event.setCancelled(true);
             return;
@@ -71,9 +73,9 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
         boolean canFly = false;
         Location dst = event.getTo();
 
-        double dist = server.getPlayerDistance(player, server.tunnel);
-
         if(server.state == ServerElytraRun.GAME_INPROGRESS) {
+            double dist = server.getPlayerDistance(player, server.tunnel);
+
             player.inBlock = false;
             // If the Player reached the end of the tunnel
             if(ServerElytraRun.tunnelFinish[server.tunnel].contains(dst)) {
@@ -85,27 +87,34 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
 
                         player.maxDistance[server.tunnel] = Double.POSITIVE_INFINITY;
                         player.completedTime[server.tunnel] = timeTaken;
-                        player.addScore(500, "finished tunnel " + server.tunnel);
+                        player.addScore(300, "finished tunnel " + server.tunnel);
+
+                        int playerCount = 0;
+
+                        for (PlayerElytraRun otherPlayer : server.players) {
+                            if(otherPlayer.maxDistance[server.tunnel] != Double.POSITIVE_INFINITY) {
+                                playerCount ++;
+                            }
+                        }
+                        MCGMain.broadcastInfo("Players remaining: " + playerCount);
 
                         // Tunnel completed message
                         player.bukkitPlayer.sendTitle("Tunnel completed in " + timeToString(timeTaken), "");
                         player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("Tunnel completed in " + timeToString(timeTaken) + " seconds!"));
 
-                        server.sendMessageAll(ChatColor.WHITE + "" + ChatColor.BOLD + "[+500] " +
+                        ItemStack unstuck = new ItemStack(Material.PAPER, 1);
+                        ItemMeta unstuckMeta = unstuck.getItemMeta();
+                        unstuckMeta.setDisplayName(ChatColor.RED + "Teleport to beginning");
+                        unstuck.setItemMeta(unstuckMeta);
+                        player.bukkitPlayer.getInventory().setItem(7, unstuck);
+
+                        server.sendMessageAll(ChatColor.WHITE + "" + ChatColor.BOLD + "[+300] " +
                                 ChatColor.RESET + player.getDisplayName() + " has completed tunnel " + (server.tunnel + 1) + " in " + timeToString(timeTaken) + " seconds!");
                     }
                 }
             }
 
             canFly = true;
-        } else if (server.state == ServerElytraRun.GAME_WAITING) {
-            if(ServerElytraRun.tunnelFinish[server.tunnel].contains(dst)) {
-                if(player.startingTime != 0) {
-                    long timeTaken = System.nanoTime() - player.startingTime;
-                    player.bukkitPlayer.sendTitle("Tunnel completed in " + timeToString(timeTaken), "");
-                    player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("Tunnel completed in " + timeToString(timeTaken) + " seconds!"));
-                }
-            }
         }
 
         if(server.state == ServerElytraRun.GAME_INPROGRESS || server.state == ServerElytraRun.GAME_WAITING) {
@@ -116,6 +125,16 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
                 tunnel = server.tunnel;
             }
             if(tunnel != -1) {
+                 if (server.state == ServerElytraRun.GAME_WAITING) {
+                    if(ServerElytraRun.tunnelFinish[tunnel].contains(dst)) {
+                        if(player.startingTime != 0) {
+                            long timeTaken = System.nanoTime() - player.startingTime;
+                            player.bukkitPlayer.sendTitle("Tunnel completed in " + timeToString(timeTaken), "");
+                            player.bukkitPlayer.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("Tunnel completed in " + timeToString(timeTaken) + " seconds!"));
+                        }
+                    }
+                }
+                double dist = server.getPlayerDistance(player, tunnel);
                 // Player is in a zone where they can crash
                 if (ServerElytraRun.dangerZones[tunnel].contains(dst)) {
                     if (dist > player.maxDistance[tunnel])
@@ -208,6 +227,12 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
             }
         }
 
+        if(event.getMaterial() == Material.PAPER) {
+            if(server.state == ServerElytraRun.GAME_INPROGRESS) {
+                player.teleport(server.jumpPlatform[server.tunnel]);
+            }
+        }
+
         if(event.getMaterial() == Material.TARGET && server.state == ServerElytraRun.GAME_WAITING) {
             player.teleport(server.practiceChooser);
             event.setCancelled(true);
@@ -230,6 +255,11 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
 
     @Override
     public void onDamage(PlayerElytraRun player, EntityDamageEvent event) {
+        if(server.state == ServerElytraRun.GAME_FINISHED) {
+            event.setCancelled(true);
+            return;
+        }
+
         if (!ServerElytraRun.dangerZones[server.tunnel].contains(player.getLocation())) {
             event.setCancelled(true);
         }
@@ -245,6 +275,15 @@ public class ListenerElytraRun extends PlayerListenerAdapter<ServerElytraRun, Pl
         player.dead = false;
         server.giveInventory(player);
         event.setRespawnLocation(server.getPlayerStartLocation(player));
+        if(server.state == ServerElytraRun.GAME_INPROGRESS) {
+            if(player.maxDistance[server.tunnel] == Double.POSITIVE_INFINITY) {
+                ItemStack unstuck = new ItemStack(Material.PAPER, 1);
+                ItemMeta unstuckMeta = unstuck.getItemMeta();
+                unstuckMeta.setDisplayName(ChatColor.RED + "Teleport to beginning");
+                unstuck.setItemMeta(unstuckMeta);
+                player.bukkitPlayer.getInventory().setItem(7, unstuck);
+            }
+        }
     }
 
     @Override

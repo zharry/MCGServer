@@ -26,6 +26,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
 import java.util.*;
 
 public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
@@ -76,6 +77,7 @@ public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
         for (PlayerInterface player : players) {
             player.teleport(serverSpawn);
             player.reset(GameMode.ADVENTURE);
+            player.bukkitPlayer.setInvisible(false);
             givePracticeModeSelect(player.bukkitPlayer);
         }
 
@@ -231,6 +233,7 @@ public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
     @Override
     public void onEnableCall() {
         super.onEnableCall();
+        MCGMain.resourcePackManager.forceResourcePack("http://play.mcg-private.tk:25599/resource.zip", new File(MCGMain.resourcePackRoot, "resource.zip"));
         this.state = GAME_WAITING;
     }
 
@@ -495,6 +498,7 @@ public class ServerDodgeball extends ServerInterface<PlayerDodgeball> {
             player.arena = -1;
             player.reset(GameMode.ADVENTURE);
             player.teleport(serverSpawn);
+            player.bukkitPlayer.setInvisible(false);
             player.bukkitPlayer.setBedSpawnLocation(serverSpawn, true);
         }
 

@@ -30,6 +30,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionData;
 import org.bukkit.potion.PotionType;
 
+import java.io.File;
 import java.util.*;
 
 public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
@@ -129,8 +130,8 @@ public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
                                 " \n",
                         ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
                                 "1. Collect loot from chests around the map\n" +
-                                "2. Kill other players (+350pts)\n" +
-                                "3. Survive longer than the other players (+125pts)\n" +
+                                "2. Kill other players (+400pts)\n" +
+                                "3. Survive longer than the other players (+150pts)\n" +
                                 "4. Watch out for server events (border shrink, chest refills, and etc...)",
                 }, new int[]{
                         10,
@@ -234,12 +235,12 @@ public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(13.5, 90, 20, 145, 55)
-                .title("Kill all other players", "and gain 350 points per kill!", 60)
+                .title("Kill all other players", "and gain 400 points per kill!", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
                 .pos(90, 102, 72, 135, 25)
-                .title("You can also earn survival points", "125 points every time another player dies.", 60)
+                .title("You can also earn survival points", "150 points every time another player dies.", 60)
                 .linear()
                 .freeze(50));
         steps.add(new CutsceneStep(time += 100)
@@ -360,6 +361,7 @@ public class ServerSurvivalGames extends ServerInterface<PlayerSurvivalGames> {
     @Override
     public void onEnableCall() {
         super.onEnableCall();
+        MCGMain.resourcePackManager.forceResourcePack("http://play.mcg-private.tk:25599/resource.zip", new File(MCGMain.resourcePackRoot, "resource.zip"));
         this.state = GAME_WAITING;
     }
 

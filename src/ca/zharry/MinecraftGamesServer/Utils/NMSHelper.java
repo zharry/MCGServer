@@ -14,7 +14,8 @@ public class NMSHelper {
 		if (relYaw) yaw += nmsPlayer.yaw;
 		if (relPitch) pitch += nmsPlayer.pitch;
 
-		float matrix_offset = -0.1047950f; // Offset needed to cancel out the arbitrary offset Matrix Anti-cheat adds in
+//		float matrix_offset = -0.1047950f; // Offset needed to cancel out the arbitrary offset Matrix Anti-cheat adds in
+		float matrix_offset = 0;
 
 		nmsPlayer.playerConnection.a(x, y, z, yaw + matrix_offset, pitch, PacketPlayOutPosition.EnumPlayerTeleportFlags.a(tpRelative));
 	}

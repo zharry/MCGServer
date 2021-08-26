@@ -5,12 +5,18 @@ import ca.zharry.MinecraftGamesServer.Commands.CommandTimer;
 import ca.zharry.MinecraftGamesServer.Listeners.DisableHunger;
 import ca.zharry.MinecraftGamesServer.Listeners.ListenerElytraRun;
 import ca.zharry.MinecraftGamesServer.MCGMain;
+import ca.zharry.MinecraftGamesServer.MCGTeam;
 import ca.zharry.MinecraftGamesServer.Players.PlayerElytraRun;
 import ca.zharry.MinecraftGamesServer.Players.PlayerInterface;
+import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Timer.Cutscene;
 import ca.zharry.MinecraftGamesServer.Timer.CutsceneStep;
 import ca.zharry.MinecraftGamesServer.Timer.Timer;
 import ca.zharry.MinecraftGamesServer.Utils.*;
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
 import org.bukkit.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -42,6 +48,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     public static final int GAME_INPROGRESS = 2;
     public static final int GAME_FINISHED = 3;
     public int state = ERROR;
+    public boolean startDone = false;
 
     public long roundStartTime;
 
@@ -133,7 +140,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
 
         loadHintPaths();
 
-        final int HINT_DISTANCE = (16 * 7) * (16 * 7);
+        final int HINT_DISTANCE = 16 * 5;
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -141,21 +148,42 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                     if (!p.hintsEnabled) continue;
                     Point3D pos = new Point3D(p.getLocation());
                     Vector v = p.bukkitPlayer.getVelocity();
-                    for (Point3D hint : hints) {
-                        Point3D dist = hint.subtract(pos);
-                        if (dist.distanceSquared() < HINT_DISTANCE) {
-                            p.bukkitPlayer.spawnParticle(Particle.FLAME, hint.x, hint.y, hint.z, 0, 0, 0, 0, 0);
+                    int tunnel = getTunnel(p.getLocation());
+                    if(tunnel != -1) {
+                        double sign = Math.signum(tunnelFinish[tunnel].min.z - jumpPlatform[tunnel].getZ());
+                        for (int i = 0; i < hints.size() - 1; ++i) {
+                            Point3D hint = hints.get(i);
+                            Point3D dist = hint.subtract(pos).multiply(sign);
+                            if (dist.z > 0 && dist.z < HINT_DISTANCE) {
+                                Point3D vec = hints.get(i + 1).subtract(hint).multiply(0.1);
+                                p.bukkitPlayer.spawnParticle(Particle.FLAME, hint.x, hint.y, hint.z, 0, vec.x, vec.y, vec.z, 1);
+                            }
                         }
                     }
                 }
             }
         }.runTaskTimer(plugin, 0, 10);
 
+//        ProtocolLibrary.getProtocolManager().addPacketListener(new PacketAdapter(this.plugin, PacketType.Play.Client.SPECTATE) {
+//            @Override
+//            public void onPacketReceiving(PacketEvent event) {
+//                System.out.println("SPECTATE " + event.getPacket().getUUIDs().read(0));
+//            }
+//        });
+
+        // CRASHES MINECRAFT CLIENT
+//        ProtocolLibrary.getProtocolManager().addPacketListener(new PacketAdapter(this.plugin, PacketType.Play.Server.UNLOAD_CHUNK) {
+//            @Override
+//            public void onPacketSending(PacketEvent event) {
+//                event.setCancelled(true);
+//            }
+//        });
+
         serverSpawn = startingLocation[0];
 
         // Add existing players (for hot-reloading)
         for (PlayerInterface player : players) {
-            player.teleport(serverSpawn);
+//            player.teleport(serverSpawn);
             player.reset(GameMode.ADVENTURE);
         }
         barriers.clearBarrier(world);
@@ -164,6 +192,40 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
             @Override
             public void onStart() {
                 state = GAME_STARTING;
+                if (!startDone) {
+                    startDone = true;
+
+                    sendTitleAll("Good luck, have fun!", "The game will begin in 30 seconds!");
+                    sendMultipleMessageAll(new String[]{
+                            ChatColor.GREEN + "" + ChatColor.BOLD + "Here's a recap:\n" + ChatColor.RESET +
+                                    "This map is " + ChatColor.BOLD + "Terra Swoop Force" + ChatColor.RESET + ", by Noxcrew\n" +
+                                    " \n" +
+                                    " \n",
+                            ChatColor.GREEN + "" + ChatColor.BOLD + "How to play:\n" + ChatColor.RESET +
+                                    "1. Use your elytra to fly through the tunnels \n" +
+                                    "2. Finishing gives you 400 points!\n" +
+                                    "3. You get 50 points for every person you come in front of\n" +
+                                    "4. Go as far as you can (you can still get points for partial completion)!",
+                    }, new int[]{
+                            120,
+                            45,
+                    });
+
+                    barriers.setBarrier(world);
+                    players.forEach(player -> {
+                        for (int i = 0; i < 3; i++) {
+                            player.maxDistance[i] = 0;
+                            player.completedTime[i] = Integer.MAX_VALUE;
+                        }
+                    });
+                    offlinePlayers.forEach(offlinePlayer -> {
+                        for (int i = 0; i < 3; i++) {
+                            offlinePlayer.maxDistance[i] = 0;
+                            offlinePlayer.completedTime[i] = Integer.MAX_VALUE;
+                        }
+                    });
+                }
+
                 barriers.setBarrier(world);
                 players.forEach(player -> {
                     player.reset(GameMode.ADVENTURE);
@@ -171,6 +233,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                     player.teleport(startingLocation[tunnel]);
                     player.dead = false;
                 });
+
                 MusicManager.Music music1 = new MusicManager.Music("tsf:music.glidermusic1", 140.8);
                 MusicManager.Music music2 = new MusicManager.Music("tsf:music.glidermusic2", 140.8);
                 MCGMain.musicManager.playMusicBackgroundSequence(p -> p.index == 0 ? music1 : music2);
@@ -220,6 +283,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                     timerInProgress.set(TIMER_INPROGRESS);
                     timerStartGame.start();
                 } else {
+                    elytraRunEnd();
                     timerFinished.start();
                 }
             }
@@ -244,7 +308,10 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
                 sendTitleAll("Joining Lobby...", "", 5, 20, 30);
                 MCGMain.bungeeManager.sendAllPlayers(MCGMain.lobbyId, false, true);
 
+                barriers.clearBarrier(world);
+                tunnel = 0;
                 state = GAME_WAITING;
+                startDone = false;
                 timerStartGame.set(TIMER_STARTING);
                 timerInProgress.set(TIMER_INPROGRESS);
                 timerFinished.set(TIMER_FINISHED);
@@ -254,39 +321,31 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
         ArrayList<CutsceneStep> steps = new ArrayList<>();
         int time = 0;
         steps.add(new CutsceneStep(time)
-                .pos(10000, 21, 24, -90, 40)
-                .title("Welcome to Dodgeball", "Map made by SkyGames Team", 60)
-                .freeze(50));
-        steps.add(new CutsceneStep(time += 70)
-                .pos(10015.75, 3.5, 6.5, -180, 8)
-                .comment("To Spawn Door")
-                .linear());
+                .pos(317.5, 240, 679.5, 0, 90)
+                .title("Welcome to ElytraRun", "Map (Terra Swoop Force) made by Noxcrew", 60)
+                .freeze(20));
         steps.add(new CutsceneStep(time += 30)
-                .pos(10014.5, 6.5, 0.25, 0, 52)
-                .title("This is your spawn", "You will start with three lives", 60)
-                .linear()
-                .freeze(50));
-        steps.add(new CutsceneStep(time += 60)
-                .pos(10014.5, 3.5, 6.5, -180, 8)
-                .comment("To Spawn Door")
+                .pos(317.5, 227, 679.5, 0, 45)
                 .linear());
-        steps.add(new CutsceneStep(time += 30)
-                .pos(10011, 5.3, 10.5, -140, 20)
-                .title("You will have invincibility", "until you leave the spawn door", 60)
-                .linear()
-                .freeze(50));
-        steps.add(new CutsceneStep(time += 65)
-                .pos(10017, 4, 17.3, 126, 29.5f)
-                .title("Arrows will spawn here", "every 10 seconds", 60)
-                .linear()
-                .freeze(50));
-        steps.add(new CutsceneStep(time += 75)
-                .pos(10014.5, 4.5, 4, 0, 0)
-                .title("Each kill is worth 125 points", "Winning the game will award alive team members 250 bonus points each!", 80)
+        steps.add(new CutsceneStep(time += 20)
+                .pos(316.5, 212, 688.5, 0, 10)
                 .linear());
         steps.add(new CutsceneStep(time += 60)
-                .pos(10014.5, 4.5, 4, 0, 0)
+                .pos(315.5, 204, 753.5, 0, 12)
+                .title("Fly through the tunnels", "", 60)
                 .linear());
+        steps.add(new CutsceneStep(time += 60)
+                .pos(314.2, 194, 850.5, -10, 10)
+                .title("Avoid hitting obstacles", "Avoid the ground too", 60)
+                .linear().freeze(60));
+        steps.add(new CutsceneStep(time += 60)
+                .pos(349.5, 47, 1898, 13, 16)
+                .title("Race to the finish", "Or as far as you can go", 60)
+                .freeze(10));
+        steps.add(new CutsceneStep(time += 90)
+                .pos(318, 21, 2055, 2, 20)
+                .title("You get 50 points per player you beat", "And 300 points per stage you complete!", 60)
+                .linear().freeze(90));
 
         startGameTutorial = new Cutscene(plugin, this, steps) {
             @Override
@@ -316,25 +375,93 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     }
 
     public void elytraRunRoundEnd() {
-        List<PlayerElytraRun> sortedPlayers = getSortedPlayers();
+        List<PlayerElytraRun> sortedPlayers = getSortedPlayers(this.tunnel);
 
         int prizePool = 0;
         int position = sortedPlayers.size();
         for (PlayerElytraRun player : sortedPlayers) {
-            player.addScore(prizePool += 100, "finished " + --position);
-            player.bukkitPlayer.sendMessage(ChatColor.WHITE + "" + ChatColor.BOLD + "[+" + prizePool + "] " +
-                    ChatColor.RESET + "you completed tunnel " + (this.tunnel + 1) + " in position " + (position + 1) + "/" + sortedPlayers.size());
+            player.addScore(prizePool += 50, "finished " + --position);
+            if(player.bukkitPlayer != null) {
+                player.bukkitPlayer.sendMessage(ChatColor.WHITE + "" + ChatColor.BOLD + "[+" + prizePool + "] " +
+                        ChatColor.RESET + "you completed tunnel " + (this.tunnel + 1) + " in position " + (position + 1) + "/" + sortedPlayers.size());
+            }
         }
+
+        String roundPlacements = "";
+        Collections.reverse(sortedPlayers);
+        int count = 0;
+        for (PlayerElytraRun player : sortedPlayers) {
+            roundPlacements += ChatColor.RESET + "" + (count + 1) + ". ";
+            if (player.maxDistance[this.tunnel] == Double.POSITIVE_INFINITY)
+                roundPlacements += player.getDisplayName() + "" + ChatColor.RESET + " - " + ListenerElytraRun.timeToString(player.completedTime[this.tunnel]) + "s\n";
+            else
+                roundPlacements += player.getDisplayName() + "" + ChatColor.RESET + " - " + Math.round(100.0 * player.maxDistance[this.tunnel] / tunnelLength(this.tunnel)) + "%\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        sendMessageAll("");
+        sendMessageAll(ChatColor.BOLD + "Stage " + (this.tunnel+1) + " Placements:\n" + roundPlacements + "\n");
+        sendMessageAll("");
     }
 
-    public List<PlayerElytraRun> getSortedPlayers() {
+    public void elytraRunEnd() {
+        ArrayList<PlayerElytraRun> playerElytraRuns = new ArrayList<>();
+        for (PlayerElytraRun player : players) {
+            playerElytraRuns.add(player);
+            player.commit();
+        }
+
+        String topTimes = "";
+        for (int s = 0; s < 3; s++) {
+            List<PlayerElytraRun> sortedPlayers = getSortedPlayers(s);
+            Collections.reverse(sortedPlayers);
+
+            topTimes += ChatColor.RESET + "Stage " + (s+1) + ": ";
+            PlayerElytraRun stageWinner = sortedPlayers.get(0);
+            if (stageWinner.maxDistance[s] == Double.POSITIVE_INFINITY)
+                topTimes += stageWinner.getDisplayName() + "" + ChatColor.RESET + " - " + ListenerElytraRun.timeToString(stageWinner.completedTime[s]) + "s\n";
+            else
+                topTimes += stageWinner.getDisplayName() + "" + ChatColor.RESET + " - " + Math.round(100.0 * stageWinner.maxDistance[s] / tunnelLength(s)) + "%\n";
+        }
+
+        String topPlayers = "";
+        int count = 0;
+        playerElytraRuns.sort(Comparator.comparingInt(o -> -o.getCurrentScore()));
+        for (PlayerElytraRun player : playerElytraRuns) {
+            topPlayers += ChatColor.RESET + "[" + player.getCurrentScore() + "] " + player.getDisplayName() + "\n";
+            if (++count > 5) {
+                break;
+            }
+        }
+
+        String topTeams = "";
+        ArrayList<MCGTeam> teamElytraRuns = getRealTeams();
+        teamElytraRuns.sort(Comparator.comparingInt(o -> -o.getScore("elytrarun")));
+        for (MCGTeam team : teamElytraRuns) {
+            topTeams += ChatColor.RESET + "[" + team.getScore("elytrarun") + "] " + team.chatColor + "" + team.teamname + "\n";
+        }
+
+        sendMultipleMessageAll(new String[]{
+                ChatColor.BOLD + "Best Stage Times:\n" + topTimes + " \n",
+                ChatColor.BOLD + "Top Scoring Players:\n" + topPlayers + " \n",
+                ChatColor.BOLD + "Final Team Score for Elytra Run:\n" + topTeams,
+        }, new int[]{
+                10,
+                60,
+                100,
+        });
+    }
+
+    public List<PlayerElytraRun> getSortedPlayers(int tunnel) {
         return Stream.concat(players.stream(), offlinePlayers.stream())
-                .filter(p -> p.isOnline() || p.maxDistance[this.tunnel] > 1e-9)
+                .filter(p -> p.isOnline() || p.maxDistance[tunnel] > 1e-9)
                 .sorted((a, b) -> {
-                    double aDist = a.maxDistance[this.tunnel];
-                    long aTime = a.completedTime[this.tunnel];
-                    double bDist = b.maxDistance[this.tunnel];
-                    long bTime = b.completedTime[this.tunnel];
+                    double aDist = a.maxDistance[tunnel];
+                    long aTime = a.completedTime[tunnel];
+                    double bDist = b.maxDistance[tunnel];
+                    long bTime = b.completedTime[tunnel];
 
                     if (aDist == Double.POSITIVE_INFINITY && bDist == Double.POSITIVE_INFINITY)
                         return Long.compare(bTime, aTime);
@@ -427,7 +554,7 @@ public class ServerElytraRun extends ServerInterface<PlayerElytraRun> {
     @Override
     public void onEnableCall() {
         super.onEnableCall();
-        MCGMain.resourcePackManager.forceResourcePack("https://play.mcg-private.tk/test.zip", new File(MCGMain.resourcePackRoot, "test.zip"));
+        MCGMain.resourcePackManager.forceResourcePack("http://play.mcg-private.tk:25599/resource.zip", new File(MCGMain.resourcePackRoot, "resource.zip"));
         this.state = GAME_WAITING;
 
         for (PlayerElytraRun p : players){

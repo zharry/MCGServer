@@ -71,8 +71,8 @@ public class ListenerSurvivalGames extends PlayerListenerAdapter<ServerSurvivalG
             // Award all non-dead players some score
             for (PlayerSurvivalGames playerSurvivalGames : server.players) {
                 if (!playerSurvivalGames.dead) {
-                    playerSurvivalGames.addScore(125, player.getDisplayName() + " has died!");
-                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+125]" +
+                    playerSurvivalGames.addScore(150, player.getDisplayName() + " has died!");
+                    playerSurvivalGames.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+150]" +
                             ChatColor.RESET + " survival points, " + player.getDisplayName() + " has died!");
                 }
             }
@@ -81,8 +81,8 @@ public class ListenerSurvivalGames extends PlayerListenerAdapter<ServerSurvivalG
             PlayerSurvivalGames killer = getPlayerInterface(player.bukkitPlayer.getKiller());
             if (killer != null) {
                 killer.kills += 1;
-                killer.addScore(350, "killed " + player.getDisplayName());
-                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+350]" +
+                killer.addScore(400, "killed " + player.getDisplayName());
+                killer.bukkitPlayer.sendMessage(ChatColor.RESET + "" + ChatColor.BOLD + " [+400]" +
                         ChatColor.RESET + " for killing " + player.getDisplayName());
                 player.bukkitPlayer.sendTitle(ChatColor.RED + "You died!", "Killed by " + killer.getDisplayName(), 10, 70, 20);
             }

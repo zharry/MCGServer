@@ -52,6 +52,10 @@ public class Point3D {
         return new Point3D(this.x - p3d.x, this.y - p3d.y, this.z - p3d.z);
     }
 
+    public Point3D multiply(double fac) {
+         return new Point3D(this.x * fac, this.y * fac, this.z * fac);
+    }
+
     public Location toLocation(World world, float yaw, float pitch) {
         return new Location(world, x, y, z, yaw, pitch);
     }

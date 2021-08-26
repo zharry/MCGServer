@@ -55,7 +55,7 @@ public class PlayerElytraRun extends PlayerInterface {
 
         sidebar.add("");
         if (server.state == ServerParkour.GAME_STARTING || server.state == ServerParkour.GAME_INPROGRESS) {
-            List<PlayerElytraRun> sortedPlayers = server.getSortedPlayers();
+            List<PlayerElytraRun> sortedPlayers = server.getSortedPlayers(server.tunnel);
             Collections.reverse(sortedPlayers);
             setRankedDisplayForSidebar(sortedPlayers, this, (player, position, bold) -> {
                 if (player.maxDistance[server.tunnel] == Double.POSITIVE_INFINITY)

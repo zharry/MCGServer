@@ -1,5 +1,6 @@
 package ca.zharry.MinecraftGamesServer.Listeners;
 
+import ca.zharry.MinecraftGamesServer.Players.PlayerLobby;
 import ca.zharry.MinecraftGamesServer.Players.PlayerParkour;
 import ca.zharry.MinecraftGamesServer.Servers.ServerParkour;
 import ca.zharry.MinecraftGamesServer.Utils.LocationUtils;
@@ -11,10 +12,13 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -249,6 +253,16 @@ public class ListenerParkour extends PlayerListenerAdapter<ServerParkour, Player
         Location location = event.getRespawnLocation();
         location.setYaw(90);
         event.setRespawnLocation(location);
+    }
+
+    @Override
+    public void onBlockBreak(PlayerParkour player, BlockBreakEvent event) {
+        event.setCancelled(true);
+    }
+
+    @Override
+    public void onBlockPlace(PlayerParkour player, BlockPlaceEvent event) {
+        event.setCancelled(true);
     }
 
 }

@@ -78,7 +78,9 @@ public class ResourcePackManager {
 			try(FileInputStream fileInput = new FileInputStream(f)) {
 				try(DigestInputStream digestInputStream = new DigestInputStream(fileInput, digest)) {
 					while(digestInputStream.read(buffer) != -1);
-					return bytesToHexString(digest.digest());
+					String str = bytesToHexString(digest.digest());
+					System.out.println(str);
+					return str;
 				}
 			}
 		} catch(Exception e) {
